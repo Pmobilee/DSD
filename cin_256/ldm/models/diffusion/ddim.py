@@ -158,7 +158,7 @@ class DDIMSampler(object):
         # print("time range:", time_range)
         # print(f"Running DDIM Sampling with {total_steps} timesteps")
 
-        iterator = tqdm(time_range, desc='DDIM Sampler', total=total_steps)
+        iterator = tqdm(time_range, desc='DDIM Sampler', total=total_steps, disable=True)
 
         for i, step in enumerate(iterator):
             # print(i)
