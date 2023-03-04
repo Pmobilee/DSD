@@ -75,6 +75,9 @@ class DDIMSampler(object):
                unconditional_guidance_scale=1.,
                keep_intermediates=False,
                unconditional_conditioning=None,
+               intermediate_step=None,
+               total_steps = None,
+               steps_per_sampling = None,
                # this has to come in the same format as the conditioning, # e.g. as encoded tokens, ...
                **kwargs
                ):
@@ -86,14 +89,14 @@ class DDIMSampler(object):
             else:
                 if conditioning.shape[0] != batch_size:
                     print(f"Warning: Got {conditioning.shape[0]} conditionings but batch-size is {batch_size}")
-        if keep_intermediates == True:
-            print("Keeping all intermediate steps")
-        self.make_schedule(ddim_num_steps=S, ddim_eta=eta, verbose=verbose)
+        # if keep_intermediates == True:
+        #     print("Keeping all intermediate steps")
+        if intermediate_step == None:
+            self.make_schedule(ddim_num_steps=S, ddim_eta=eta, verbose=verbose)
         # sampling
         C, H, W = shape
         size = (batch_size, C, H, W)
-        print(f'Data shape for DDIM sampling is {size}, eta {eta}')
-
+        # print(f'Data shape for DDIM sampling is {size}, eta {eta}')
         samples, intermediates = self.ddim_sampling(conditioning, size,
                                                     callback=callback,
                                                     img_callback=img_callback,
@@ -109,6 +112,8 @@ class DDIMSampler(object):
                                                     log_every_t=log_every_t,
                                                     unconditional_guidance_scale=unconditional_guidance_scale,
                                                     unconditional_conditioning=unconditional_conditioning,
+                                                    intermediate_step=intermediate_step, total_steps = total_steps,
+                                                    steps_per_sampling = steps_per_sampling,
                                                     )
         return samples, intermediates
 
@@ -118,7 +123,8 @@ class DDIMSampler(object):
                       callback=None, timesteps=None, quantize_denoised=False,
                       mask=None, x0=None, img_callback=None, log_every_t=100,
                       temperature=1., noise_dropout=0., score_corrector=None, corrector_kwargs=None,
-                      unconditional_guidance_scale=1., unconditional_conditioning=None, keep_intermediates=False):
+                      unconditional_guidance_scale=1., unconditional_conditioning=None, keep_intermediates=False,
+                      intermediate_step=None, total_steps = None, steps_per_sampling = None):
         device = self.model.betas.device
         b = shape[0]
         if x_T is None:
@@ -126,21 +132,40 @@ class DDIMSampler(object):
         else:
             img = x_T
 
-        if timesteps is None:
-            timesteps = self.ddpm_num_timesteps if ddim_use_original_steps else self.ddim_timesteps
-        elif timesteps is not None and not ddim_use_original_steps:
-            subset_end = int(min(timesteps / self.ddim_timesteps.shape[0], 1) * self.ddim_timesteps.shape[0]) - 1
-            timesteps = self.ddim_timesteps[:subset_end]
+        if intermediate_step == None:
+            #                      NOT USED FOR OWN STEP SIZE
+            if timesteps is None:
+                timesteps = self.ddpm_num_timesteps if ddim_use_original_steps else self.ddim_timesteps
+            elif timesteps is not None and not ddim_use_original_steps:
+                subset_end = int(min(timesteps / self.ddim_timesteps.shape[0], 1) * self.ddim_timesteps.shape[0]) - 1
+                timesteps = self.ddim_timesteps[:subset_end]
+            
+            time_range = reversed(range(0,timesteps)) if ddim_use_original_steps else np.flip(timesteps)
+            total_steps = timesteps if ddim_use_original_steps else timesteps.shape[0]
+        else:
+            subset_end = int(min(intermediate_step / self.ddim_timesteps.shape[0], 1) * self.ddim_timesteps.shape[0]) - 1
+            timesteps = self.ddim_timesteps[intermediate_step:intermediate_step+steps_per_sampling]
+            # timesteps = self.ddim_timesteps[step:step+3]
+            time_range = np.flip(self.ddim_timesteps)[intermediate_step:intermediate_step+steps_per_sampling]
+            # time_range = np.flip(timesteps)[step:step+2]
+            total_steps = total_steps
 
+
+        # print("timesteps:", timesteps)
         intermediates = {'x_inter': [img], 'pred_x0': [img]}
-        time_range = reversed(range(0,timesteps)) if ddim_use_original_steps else np.flip(timesteps)
-        total_steps = timesteps if ddim_use_original_steps else timesteps.shape[0]
-        print(f"Running DDIM Sampling with {total_steps} timesteps")
+        
+        # print("time range:", time_range)
+        # print(f"Running DDIM Sampling with {total_steps} timesteps")
 
         iterator = tqdm(time_range, desc='DDIM Sampler', total=total_steps)
 
         for i, step in enumerate(iterator):
-            index = total_steps - i - 1
+            # print(i)
+            if intermediate_step == None:
+                index = total_steps - i - 1
+            else: 
+                index = total_steps - intermediate_step - i - 1
+            print("index:", index)
             ts = torch.full((b,), step, device=device, dtype=torch.long)
 
             if mask is not None:
@@ -192,6 +217,8 @@ class DDIMSampler(object):
         a_prev = torch.full((b, 1, 1, 1), alphas_prev[index], device=device)
         sigma_t = torch.full((b, 1, 1, 1), sigmas[index], device=device)
         sqrt_one_minus_at = torch.full((b, 1, 1, 1), sqrt_one_minus_alphas[index],device=device)
+
+        # print("a_prev", a_prev)
 
         # current prediction for x_0
         pred_x0 = (x - sqrt_one_minus_at * e_t) / a_t.sqrt()
