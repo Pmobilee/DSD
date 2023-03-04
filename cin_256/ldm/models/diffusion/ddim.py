@@ -97,7 +97,7 @@ class DDIMSampler(object):
         C, H, W = shape
         size = (batch_size, C, H, W)
         # print(f'Data shape for DDIM sampling is {size}, eta {eta}')
-        samples, intermediates = self.ddim_sampling(conditioning, size,
+        samples, intermediates, x_T_copy = self.ddim_sampling(conditioning, size,
                                                     callback=callback,
                                                     img_callback=img_callback,
                                                     quantize_denoised=quantize_x0,
@@ -115,7 +115,7 @@ class DDIMSampler(object):
                                                     intermediate_step=intermediate_step, total_steps = total_steps,
                                                     steps_per_sampling = steps_per_sampling,
                                                     )
-        return samples, intermediates
+        return samples, intermediates, x_T_copy
 
     @torch.no_grad()
     def ddim_sampling(self, cond, shape,
@@ -129,9 +129,10 @@ class DDIMSampler(object):
         b = shape[0]
         if x_T is None:
             img = torch.randn(shape, device=device)
+            
         else:
             img = x_T
-
+        x_T_copy = img
         if intermediate_step == None:
             #                      NOT USED FOR OWN STEP SIZE
             if timesteps is None:
@@ -165,7 +166,7 @@ class DDIMSampler(object):
                 index = total_steps - i - 1
             else: 
                 index = total_steps - intermediate_step - i - 1
-            print("index:", index)
+            # print("index:", index)
             ts = torch.full((b,), step, device=device, dtype=torch.long)
 
             if mask is not None:
@@ -187,7 +188,7 @@ class DDIMSampler(object):
                 intermediates['x_inter'].append(img)
                 intermediates['pred_x0'].append(pred_x0)
 
-        return img, intermediates
+        return img, intermediates, x_T_copy
 
     @torch.no_grad()
     def p_sample_ddim(self, x, c, t, index, repeat_noise=False, use_original_steps=False, quantize_denoised=False,
