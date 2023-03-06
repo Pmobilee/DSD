@@ -3,3 +3,5 @@ pretrained\
 *.jpg
 *.jpeg
 *.pack
+*.pt
+*.p
