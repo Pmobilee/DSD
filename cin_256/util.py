@@ -14,6 +14,7 @@ from ldm.models.diffusion.ddim import DDIMSampler
 from ldm.util import *
 import torch.nn as nn
 import matplotlib.pyplot as plt
+import copy
 
 cwd = os.getcwd()
 
@@ -256,3 +257,152 @@ def teacher_train_student(teacher, sampler_teacher, student, sampler_student, st
     plt.ylabel("px MSE")
     plt.title("MSEloss student vs teacher")
     plt.show()
+
+
+@torch.enable_grad()
+def train_student_from_dataset(model, sampler, dataset, student_steps, lr=0.00000001, early_stop=False):
+    device = torch.device("cuda")
+    model.requires_grad=True
+    sampler.requires_grad=True
+    for param in sampler.model.parameters():
+        param.requires_grad = True
+
+    for param in model.model.parameters():
+        param.requires_grad = True
+    MSEloss = nn.MSELoss()
+    ddim_steps_student = student_steps
+    STUDENT_STEPS = 1
+    ddim_eta = 0.0
+    scale = 3.0
+
+    averaged_losses = []
+    teacher_samples = list()
+
+    optimizer = torch.optim.Adam(sampler.model.parameters(), lr=lr)
+
+    with torch.no_grad():
+        
+        with model.ema_scope():
+            uc = model.get_learned_conditioning({model.cond_stage_key: torch.tensor(1*[1000]).to(model.device)})
+
+            with tqdm.tqdm(range(len(dataset))) as tepoch:
+                    for i, _ in enumerate(tepoch):
+                        class_prompt = dataset[str(i)]["class"]
+                        losses = []
+                        sampler.make_schedule(ddim_num_steps=ddim_steps_student, ddim_eta=ddim_eta, verbose=False)
+                        xc = torch.tensor([class_prompt])
+                        c = model.get_learned_conditioning({model.cond_stage_key: xc.to(model.device)})
+                        sampler.make_schedule(ddim_num_steps=ddim_steps_student, ddim_eta=ddim_eta, verbose=False)
+                        c_student = model.get_learned_conditioning({model.cond_stage_key: xc.to(model.device)})
+                        
+                        for steps, x_T in enumerate(dataset[str(i)]["intermediates"]):
+                            if steps == ddim_steps_student:
+                                continue
+                            with torch.enable_grad():
+                                optimizer.zero_grad()
+                                x_T.requires_grad=True
+                                
+                                samples_ddim_student, student_intermediate, x_T_copy = sampler.sample_student(S=STUDENT_STEPS,
+                                                                conditioning=c_student,
+                                                                batch_size=1,
+                                                                shape=[3, 64, 64],
+                                                                verbose=False,
+                                                                x_T=x_T,
+                                                                unconditional_guidance_scale=scale,
+                                                                unconditional_conditioning=uc, 
+                                                                eta=ddim_eta,
+                                                                keep_intermediates=False,
+                                                                intermediate_step = steps*STUDENT_STEPS,
+                                                                steps_per_sampling = STUDENT_STEPS,
+                                                                total_steps = ddim_steps_student)
+                                
+                                x_T_student = student_intermediate["x_inter"][-1]
+                                loss = MSEloss(x_T_student, dataset[str(i)]["intermediates"][steps+1])
+                                loss.backward()
+                                optimizer.step()
+                                # x_T.detach()
+                                losses.append(loss.item())
+                                
+
+                        # print("Loss: ", round(sum(losses) / len(losses), 5), end= " - ")
+                        averaged_losses.append(sum(losses) / len(losses))
+                        tepoch.set_postfix(loss=averaged_losses[-1])
+                        if early_stop == True and i > 1:
+                            if averaged_losses[-1] > (10*averaged_losses[-2]):
+                                print(f"Early stop initiated: Prev loss: {round(averaged_losses[-2], 5)}, Current loss: {round(averaged_losses[-1], 5)}")
+                                plt.plot(range(len(averaged_losses)), averaged_losses, label="MSE LOSS")
+                                plt.xlabel("Generations")
+                                plt.ylabel("px MSE")
+                                plt.title("MSEloss student vs teacher")
+                                plt.show()
+                                return 
+                                                                    
+    plt.plot(range(len(averaged_losses)), averaged_losses, label="MSE LOSS")
+    plt.xlabel("Generations")
+    plt.ylabel("px MSE")
+    plt.title("MSEloss student vs teacher")
+    plt.show()
+
+@torch.no_grad()
+def create_models(config_path, model_path, student=False):
+    model = get_model(config_path=config_path, model_path=model_path)
+    sampler = DDIMSampler(model)
+    if student == True:
+        student = copy.deepcopy(model)
+        sampler_student = DDIMSampler(student)
+        return model, sampler, student, sampler_student
+    else:
+        return model, sampler
+
+
+@torch.no_grad()
+def compare_teacher_student(teacher, sampler_teacher, student, sampler_student, steps=[10]):
+    scale = 3.0
+    eta = 0.0
+    ddim_eta = 0.0
+    images = []
+
+    with torch.no_grad():
+        with teacher.ema_scope():
+            for sampling_steps in steps:
+                class_image = torch.randint(0, 999, (1,))
+                uc = teacher.get_learned_conditioning({teacher.cond_stage_key: torch.tensor(1*[1000]).to(teacher.device)})
+                xc = torch.tensor([class_image])
+                c = teacher.get_learned_conditioning({teacher.cond_stage_key: xc.to(teacher.device)})
+                teacher_samples_ddim, _, x_T_copy = sampler_teacher.sample(S=sampling_steps,
+                                                    conditioning=c,
+                                                    batch_size=1,
+                                                    x_T=None,
+                                                    shape=[3, 64, 64],
+                                                    verbose=False,
+                                                    unconditional_guidance_scale=scale,
+                                                    unconditional_conditioning=uc, 
+                                                    eta=ddim_eta)
+
+                x_samples_ddim = teacher.decode_first_stage(teacher_samples_ddim)
+                x_samples_ddim = torch.clamp((x_samples_ddim+1.0)/2.0, min=0.0, max=1.0)
+                images.append(x_samples_ddim)
+
+                uc = student.get_learned_conditioning({student.cond_stage_key: torch.tensor(1*[1000]).to(student.device)})
+                c = student.get_learned_conditioning({student.cond_stage_key: xc.to(student.device)})
+                student_samples_ddim, _, x_T_delete = sampler_student.sample(S=sampling_steps,
+                                                    conditioning=c,
+                                                    batch_size=1,
+                                                    x_T=x_T_copy,
+                                                    shape=[3, 64, 64],
+                                                    verbose=False,
+                                                    unconditional_guidance_scale=scale,
+                                                    unconditional_conditioning=uc, 
+                                                    eta=ddim_eta)
+
+                x_samples_ddim = student.decode_first_stage(student_samples_ddim)
+                x_samples_ddim = torch.clamp((x_samples_ddim+1.0)/2.0, min=0.0, max=1.0)
+                images.append(x_samples_ddim)
+
+    grid = torch.stack(images, 0)
+    grid = rearrange(grid, 'n b c h w -> (n b) c h w')
+    grid = make_grid(grid, nrow=2)
+
+    # to image
+    grid = 255. * rearrange(grid, 'c h w -> h w c').cpu().numpy()
+    return Image.fromarray(grid.astype(np.uint8))
