@@ -1,7 +1,9 @@
 *.ckpt
-pretrained\
+pretrained/
+cin_256/wandb/
 *.jpg
 *.jpeg
 *.pack
 *.pt
 *.p
+*.wandb

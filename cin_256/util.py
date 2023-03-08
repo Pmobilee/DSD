@@ -15,8 +15,32 @@ from ldm.util import *
 import torch.nn as nn
 import matplotlib.pyplot as plt
 import copy
+import wandb
+import math
 
 cwd = os.getcwd()
+
+
+def get_optimizer(sampler, iterations, lr=3e-4):
+    optimizer = torch.optim.Adam(sampler.model.parameters(), betas=(0.999, 0.999), lr=lr, eps=1e-08, weight_decay=0.001)
+    scheduler = torch.optim.lr_scheduler.LinearLR(optimizer, start_factor=1, end_factor=0.000000001, total_iters=iterations, last_epoch=-1, verbose=False)
+    return optimizer, scheduler
+
+def wandb_log(name, lr, model, tags, notes):
+    session = wandb.init(
+    # Set the project where this run will be logged
+    project="diffusion-thesis", 
+    # We pass a run name (otherwise it’ll be randomly assigned, like sunshine-lollypop-10)
+    name=name, 
+    # Track hyperparameters and run metadata
+    config={
+    "learning_rate": lr,
+    "architecture": "Diffusion Model",
+    "dataset": "CIFAR-1000"},
+    tags=tags,
+    notes=notes)
+    session.watch(model, log="all", log_freq=1)
+    return session
 
 def instantiate_from_config(config):
     if not "target" in config:
@@ -173,9 +197,8 @@ def make_dataset(model, sampler, num_images, sampling_steps, path, name):
     
 
 
-def teacher_train_student(teacher, sampler_teacher, student, sampler_student, steps=20, lr = 0.00000001, generations=200, early_stop=True):
+def teacher_train_student(teacher, sampler_teacher, student, sampler_student, optimizer, scheduler, session=None, steps=20, lr = 0.00000001, generations=200, early_stop=True):
     
-    MSEloss = nn.MSELoss()
 
     NUM_CLASSES = 1000
     generations = generations
@@ -186,11 +209,10 @@ def teacher_train_student(teacher, sampler_teacher, student, sampler_student, st
     ddim_eta = 0.0
     scale = 3.0
     updates = int(ddim_steps_teacher / TEACHER_STEPS)
-
+    optimizer=optimizer
     averaged_losses = []
     teacher_samples = list()
-
-    optimizer = torch.optim.Adam(sampler_student.model.parameters(), lr=lr)
+    criterion = nn.MSELoss()
 
     with torch.no_grad():
         
@@ -198,12 +220,13 @@ def teacher_train_student(teacher, sampler_teacher, student, sampler_student, st
                 uc = teacher.get_learned_conditioning(
                         {teacher.cond_stage_key: torch.tensor(1*[1000]).to(teacher.device)}
                         )
-                
+                sampler_teacher.make_schedule(ddim_num_steps=ddim_steps_teacher, ddim_eta=ddim_eta, verbose=False)
+                sampler_student.make_schedule(ddim_num_steps=ddim_steps_student, ddim_eta=ddim_eta, verbose=False)
                 # for class_prompt in tqdm.tqdm(torch.randint(0, NUM_CLASSES, (generations,))):
                 with tqdm.tqdm(torch.randint(0, NUM_CLASSES, (generations,))) as tepoch:
                         for i, class_prompt in enumerate(tepoch):
                             losses = []
-                            sampler_teacher.make_schedule(ddim_num_steps=ddim_steps_teacher, ddim_eta=ddim_eta, verbose=False)
+                            
                             xc = torch.tensor([class_prompt])
                             c = teacher.get_learned_conditioning({teacher.cond_stage_key: xc.to(teacher.device)})
                             x_T = None
@@ -228,7 +251,7 @@ def teacher_train_student(teacher, sampler_teacher, student, sampler_student, st
                                     with torch.enable_grad():
                                             # sampler_student.make_schedule(ddim_num_steps=ddim_steps_student, ddim_eta=ddim_eta, verbose=False)
                                             optimizer.zero_grad()
-                                            samples_ddim_student, student_intermediate, x_T_copy = sampler_student.sample_student(S=STUDENT_STEPS,
+                                            samples_ddim_student, student_intermediate, x_T_copy, a_t = sampler_student.sample_student(S=STUDENT_STEPS,
                                                                             conditioning=c_student,
                                                                             batch_size=1,
                                                                             shape=[3, 64, 64],
@@ -243,13 +266,18 @@ def teacher_train_student(teacher, sampler_teacher, student, sampler_student, st
                                                                             total_steps = ddim_steps_student)
                                             
                                             x_T_student = student_intermediate["x_inter"][-1]
-                                            loss = MSEloss(x_T_student, x_T)
+                                            loss = max(math.log(a_t / (1-a_t)), 1) *  criterion(x_T_student, x_T)
                                             loss.backward()
                                             optimizer.step()
+                                            scheduler.step()
                                             losses.append(loss.item())
+                                            if session != None:
+                                                session.log({"intermediate_loss":loss.item()})
 
                             # print("Loss: ", round(sum(losses) / len(losses), 5), end= " - ")
                             averaged_losses.append(sum(losses) / len(losses))
+                            if session != None:
+                                session.log({"generation_loss":averaged_losses[-1]})
                             tepoch.set_postfix(loss=averaged_losses[-1])
                             if early_stop == True and i > 1:
                                 if averaged_losses[-1] > (10*averaged_losses[-2]):
@@ -269,7 +297,7 @@ def teacher_train_student(teacher, sampler_teacher, student, sampler_student, st
 
 
 @torch.enable_grad()
-def train_student_from_dataset(model, sampler, dataset, student_steps, lr=0.00000001, early_stop=False):
+def train_student_from_dataset(model, sampler, dataset, student_steps, optimizer, scheduler, lr=0.00000001, early_stop=False, session=None):
     device = torch.device("cuda")
     model.requires_grad=True
     sampler.requires_grad=True
@@ -278,7 +306,7 @@ def train_student_from_dataset(model, sampler, dataset, student_steps, lr=0.0000
 
     for param in model.model.parameters():
         param.requires_grad = True
-    MSEloss = nn.MSELoss()
+    MSEloss = model.criterion
     ddim_steps_student = student_steps
     STUDENT_STEPS = 1
     ddim_eta = 0.0
@@ -286,8 +314,8 @@ def train_student_from_dataset(model, sampler, dataset, student_steps, lr=0.0000
 
     averaged_losses = []
     teacher_samples = list()
-
-    optimizer = torch.optim.Adam(sampler.model.parameters(), lr=lr)
+    criterion = nn.MSELoss()
+    optimizer = optimizer
 
     with torch.no_grad():
         
@@ -311,7 +339,7 @@ def train_student_from_dataset(model, sampler, dataset, student_steps, lr=0.0000
                                 optimizer.zero_grad()
                                 x_T.requires_grad=True
                                 
-                                samples_ddim_student, student_intermediate, x_T_copy = sampler.sample_student(S=STUDENT_STEPS,
+                                samples_ddim_student, student_intermediate, x_T_copy, a_t = sampler.sample_student(S=STUDENT_STEPS,
                                                                 conditioning=c_student,
                                                                 batch_size=1,
                                                                 shape=[3, 64, 64],
@@ -326,16 +354,22 @@ def train_student_from_dataset(model, sampler, dataset, student_steps, lr=0.0000
                                                                 total_steps = ddim_steps_student)
                                 
                                 x_T_student = student_intermediate["x_inter"][-1]
-                                loss = MSEloss(x_T_student, dataset[str(i)]["intermediates"][steps+1])
+                                # loss = criterion(x_T_student, dataset[str(i)]["intermediates"][steps+1])
+                                loss = max(math.log(a_t / (1-a_t)), 1) *  criterion(x_T_student, dataset[str(i)]["intermediates"][steps+1])
                                 loss.backward()
                                 optimizer.step()
+                                scheduler.step()
                                 # x_T.detach()
                                 losses.append(loss.item())
+                                if session != None:
+                                    session.log({"loss":loss.item()})
                                 
 
                         # print("Loss: ", round(sum(losses) / len(losses), 5), end= " - ")
                         averaged_losses.append(sum(losses) / len(losses))
                         tepoch.set_postfix(loss=averaged_losses[-1])
+                        if session != None:
+                            session.log({"generation_loss":averaged_losses[-1]})
                         if early_stop == True and i > 1:
                             if averaged_losses[-1] > (10*averaged_losses[-2]):
                                 print(f"Early stop initiated: Prev loss: {round(averaged_losses[-2], 5)}, Current loss: {round(averaged_losses[-1], 5)}")
