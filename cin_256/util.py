@@ -57,14 +57,14 @@ def load_trained(model_path, config):
     sampler = DDIMSampler(model)
     return model, sampler, ckpt["optimizer"], ckpt["scheduler"]
 
-def get_optimizer(sampler, iterations, lr=1e-8):
+def get_optimizer(sampler, iterations, lr=0.00000001):
     """
     Params: sampler, iterations, lr=1e-8. Task: 
     returns both an optimizer (Adam, lr=1e-8, eps=1e-08, decay=0.001), and a scheduler for the optimizer
     going from a learning rate of 1e-8 to 0 over the course of the specified iterations
     """
-    optimizer = torch.optim.Adam(sampler.model.parameters(), betas=(0.999, 0.999), lr=lr, eps=1e-08, weight_decay=0.001)
-    scheduler = torch.optim.lr_scheduler.LinearLR(optimizer, start_factor=1, end_factor=0.000000001, total_iters=iterations, last_epoch=-1, verbose=False)
+    optimizer = torch.optim.Adam(sampler.model.parameters(), lr=lr, betas=(0.9, 0.9999), eps=1e-08, weight_decay=0.001)
+    scheduler = torch.optim.lr_scheduler.LinearLR(optimizer, start_factor=1, end_factor=0.0000001, total_iters=iterations, last_epoch=-1, verbose=False)
     return optimizer, scheduler
 
 def wandb_log(name, lr, model, tags, notes):
@@ -76,7 +76,7 @@ def wandb_log(name, lr, model, tags, notes):
     project="diffusion-thesis", 
     name=name, 
     config={"learning_rate": lr, "architecture": "Diffusion Model","dataset": "CIFAR-1000"}, tags=tags, notes=notes)
-    session.watch(model, log="all", log_freq=1)
+    session.watch(model, log="all", log_freq=100)
     return session
 
 def instantiate_from_config(config):
@@ -295,9 +295,15 @@ def teacher_train_student(teacher, sampler_teacher, student, sampler_student, op
                                                                     intermediate_step = steps*TEACHER_STEPS,
                                                                     steps_per_sampling = TEACHER_STEPS,
                                                                     total_steps = ddim_steps_teacher)
-                                    x_T = teacher_intermediate["x_inter"][-1]
+                                    
+                                    # x_T = teacher_intermediate["x_inter"][-1]
+                                    x_T = samples_ddim
+                                    
+                                    x_T = torch.clamp((x_T+1.0)/2.0, min=0.0, max=1.0)
+                                    x_T_teacher_decode = teacher.decode_first_stage(x_T)
 
                                     with torch.enable_grad():
+                                            
                                             # sampler_student.make_schedule(ddim_num_steps=ddim_steps_student, ddim_eta=ddim_eta, verbose=False)
                                             optimizer.zero_grad()
                                             samples_ddim_student, student_intermediate, x_T_copy, a_t = sampler_student.sample_student(S=STUDENT_STEPS,
@@ -314,10 +320,18 @@ def teacher_train_student(teacher, sampler_teacher, student, sampler_student, op
                                                                             steps_per_sampling = STUDENT_STEPS,
                                                                             total_steps = ddim_steps_student)
                                             
-                                            x_T_student = student_intermediate["x_inter"][-1]
-                                            loss = max(math.log(a_t / (1-a_t)), 1) *  criterion(x_T_student, x_T)
+                                            # x_T_student = student_intermediate["x_inter"][-1]
+                                            x_T_student = samples_ddim_student
+                                            
+                                            x_T_student  = torch.clamp((x_T_student +1.0)/2.0, min=0.0, max=1.0)
+                                            x_T_student_decode = student.differentiable_decode_first_stage(x_T_student)
+                                            # loss = max(math.log(a_t / (1-a_t)), 1) *  criterion(student_target, teacher_target)
+                                            # loss =  criterion(student_target, teacher_target)
+                                            loss = max(math.log(a_t / (1-a_t)), 1) *  criterion(x_T_student_decode, x_T_teacher_decode)
                                             loss.backward()
+                                            torch.nn.utils.clip_grad_norm_(sampler_student.model.parameters(), 1)
                                             optimizer.step()
+                                          
                                             scheduler.step()
                                             losses.append(loss.item())
                                             if session != None:
@@ -334,6 +348,7 @@ def teacher_train_student(teacher, sampler_teacher, student, sampler_student, op
                             averaged_losses.append(sum(losses) / len(losses))
                             if session != None:
                                 session.log({"generation_loss":averaged_losses[-1]})
+                                # session.log({"generation":generation})
                             tepoch.set_postfix(loss=averaged_losses[-1])
                             if early_stop == True and i > 1:
                                 if averaged_losses[-1] > (10*averaged_losses[-2]):
@@ -513,10 +528,9 @@ def compare_teacher_student(teacher, sampler_teacher, student, sampler_student, 
     return Image.fromarray(grid.astype(np.uint8)), grid.astype(np.uint8)
 
 def distill(ddim_steps, generations, run_name, config, original_model_path):
-    run_name = "first_try"
     for index, step in enumerate(ddim_steps):
         steps = int(step / 2)
-        generations = generations // ddim_steps[index]
+        model_generations = generations // ddim_steps[index]
         if index == 0:
             config_path=config
             model_path=original_model_path
@@ -526,10 +540,10 @@ def distill(ddim_steps, generations, run_name, config, original_model_path):
             teacher, sampler_teacher, optimizer, scheduler = load_trained(model_path, config_path)
             student = copy.deepcopy(teacher)
             sampler_student = DDIMSampler(student)
-        notes = f"""This is a serious attempt to distill the {step} step original teacher into a {steps} step student, trained on 32000 instances"""
+        notes = f"""This is a serious attempt to distill the {step} step original teacher into a {steps} step student, trained on {model_generations * ddim_steps[index]} instances"""
         wandb_session = wandb_log(name=f"Train_student_on_{step}_pretrained", lr=0.00000001, model=student, tags=["distillation", "auto", run_name], notes=notes)
-        optimizer, scheduler = get_optimizer(sampler_student, iterations=generations * steps)
-        teacher_train_student(teacher, sampler_teacher, student, sampler_student, optimizer, scheduler, steps=step, generations=generations, early_stop=True, session=wandb_session, run_name=run_name)
+        optimizer, scheduler = get_optimizer(sampler_student, iterations=model_generations * steps)
+        teacher_train_student(teacher, sampler_teacher, student, sampler_student, optimizer, scheduler, steps=step, generations=model_generations, early_stop=True, session=wandb_session, run_name=run_name)
         save_model(sampler_student, optimizer, scheduler, name="lr8_scheduled", steps=steps, run_name = run_name)
         images, grid = compare_teacher_student(teacher, sampler_teacher, student, sampler_student, steps=[1, 2, 4, 6, 8, 10, 16, 20, 32, 64, 128])
         images = wandb.Image(grid, caption="left: Teacher, right: Student")

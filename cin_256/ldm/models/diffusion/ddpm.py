@@ -764,6 +764,7 @@ class LatentDiffusion(DDPM):
             else:
                 return self.first_stage_model.decode(z)
 
+
     # same as above but without decorator
     def differentiable_decode_first_stage(self, z, predict_cids=False, force_not_quantize=False):
         if predict_cids:

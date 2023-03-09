@@ -119,7 +119,6 @@ class DDIMSampler(object):
                                                     steps_per_sampling = steps_per_sampling,
                                                     )
         return samples, intermediates, x_T_copy
-    
     # @torch.enable_grad()
     @torch.no_grad()
     # @torch.enable_grad()
@@ -289,7 +288,7 @@ class DDIMSampler(object):
         C, H, W = shape
         size = (batch_size, C, H, W)
         # print(f'Data shape for DDIM sampling is {size}, eta {eta}')
-        samples, intermediates, x_T_copy, a_t = self.ddim_sampling_student(conditioning, size,
+        samples, intermediates, x_T_copy, a_t= self.ddim_sampling_student(conditioning, size,
                                                     callback=callback,
                                                     img_callback=img_callback,
                                                     quantize_denoised=quantize_x0,
