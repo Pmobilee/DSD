@@ -18,31 +18,71 @@ import copy
 import wandb
 import math
 
+"""
+This module is property of the Vrije Universiteit Amsterdam, department of Beta Science. It contains in part code
+snippets obtained from Rombach et al., https://github.com/CompVis/latent-diffusion. No rights may be attributed.
+
+The module presents both helper modules for loading, saving, generating from, and training of diffusion models, as
+well as components for the process of knowledge distillation of teacher DDIMs into students, requiring fewer denoising
+steps after every iteration, retaining original sampling quality at reduced computational expense.
+"""
+
+
+
+
+
+# Receiving base current working directory
 cwd = os.getcwd()
 
+def save_model(sampler, optimizer, scheduler, name, steps, run_name):
+    """
+    Params: model, sampler, optimizer, scherduler, name, steps. Task: saves both the student and sampler models under 
+    "/data/trained_models/{steps}/"
+    """
+    path = f"{cwd}/data/trained_models/{run_name}/{steps}/"
+    if not os.path.exists(f"{cwd}/data/trained_models/{run_name}/"):
+        os.mkdir(f"{cwd}/data/trained_models/{run_name}/")
+    if not os.path.exists(path):
+        os.mkdir(path)
+    torch.save({"model":sampler.model.state_dict(), "optimizer":optimizer, "scheduler":scheduler}, path + f"student_{name}.pt")
 
-def get_optimizer(sampler, iterations, lr=3e-4):
+
+def load_trained(model_path, config):
+    config = OmegaConf.load(config)  
+    ckpt = torch.load(model_path)
+    model = instantiate_from_config(config.model)
+    m, u = model.load_state_dict(ckpt["model"], strict=False)
+    model.eval()
+    model.cuda()
+    sampler = DDIMSampler(model)
+    return model, sampler, ckpt["optimizer"], ckpt["scheduler"]
+
+def get_optimizer(sampler, iterations, lr=1e-8):
+    """
+    Params: sampler, iterations, lr=1e-8. Task: 
+    returns both an optimizer (Adam, lr=1e-8, eps=1e-08, decay=0.001), and a scheduler for the optimizer
+    going from a learning rate of 1e-8 to 0 over the course of the specified iterations
+    """
     optimizer = torch.optim.Adam(sampler.model.parameters(), betas=(0.999, 0.999), lr=lr, eps=1e-08, weight_decay=0.001)
     scheduler = torch.optim.lr_scheduler.LinearLR(optimizer, start_factor=1, end_factor=0.000000001, total_iters=iterations, last_epoch=-1, verbose=False)
     return optimizer, scheduler
 
 def wandb_log(name, lr, model, tags, notes):
+    """
+    Params: wandb name, lr, model, wand tags, wandb notes. Task: returns a wandb session with CIFAR-1000 information,
+    logs: Loss, Generational Loss, hardware specs, model gradients
+    """
     session = wandb.init(
-    # Set the project where this run will be logged
     project="diffusion-thesis", 
-    # We pass a run name (otherwise it’ll be randomly assigned, like sunshine-lollypop-10)
     name=name, 
-    # Track hyperparameters and run metadata
-    config={
-    "learning_rate": lr,
-    "architecture": "Diffusion Model",
-    "dataset": "CIFAR-1000"},
-    tags=tags,
-    notes=notes)
+    config={"learning_rate": lr, "architecture": "Diffusion Model","dataset": "CIFAR-1000"}, tags=tags, notes=notes)
     session.watch(model, log="all", log_freq=1)
     return session
 
 def instantiate_from_config(config):
+    """
+    Params: model config file. Task: returns target model features for load_model_from_config()
+    """
     if not "target" in config:
         if config == '__is_first_stage__':
             return None
@@ -52,6 +92,9 @@ def instantiate_from_config(config):
     return get_obj_from_str(config["target"])(**config.get("params", dict()))
 
 def load_model_from_config(config, ckpt):
+    """
+    Params: model config, model_location. Task: returns model with profided model configuration, used by get_model()
+    """
     print(f"Loading model from {ckpt}")
     pl_sd = torch.load(ckpt)#, map_location="cpu")
     sd = pl_sd["state_dict"]
@@ -63,6 +106,9 @@ def load_model_from_config(config, ckpt):
 
 
 def get_model(config_path, model_path):
+    """
+    Params: model configuration path, model path. Task: returns model with specified configuration
+    """
     config = OmegaConf.load(config_path)  
     model = load_model_from_config(config, model_path)
     return model
@@ -70,6 +116,11 @@ def get_model(config_path, model_path):
 
 @torch.no_grad()
 def generate(model, sampler, num_imgs=1, steps=20, eta=0.0, scale=3.0, x_T=None, class_prompt=None, keep_intermediates=False):
+    """
+    Params: model, sampler, num_imgs=1, steps=20, eta=0.0, scale=3.0, x_T=None, class_prompt=None, keep_intermediates=False. 
+    Task: returns final generated samples from the provided model and accompanying sampler. Unless the class prompt is specified,
+    all generated images are of one of the random classes.
+    """
     NUM_CLASSES = 1000
     sampler.make_schedule(ddim_num_steps=steps, ddim_eta=eta, verbose=False)
 
@@ -184,20 +235,15 @@ def make_dataset(model, sampler, num_images, sampling_steps, path, name):
         new_dict["class"] = class_prompt
         new_dict["intermediates"] = intermediates
         dataset[str(i)] = new_dict
-        if (i + 1) % 100 == 0:
-            new_path = path + f"{i+1}_" + name
-            torch.save(dataset, new_path)
-            del dataset
-            dataset = dict()
-    if num_images < 100:
-        new_path = path + f"{num_images}_" + name
-        torch.save(dataset, new_path)
-        del dataset
-        dataset = dict()
+    
+    new_path = path + f"{num_images}_" + name
+    torch.save(dataset, new_path)
+    del dataset
+    dataset = dict()
     
 
 
-def teacher_train_student(teacher, sampler_teacher, student, sampler_student, optimizer, scheduler, session=None, steps=20, lr = 0.00000001, generations=200, early_stop=True):
+def teacher_train_student(teacher, sampler_teacher, student, sampler_student, optimizer, scheduler, session=None, steps=20, generations=200, early_stop=True, run_name="test"):
     
 
     NUM_CLASSES = 1000
@@ -213,7 +259,8 @@ def teacher_train_student(teacher, sampler_teacher, student, sampler_student, op
     averaged_losses = []
     teacher_samples = list()
     criterion = nn.MSELoss()
-
+    generation = 0
+    instance = 0
     with torch.no_grad():
         
         with teacher.ema_scope():
@@ -224,14 +271,16 @@ def teacher_train_student(teacher, sampler_teacher, student, sampler_student, op
                 sampler_student.make_schedule(ddim_num_steps=ddim_steps_student, ddim_eta=ddim_eta, verbose=False)
                 # for class_prompt in tqdm.tqdm(torch.randint(0, NUM_CLASSES, (generations,))):
                 with tqdm.tqdm(torch.randint(0, NUM_CLASSES, (generations,))) as tepoch:
+                        
                         for i, class_prompt in enumerate(tepoch):
                             losses = []
-                            
+                            generation += 1
                             xc = torch.tensor([class_prompt])
                             c = teacher.get_learned_conditioning({teacher.cond_stage_key: xc.to(teacher.device)})
                             x_T = None
                             c_student = student.get_learned_conditioning({student.cond_stage_key: xc.to(student.device)})
                             for steps in range(updates):
+                                    instance += 1
                                     # sampler_teacher.make_schedule(ddim_num_steps=ddim_steps_teacher, ddim_eta=ddim_eta, verbose=False)
                                     samples_ddim, teacher_intermediate, x_T_copy = sampler_teacher.sample(S=TEACHER_STEPS,
                                                                     conditioning=c,
@@ -274,6 +323,13 @@ def teacher_train_student(teacher, sampler_teacher, student, sampler_student, op
                                             if session != None:
                                                 session.log({"intermediate_loss":loss.item()})
 
+                                    if instance % 10000 == 0 and generation > 2:
+                                        save_model(sampler_student, optimizer, scheduler, name=f"intermediate_{instance}", steps=ddim_steps_student, run_name=run_name)
+                                        images, grid = compare_teacher_student(teacher, sampler_teacher, student, sampler_student, steps=[1, 2, 4, 6, 8, 10, 16, 20, 32, 64, 128])
+                                        images = wandb.Image(grid, caption=f"{instance} steps, left: Teacher, right: Student")
+                                        wandb.log({"Intermediate": images})
+
+
                             # print("Loss: ", round(sum(losses) / len(losses), 5), end= " - ")
                             averaged_losses.append(sum(losses) / len(losses))
                             if session != None:
@@ -297,7 +353,7 @@ def teacher_train_student(teacher, sampler_teacher, student, sampler_student, op
 
 
 @torch.enable_grad()
-def train_student_from_dataset(model, sampler, dataset, student_steps, optimizer, scheduler, lr=0.00000001, early_stop=False, session=None):
+def train_student_from_dataset(model, sampler, dataset, student_steps, optimizer, scheduler, early_stop=False, session=None, run_name="test"):
     device = torch.device("cuda")
     model.requires_grad=True
     sampler.requires_grad=True
@@ -316,7 +372,8 @@ def train_student_from_dataset(model, sampler, dataset, student_steps, optimizer
     teacher_samples = list()
     criterion = nn.MSELoss()
     optimizer = optimizer
-
+    generation = 0
+    instance = 0
     with torch.no_grad():
         
         with model.ema_scope():
@@ -331,8 +388,9 @@ def train_student_from_dataset(model, sampler, dataset, student_steps, optimizer
                         c = model.get_learned_conditioning({model.cond_stage_key: xc.to(model.device)})
                         sampler.make_schedule(ddim_num_steps=ddim_steps_student, ddim_eta=ddim_eta, verbose=False)
                         c_student = model.get_learned_conditioning({model.cond_stage_key: xc.to(model.device)})
-                        
+                        generation += 1
                         for steps, x_T in enumerate(dataset[str(i)]["intermediates"]):
+                            instance += 0
                             if steps == ddim_steps_student:
                                 continue
                             with torch.enable_grad():
@@ -362,7 +420,10 @@ def train_student_from_dataset(model, sampler, dataset, student_steps, optimizer
                                 # x_T.detach()
                                 losses.append(loss.item())
                                 if session != None:
-                                    session.log({"loss":loss.item()})
+                                    session.log({"loss":loss.item()})  
+                                if instance % 10000 == 0 and generation > 2:
+                                    save_model(sampler, optimizer, scheduler, name=f"intermediate_{instance}", steps=student_steps, run_name=run_name)
+                            
                                 
 
                         # print("Loss: ", round(sum(losses) / len(losses), 5), end= " - ")
@@ -370,6 +431,7 @@ def train_student_from_dataset(model, sampler, dataset, student_steps, optimizer
                         tepoch.set_postfix(loss=averaged_losses[-1])
                         if session != None:
                             session.log({"generation_loss":averaged_losses[-1]})
+                            session.log({"generation":generation})
                         if early_stop == True and i > 1:
                             if averaged_losses[-1] > (10*averaged_losses[-2]):
                                 print(f"Early stop initiated: Prev loss: {round(averaged_losses[-2], 5)}, Current loss: {round(averaged_losses[-1], 5)}")
@@ -448,4 +510,30 @@ def compare_teacher_student(teacher, sampler_teacher, student, sampler_student, 
 
     # to image
     grid = 255. * rearrange(grid, 'c h w -> h w c').cpu().numpy()
-    return Image.fromarray(grid.astype(np.uint8))
+    return Image.fromarray(grid.astype(np.uint8)), grid.astype(np.uint8)
+
+def distill(ddim_steps, generations, run_name, config, original_model_path):
+    run_name = "first_try"
+    for index, step in enumerate(ddim_steps):
+        steps = int(step / 2)
+        generations = generations // ddim_steps[index]
+        if index == 0:
+            config_path=config
+            model_path=original_model_path
+            teacher, sampler_teacher, student, sampler_student = create_models(config_path, model_path, student=True)
+        else:
+            model_path = f"{cwd}/data/trained_models/{run_name}/{ddim_steps[index]}/student_lr8_scheduled.pt"
+            teacher, sampler_teacher, optimizer, scheduler = load_trained(model_path, config_path)
+            student = copy.deepcopy(teacher)
+            sampler_student = DDIMSampler(student)
+        notes = f"""This is a serious attempt to distill the {step} step original teacher into a {steps} step student, trained on 32000 instances"""
+        wandb_session = wandb_log(name=f"Train_student_on_{step}_pretrained", lr=0.00000001, model=student, tags=["distillation", "auto", run_name], notes=notes)
+        optimizer, scheduler = get_optimizer(sampler_student, iterations=generations * steps)
+        teacher_train_student(teacher, sampler_teacher, student, sampler_student, optimizer, scheduler, steps=step, generations=generations, early_stop=True, session=wandb_session, run_name=run_name)
+        save_model(sampler_student, optimizer, scheduler, name="lr8_scheduled", steps=steps, run_name = run_name)
+        images, grid = compare_teacher_student(teacher, sampler_teacher, student, sampler_student, steps=[1, 2, 4, 6, 8, 10, 16, 20, 32, 64, 128])
+        images = wandb.Image(grid, caption="left: Teacher, right: Student")
+        wandb.log({"Comparison": images})
+        wandb.finish()
+        del teacher, sampler_teacher, student, sampler_student, optimizer, scheduler
+        torch.cuda.empty_cache()
