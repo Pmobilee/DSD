@@ -100,7 +100,7 @@ class DDIMSampler(object):
         C, H, W = shape
         size = (batch_size, C, H, W)
         # print(f'Data shape for DDIM sampling is {size}, eta {eta}')
-        samples, intermediates, x_T_copy = self.ddim_sampling(conditioning, size,
+        samples, intermediates, x_T_copy, pred_x0 = self.ddim_sampling(conditioning, size,
                                                     callback=callback,
                                                     img_callback=img_callback,
                                                     quantize_denoised=quantize_x0,
@@ -118,7 +118,7 @@ class DDIMSampler(object):
                                                     intermediate_step=intermediate_step, total_steps = total_steps,
                                                     steps_per_sampling = steps_per_sampling,
                                                     )
-        return samples, intermediates, x_T_copy
+        return samples, intermediates, x_T_copy, pred_x0
     # @torch.enable_grad()
     @torch.no_grad()
     # @torch.enable_grad()
@@ -192,7 +192,7 @@ class DDIMSampler(object):
                 intermediates['x_inter'].append(img)
                 intermediates['pred_x0'].append(pred_x0)
 
-        return img, intermediates, x_T_copy
+        return img, intermediates, x_T_copy, pred_x0
 
     # @torch.enable_grad()
     @torch.no_grad()
@@ -288,7 +288,7 @@ class DDIMSampler(object):
         C, H, W = shape
         size = (batch_size, C, H, W)
         # print(f'Data shape for DDIM sampling is {size}, eta {eta}')
-        samples, intermediates, x_T_copy, a_t= self.ddim_sampling_student(conditioning, size,
+        samples, intermediates, x_T_copy, a_t, pred_x0= self.ddim_sampling_student(conditioning, size,
                                                     callback=callback,
                                                     img_callback=img_callback,
                                                     quantize_denoised=quantize_x0,
@@ -306,7 +306,7 @@ class DDIMSampler(object):
                                                     intermediate_step=intermediate_step, total_steps = total_steps,
                                                     steps_per_sampling = steps_per_sampling,
                                                     )
-        return samples, intermediates, x_T_copy, a_t
+        return samples, intermediates, x_T_copy, a_t, pred_x0
     
     #### FOR THE STUDENT!!!!!!!!!!
     # @torch.no_grad()
@@ -381,7 +381,7 @@ class DDIMSampler(object):
                 intermediates['x_inter'].append(img)
                 intermediates['pred_x0'].append(pred_x0)
 
-        return img, intermediates, x_T_copy, a_t
+        return img, intermediates, x_T_copy, a_t, pred_x0
 
 
     #### FOR THE STUDENT!!!!!!!!!!
