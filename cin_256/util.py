@@ -263,8 +263,8 @@ def teacher_train_student(teacher, sampler_teacher, student, sampler_student, op
                 sampler_student.make_schedule(ddim_num_steps=ddim_steps_student, ddim_eta=ddim_eta, verbose=False)
                 # for class_prompt in tqdm.tqdm(torch.randint(0, NUM_CLASSES, (generations,))):
                 with tqdm.tqdm(torch.randint(0, NUM_CLASSES, (generations,))) as tepoch:
-                    generation += 1
                     for i, class_prompt in enumerate(tepoch):
+                        generation += 1
                         uc = teacher.get_learned_conditioning(
                             {teacher.cond_stage_key: torch.tensor(1*[1000]).to(teacher.device)}
                             )
