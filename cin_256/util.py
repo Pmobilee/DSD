@@ -11,12 +11,14 @@ from PIL import Image
 from einops import rearrange
 from torchvision.utils import make_grid
 from ldm.models.diffusion.ddim import DDIMSampler
+from ldm.models.diffusion.plms import PLMSSampler
 from ldm.util import *
 import torch.nn as nn
 import matplotlib.pyplot as plt
 import copy
 import wandb
 import math
+
 
 """
 This module is property of the Vrije Universiteit Amsterdam, department of Beta Science. It contains in part code
@@ -57,7 +59,7 @@ def load_trained(model_path, config):
     sampler = DDIMSampler(model)
     return model, sampler, ckpt["optimizer"], ckpt["scheduler"]
 
-def get_optimizer(sampler, iterations, lr=0.00000001):
+def get_optimizer(sampler, iterations, lr=0.00000003):
     """
     Params: sampler, iterations, lr=1e-8. Task: 
     returns both an optimizer (Adam, lr=1e-8, eps=1e-08, decay=0.001), and a scheduler for the optimizer
@@ -137,7 +139,7 @@ def generate(model, sampler, num_imgs=1, steps=20, eta=0.0, scale=3.0, x_T=None,
                 xc = torch.tensor(num_imgs*[class_prompt])
                 c = model.get_learned_conditioning({model.cond_stage_key: xc.to(model.device)})
                 
-                samples_ddim, _, x_T_copy = sampler.sample(S=steps,
+                samples_ddim, _, x_T_copy, pred_x0 = sampler.sample(S=steps,
                                                 conditioning=c,
                                                 batch_size=1,
                                                 shape=[3, 64, 64],
@@ -295,11 +297,12 @@ def teacher_train_student(teacher, sampler_teacher, student, sampler_student, op
                                                                 total_steps = ddim_steps_teacher)
                                 
                                 # x_T = teacher_intermediate["pred_x0"][-1]
-                                # x_T = samples_ddim
+                                x_T = samples_ddim
                                 
                                 # x_T = torch.clamp((x_T+1.0)/2.0, min=0.0, max=1.0)
-                                x_T_teacher_decode = sampler_teacher.model.decode_first_stage(pred_x0_teacher)
-                                teacher_target = torch.clamp((x_T_teacher_decode+1.0)/2.0, min=0.0, max=1.0)
+                                # x_T_teacher_decode = sampler_teacher.model.decode_first_stage(pred_x0_teacher)
+                                # teacher_target = torch.clamp((x_T_teacher_decode+1.0)/2.0, min=0.0, max=1.0)
+                                
 
                                 with torch.enable_grad():
                                         # sampler_student.make_schedule(ddim_num_steps=ddim_steps_student, ddim_eta=ddim_eta, verbose=False)
@@ -319,14 +322,15 @@ def teacher_train_student(teacher, sampler_teacher, student, sampler_student, op
                                                                         total_steps = ddim_steps_student)
                                         
                                         # x_T_student = student_intermediate["pred_x0"][-1]
-                                        # x_T_student = samples_ddim_student
+                                        x_T_student = samples_ddim_student
                                         
-                                        
-                                        x_T_student_decode = sampler_student.model.differentiable_decode_first_stage(pred_x0_student)
-                                        student_target  = torch.clamp((x_T_student_decode +1.0)/2.0, min=0.0, max=1.0)
-                                        loss = max(math.log(a_t / (1-a_t)), 1) *  criterion(student_target, teacher_target)
+                           
+                                        # x_T_student_decode = sampler_student.model.differentiable_decode_first_stage(pred_x0_student)
+                                        # student_target  = torch.clamp((x_T_student_decode +1.0)/2.0, min=0.0, max=1.0)
+                                        # loss = max(math.log(a_t / (1-a_t)), 1) *  criterion(student_target, teacher_target)
                                         # loss =  criterion(student_target, teacher_target)
-                                        # loss = max(math.log(a_t / (1-a_t)), 1) *  criterion(x_T_student, x_T)
+                                        loss = max(math.log(a_t / (1-a_t)), 1) *  criterion(x_T_student, x_T)
+                                        # loss = max(math.log(a_t / (1-a_t)), 1) *  criterion(x_T_student_decode, x_T_teacher_decode)
                                         loss.backward()
                                         torch.nn.utils.clip_grad_norm_(sampler_student.model.parameters(), 1)
                                         
@@ -343,13 +347,16 @@ def teacher_train_student(teacher, sampler_teacher, student, sampler_student, op
                                     images = wandb.Image(grid, caption=f"{instance} steps, left: Teacher, right: Student")
                                     wandb.log({"Intermediate": images})
 
+                                del samples_ddim, samples_ddim_student, teacher_intermediate, student_intermediate, x_T_copy, a_t, pred_x0_student
+                                torch.cuda.empty_cache()
+
 
                         # print("Loss: ", round(sum(losses) / len(losses), 5), end= " - ")
                         averaged_losses.append(sum(losses) / len(losses))
                         if session != None:
                             session.log({"generation_loss":averaged_losses[-1]})
                         tepoch.set_postfix(epoch_loss=averaged_losses[-1], lr=scheduler.get_last_lr())
-
+                        torch.cuda.empty_cache()
                         if early_stop == True and i > 1:
                             if averaged_losses[-1] > (10*losses[-2]):
                                 print(f"Early stop initiated: Prev loss: {round(averaged_losses[-2], 5)}, Current loss: {round(averaged_losses[-1], 5)}")
@@ -464,6 +471,18 @@ def train_student_from_dataset(model, sampler, dataset, student_steps, optimizer
     plt.title("MSEloss student vs teacher")
     plt.show()
 
+# @torch.no_grad()
+# def create_models(config_path, model_path, student=False):
+#     model = get_model(config_path=config_path, model_path=model_path)
+#     sampler = PLMSSampler(model)
+#     if student == True:
+#         student = copy.deepcopy(model)
+#         sampler_student = PLMSSampler(student)
+#         return model, sampler, student, sampler_student
+#     else:
+#         return model, sampler
+    
+
 @torch.no_grad()
 def create_models(config_path, model_path, student=False):
     model = get_model(config_path=config_path, model_path=model_path)
@@ -530,7 +549,7 @@ def compare_teacher_student(teacher, sampler_teacher, student, sampler_student, 
 def distill(ddim_steps, generations, run_name, config, original_model_path):
     for index, step in enumerate(ddim_steps):
         steps = int(step / 2)
-        model_generations = generations // ddim_steps[index]
+        model_generations = generations // steps
         if index == 0:
             config_path=config
             model_path=original_model_path
@@ -541,11 +560,11 @@ def distill(ddim_steps, generations, run_name, config, original_model_path):
             student = copy.deepcopy(teacher)
             sampler_student = DDIMSampler(student)
         notes = f"""This is a serious attempt to distill the {step} step original teacher into a {steps} step student, trained on {model_generations * ddim_steps[index]} instances"""
-        wandb_session = wandb_log(name=f"Train_student_on_{step}_pretrained", lr=0.00000001, model=student, tags=["distillation", "auto", run_name], notes=notes)
+        wandb_session = wandb_log(name=f"Train_student_on_{step}_pretrained", lr=0.00000003, model=student, tags=["distillation", "auto", run_name], notes=notes)
         optimizer, scheduler = get_optimizer(sampler_student, iterations=model_generations * steps)
         teacher_train_student(teacher, sampler_teacher, student, sampler_student, optimizer, scheduler, steps=step, generations=model_generations, early_stop=False, session=wandb_session, run_name=run_name)
         save_model(sampler_student, optimizer, scheduler, name="lr8_scheduled", steps=steps, run_name = run_name)
-        images, grid = compare_teacher_student(teacher, sampler_teacher, student, sampler_student, steps=[1, 2, 4, 6, 8, 10, 16, 20, 32, 64, 128])
+        images, grid = compare_teacher_student(teacher, sampler_teacher, student, sampler_student, steps=[1, 2, 4, 8, 16, 32, 64, 128])
         images = wandb.Image(grid, caption="left: Teacher, right: Student")
         wandb.log({"Comparison": images})
         wandb.finish()
