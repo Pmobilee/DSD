@@ -242,7 +242,7 @@ def make_dataset(model, sampler, num_images, sampling_steps, path, name):
     dataset = dict()
     
 
-def self_distill(model, sampler_model, optimizer, scheduler, session=None, steps=20, )
+# def self_distill(model, sampler_model, optimizer, scheduler, session=None, steps=20)
 
 def teacher_train_student(teacher, sampler_teacher, student, sampler_student, optimizer, scheduler, session=None, steps=20, generations=200, early_stop=True, run_name="test"):
     NUM_CLASSES = 1000
