@@ -558,7 +558,7 @@ def distill(ddim_steps, generations, run_name, config, original_model_path, lr):
             student = copy.deepcopy(teacher)
             sampler_student = DDIMSampler(student)
         notes = f"""This is a serious attempt to distill the {step} step original teacher into a {steps} step student, trained on {model_generations * ddim_steps[index]} instances"""
-        wandb_session = wandb_log(name=f"Train_student_on_{step}_pretrained", lr=lr, model=student, tags=["distillation", "CelebA", run_name], notes=notes)
+        wandb_session = wandb_log(name=run_name, lr=lr, model=student, tags=["distillation", "CelebA", run_name], notes=notes)
         optimizer, scheduler = get_optimizer(sampler_student, iterations=model_generations * steps, lr=lr)
         teacher_train_student(teacher, sampler_teacher, student, sampler_student, optimizer, scheduler, steps=step, generations=model_generations, early_stop=False, session=wandb_session, run_name=run_name)
         save_model(sampler_student, optimizer, scheduler, name="lr8_scheduled", steps=steps, run_name = run_name)
