@@ -25,6 +25,7 @@ class DDIMSampler(object):
     def make_schedule(self, ddim_num_steps, ddim_discretize="uniform", ddim_eta=0., verbose=True):
         self.ddim_timesteps = make_ddim_timesteps(ddim_discr_method=ddim_discretize, num_ddim_timesteps=ddim_num_steps,
                                                   num_ddpm_timesteps=self.ddpm_num_timesteps,verbose=verbose)
+        # self.ddim_timesteps = np.asarray([x / 1000 for x in self.ddim_timesteps])
         alphas_cumprod = self.model.alphas_cumprod
         assert alphas_cumprod.shape[0] == self.ddpm_num_timesteps, 'alphas have to be defined for each timestep'
         to_torch = lambda x: x.clone().detach().to(torch.float32).to(self.model.device)
@@ -178,6 +179,7 @@ class DDIMSampler(object):
             time_range = reversed(range(0,timesteps)) if ddim_use_original_steps else np.flip(timesteps)
             total_steps = timesteps if ddim_use_original_steps else timesteps.shape[0]
         else:
+            
             subset_end = int(min(intermediate_step / self.ddim_timesteps.shape[0], 1) * self.ddim_timesteps.shape[0]) - 1
             timesteps = self.ddim_timesteps[intermediate_step:intermediate_step+steps_per_sampling]
             # timesteps = self.ddim_timesteps[step:step+3]
@@ -200,6 +202,7 @@ class DDIMSampler(object):
                 index = total_steps - i - 1
             else: 
                 index = total_steps - intermediate_step - i - 1
+            # print("teacher index:", index)
             # print("index:", index)
             ts = torch.full((b,), step, device=device, dtype=torch.long)
 
@@ -385,10 +388,10 @@ class DDIMSampler(object):
         for i, step in enumerate(iterator):
             # print(i)
             if intermediate_step == None:
-                index = total_steps - i - 1
+                index = total_steps - i -1
             else: 
-                index = total_steps - intermediate_step - i - 1
-            # print("index:", index)
+                index = total_steps - intermediate_step - i -1
+            # print("student index:", index)
             ts = torch.full((b,), step, device=device, dtype=torch.long)
 
             if mask is not None:
