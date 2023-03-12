@@ -242,6 +242,8 @@ def make_dataset(model, sampler, num_images, sampling_steps, path, name):
     dataset = dict()
     
 
+def self_distill(model, sampler_model, optimizer, scheduler, session=None, steps=20, )
+
 def teacher_train_student(teacher, sampler_teacher, student, sampler_student, optimizer, scheduler, session=None, steps=20, generations=200, early_stop=True, run_name="test"):
     NUM_CLASSES = 1000
     generations = generations
@@ -544,7 +546,7 @@ def compare_teacher_student(teacher, sampler_teacher, student, sampler_student, 
     grid = 255. * rearrange(grid, 'c h w -> h w c').cpu().numpy()
     return Image.fromarray(grid.astype(np.uint8)), grid.astype(np.uint8)
 
-def distill(ddim_steps, generations, run_name, config, original_model_path, lr):
+def distill(ddim_steps, generations, run_name, config, original_model_path, lr, tags):
     for index, step in enumerate(ddim_steps):
         steps = int(step / 2)
         model_generations = generations // steps
@@ -558,7 +560,7 @@ def distill(ddim_steps, generations, run_name, config, original_model_path, lr):
             student = copy.deepcopy(teacher)
             sampler_student = DDIMSampler(student)
         notes = f"""This is a serious attempt to distill the {step} step original teacher into a {steps} step student, trained on {model_generations * ddim_steps[index]} instances"""
-        wandb_session = wandb_log(name=run_name, lr=lr, model=student, tags=["distillation", "CelebA", run_name], notes=notes)
+        wandb_session = wandb_log(name=run_name, lr=lr, model=student, tags=tags, notes=notes)
         optimizer, scheduler = get_optimizer(sampler_student, iterations=model_generations * steps, lr=lr)
         teacher_train_student(teacher, sampler_teacher, student, sampler_student, optimizer, scheduler, steps=step, generations=model_generations, early_stop=False, session=wandb_session, run_name=run_name)
         save_model(sampler_student, optimizer, scheduler, name="lr8_scheduled", steps=steps, run_name = run_name)
