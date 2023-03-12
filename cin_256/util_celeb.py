@@ -331,7 +331,7 @@ def teacher_train_student(teacher, sampler_teacher, student, sampler_student, op
                                         # print("len samples ddim:", samples_ddim_student.shape)
                                         # x_T_student_decode = sampler_student.model.differentiable_decode_first_stage(samples_ddim_student)
                                         # student_target  = torch.clamp((x_T_student_decode +1.0)/2.0, min=0.0, max=1.0)
-                                        loss = max(math.log(a_t**2 / (1-a_t) **2), 1) *  criterion(pred_x0_student, pred_x0_teacher)
+                                        loss = max(math.log(a_t**2 / (1-a_t) **2), 1) *  criterion(samples_ddim_student, samples_ddim_teacher)
                                         # loss = criterion(samples_ddim_student, samples_ddim_teacher)
                                         # loss =  criterion(samples_ddim_student, samples_ddim_teacher)
                                         # loss = max(math.log(a_t / (1-a_t)), 1) *  criterion(x_T_student, x_T)
