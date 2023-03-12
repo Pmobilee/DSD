@@ -5,7 +5,7 @@ import importlib
 import tqdm
 import numpy as np
 from omegaconf import OmegaConf
-from taming.models import vqgan 
+# from taming.models import vqgan 
 import numpy as np 
 from PIL import Image
 from einops import rearrange
@@ -315,13 +315,13 @@ def teacher_train_student(teacher, sampler_teacher, student, sampler_student, op
                                         # sampler_student.make_schedule(ddim_num_steps=ddim_steps_student, ddim_eta=ddim_eta, verbose=False)
                                         optimizer.zero_grad()
                                         samples_ddim_student, student_intermediate, x_T_copy, a_t, pred_x0_student, sigma_t = sampler_student.sample_student(S=STUDENT_STEPS,
-                                                                        conditioning=c_student,
+                                                                        conditioning=c,
                                                                         batch_size=1,
                                                                         shape=[3, 64, 64],
                                                                         verbose=False,
                                                                         x_T=x_T_copy,
                                                                         unconditional_guidance_scale=scale,
-                                                                        unconditional_conditioning=sc, 
+                                                                        unconditional_conditioning=uc, 
                                                                         eta=ddim_eta,
                                                                         keep_intermediates=False,
                                                                         intermediate_step = steps*STUDENT_STEPS,
