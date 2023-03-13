@@ -46,7 +46,7 @@ class DDPM(pl.LightningModule):
     def __init__(self,
                  unet_config,
                  timesteps=1000,
-                 beta_schedule="cosine",
+                 beta_schedule="linear",
                  loss_type="l2",
                  ckpt_path=None,
                  ignore_keys=[],
@@ -89,7 +89,7 @@ class DDPM(pl.LightningModule):
         if self.use_ema:
             self.model_ema = LitEma(self.model)
             print(f"Keeping EMAs of {len(list(self.model_ema.buffers()))}.")
-
+        # timesteps=400
         self.use_scheduler = scheduler_config is not None
         if self.use_scheduler:
             self.scheduler_config = scheduler_config
@@ -103,8 +103,8 @@ class DDPM(pl.LightningModule):
         if ckpt_path is not None:
             self.init_from_ckpt(ckpt_path, ignore_keys=ignore_keys, only_model=load_only_unet)
 
-        self.register_schedule(given_betas=given_betas, beta_schedule=beta_schedule, timesteps=timesteps,
-                               linear_start=linear_start, linear_end=linear_end, cosine_s=cosine_s)
+        self.reregister_schedule(given_betas=given_betas, beta_schedule=beta_schedule, timesteps=timesteps,
+                                linear_start=linear_start, linear_end=linear_end, cosine_s=cosine_s)
 
         self.loss_type = loss_type
 
@@ -114,9 +114,11 @@ class DDPM(pl.LightningModule):
             self.logvar = nn.Parameter(self.logvar, requires_grad=True)
 
 
+
+
     def register_schedule(self, given_betas=None, beta_schedule="cosine", timesteps=1000,
-                          linear_start=1e-4, linear_end=2e-2, cosine_s=8e-3):
-        if exists(given_betas):
+                          linear_start=1e-4, linear_end=2e-2, cosine_s=8e-3, force=False):
+        if exists(given_betas) and not force:
             betas = given_betas
         else:
             betas = make_beta_schedule(beta_schedule, timesteps, linear_start=linear_start, linear_end=linear_end,
@@ -167,6 +169,12 @@ class DDPM(pl.LightningModule):
         lvlb_weights[0] = lvlb_weights[1]
         self.register_buffer('lvlb_weights', lvlb_weights, persistent=False)
         assert not torch.isnan(self.lvlb_weights).all()
+
+
+    def reregister_schedule(self, timesteps=1000,beta_schedule="cosine", linear_start=1e-4, linear_end=2e-2, cosine_s=8e-3, force=False):
+        self.register_schedule(beta_schedule=beta_schedule, timesteps=timesteps,
+                          linear_start=linear_start, linear_end=linear_end, cosine_s=8e-3, force=False)
+        self.logvar = torch.full(fill_value=0., size=(timesteps,))
 
     @contextmanager
     def ema_scope(self, context=None):
@@ -495,6 +503,9 @@ class LatentDiffusion(DDPM):
             self.init_from_ckpt(ckpt_path, ignore_keys)
             self.restarted_from_ckpt = True
 
+
+
+
     def make_cond_schedule(self, ):
         self.cond_ids = torch.full(size=(self.num_timesteps,), fill_value=self.num_timesteps - 1, dtype=torch.long)
         ids = torch.round(torch.linspace(0, self.num_timesteps - 1, self.num_timesteps_cond)).long()
@@ -517,14 +528,14 @@ class LatentDiffusion(DDPM):
             print(f"setting self.scale_factor to {self.scale_factor}")
             print("### USING STD-RESCALING ###")
 
-    def register_schedule(self,
-                          given_betas=None, beta_schedule="cosine", timesteps=1000,
-                          linear_start=1e-4, linear_end=2e-2, cosine_s=8e-3):
-        super().register_schedule(given_betas, beta_schedule, timesteps, linear_start, linear_end, cosine_s)
+    # def register_schedule(self,
+    #                       given_betas=None, beta_schedule="cosine", timesteps=1000,
+    #                       linear_start=1e-4, linear_end=2e-2, cosine_s=8e-3):
+    #     super().register_schedule(given_betas, beta_schedule, timesteps, linear_start, linear_end, cosine_s)
 
-        self.shorten_cond_schedule = self.num_timesteps_cond > 1
-        if self.shorten_cond_schedule:
-            self.make_cond_schedule()
+    #     self.shorten_cond_schedule = self.num_timesteps_cond > 1
+    #     if self.shorten_cond_schedule:
+    #         self.make_cond_schedule()
 
     def instantiate_first_stage(self, config):
         model = instantiate_from_config(config)
@@ -1172,10 +1183,10 @@ class LatentDiffusion(DDPM):
 
         for i in iterator:
             ts = torch.full((b,), i, device=self.device, dtype=torch.long)
-            if self.shorten_cond_schedule:
-                assert self.model.conditioning_key != 'hybrid'
-                tc = self.cond_ids[ts].to(cond.device)
-                cond = self.q_sample(x_start=cond, t=tc, noise=torch.randn_like(cond))
+            # if self.shorten_cond_schedule:
+            #     assert self.model.conditioning_key != 'hybrid'
+            #     tc = self.cond_ids[ts].to(cond.device)
+            #     cond = self.q_sample(x_start=cond, t=tc, noise=torch.randn_like(cond))
 
             img, x0_partial = self.p_sample(img, cond, ts,
                                             clip_denoised=self.clip_denoised,
@@ -1274,10 +1285,10 @@ class LatentDiffusion(DDPM):
 
         for i in iterator:
             ts = torch.full((b,), i, device=device, dtype=torch.long)
-            if self.shorten_cond_schedule:
-                assert self.model.conditioning_key != 'hybrid'
-                tc = self.cond_ids[ts].to(cond.device)
-                cond = self.q_sample(x_start=cond, t=tc, noise=torch.randn_like(cond))
+            # if self.shorten_cond_schedule:
+            #     assert self.model.conditioning_key != 'hybrid'
+            #     tc = self.cond_ids[ts].to(cond.device)
+            #     cond = self.q_sample(x_start=cond, t=tc, noise=torch.randn_like(cond))
 
             img, x_0 = self.p_sample(img, cond, ts,
                                 clip_denoised=self.clip_denoised,
