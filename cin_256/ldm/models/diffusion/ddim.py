@@ -243,6 +243,7 @@ class DDIMSampler(object):
             c_in = torch.cat([unconditional_conditioning, c])
             e_t_uncond, e_t = self.model.apply_model(x_in, t_in, c_in).chunk(2)
             e_t = e_t_uncond + unconditional_guidance_scale * (e_t - e_t_uncond)
+            
 
         if score_corrector is not None:
             assert self.model.parameterization == "eps"
@@ -460,4 +461,4 @@ class DDIMSampler(object):
         if noise_dropout > 0.:
             noise = torch.nn.functional.dropout(noise, p=noise_dropout, requires_grad=True)
         x_prev = a_prev.sqrt() * pred_x0 + dir_xt + noise
-        return x_prev, pred_x0, a_t, sigma_t, e_t,
+        return x_prev, pred_x0, a_t, sigma_t, e_t

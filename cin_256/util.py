@@ -302,7 +302,7 @@ def teacher_train_student(teacher, sampler_teacher, student, sampler_student, op
                                                                     x_T=x_T,
                                                                     # quantize_x0 = True,
                                                                     unconditional_guidance_scale=scale,
-                                                                    unconditional_conditioning=uc, 
+                                                                    # unconditional_conditioning=uc, 
                                                                     eta=ddim_eta,
                                                                     keep_intermediates=False,
                                                                     intermediate_step = steps*TEACHER_STEPS,
@@ -345,13 +345,13 @@ def teacher_train_student(teacher, sampler_teacher, student, sampler_student, op
                                         # loss = max(math.log(a_t**2 / (1-a_t) **2), 1) *  criterion(samples_ddim_student, samples_ddim_teacher)
                                         # loss = math.log(a_t / (sigma_t)) * criterion(pred_x0_student, pred_x0_teacher)
                                         # loss =  abs(math.log(a_t / (1-a_t))) * criterion(e_t_student, e_t_teacher)
-                                        loss = criterion(e_t_student, e_t_teacher)
+                                        loss = math.log(a_t**2 / (1-a_t) **2) * criterion(e_t_student, e_t_teacher)
                                         
                                         # loss =  criterion(samples_ddim_student, samples_ddim_teacher)
                                         # loss = max(math.log(a_t / (1-a_t)), 1) *  criterion(x_T_student, x_T)
                                         # loss = max(math.log(a_t / (1-a_t)), 1) *  criterion(x_T_student_decode, x_T_teacher_decode) 
                                         # print("stp:", steps, "Lss:", loss.item(), end="--")    
-                                        ets.append(e_t_student)                          
+                                                                
                                         loss.backward()
                                         
                                         # print(math.log(a_t**2 / (sigma_t ** 2)))
@@ -401,7 +401,7 @@ def teacher_train_student(teacher, sampler_teacher, student, sampler_student, op
     plt.ylabel("px MSE")
     plt.title("MSEloss student vs teacher")
     plt.show()
-    return ets
+    
 
 @torch.enable_grad()
 def train_student_from_dataset(model, sampler, dataset, student_steps, optimizer, scheduler, early_stop=False, session=None, run_name="test"):
