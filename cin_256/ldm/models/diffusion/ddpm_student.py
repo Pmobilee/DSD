@@ -66,7 +66,7 @@ class DDPM(pl.LightningModule):
                  v_posterior=0.,  # weight for choosing posterior variance as sigma = (1-v) * beta_tilde + v * beta
                  l_simple_weight=1.,
                  conditioning_key=None,
-                 parameterization="eps",  # all assuming fixed variance schedules
+                 parameterization="x0",  # all assuming fixed variance schedules
                  scheduler_config=None,
                  use_positional_encodings=False,
                  learn_logvar=False,
@@ -327,7 +327,6 @@ class DDPM(pl.LightningModule):
         return self.p_losses(x, t, *args, **kwargs)
 
     def get_input(self, batch, k):
-        # print(batch)
         x = batch[k]
         if len(x.shape) == 3:
             x = x[..., None]
@@ -1049,7 +1048,7 @@ class LatentDiffusion(DDPM):
         return loss, loss_dict
 
     def p_mean_variance(self, x, c, t, clip_denoised: bool, return_codebook_ids=False, quantize_denoised=False,
-                        return_x0=False, score_corrector=None, corrector_kwargs=None):
+                        return_x0=True, score_corrector=None, corrector_kwargs=None):
         t_in = t
         model_out = self.apply_model(x, t_in, c, return_ids=return_codebook_ids)
 
@@ -1215,7 +1214,7 @@ class LatentDiffusion(DDPM):
 
         if return_intermediates:
             return img, intermediates
-        return img, x_0
+        return img, x0
 
     @torch.no_grad()
     def sample(self, cond, batch_size=16, return_intermediates=False, x_T=None,
@@ -1421,7 +1420,6 @@ class DiffusionWrapper(pl.LightningModule):
             out = self.diffusion_model(x, t, y=cc)
         else:
             raise NotImplementedError()
-
         return out
 
 

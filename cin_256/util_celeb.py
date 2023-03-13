@@ -65,7 +65,7 @@ def get_optimizer(sampler, iterations, lr=0.00003):
     returns both an optimizer (Adam, lr=1e-8, eps=1e-08, decay=0.001), and a scheduler for the optimizer
     going from a learning rate of 1e-8 to 0 over the course of the specified iterations
     """
-    optimizer = torch.optim.Adam(sampler.model.parameters(), lr=lr, betas=(0.9, 0.999), eps=1e-08, weight_decay=0.001)
+    optimizer = torch.optim.Adam(sampler.model.parameters(), lr=lr, betas=(0.9, 0.998))
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=iterations, last_epoch=-1, verbose=False)
     return optimizer, scheduler
 
@@ -262,7 +262,7 @@ def teacher_train_student(teacher, sampler_teacher, student, sampler_student, op
     instance = 0
     generation = 0
     
-
+    all_losses = []
 
 
     with torch.no_grad():
@@ -273,6 +273,7 @@ def teacher_train_student(teacher, sampler_teacher, student, sampler_student, op
                 # for class_prompt in tqdm.tqdm(torch.randint(0, NUM_CLASSES, (generations,))):
                
                 with tqdm.tqdm(torch.randint(0, NUM_CLASSES, (generations,))) as tepoch:
+                # for j in :
                     for i, class_prompt in enumerate(tepoch):
 
 
@@ -295,6 +296,7 @@ def teacher_train_student(teacher, sampler_teacher, student, sampler_student, op
                                                                     unconditional_conditioning=None, 
                                                                     eta=ddim_eta,
                                                                     keep_intermediates=False,
+                                                                    quantize_x0=False,
                                                                     intermediate_step = steps*TEACHER_STEPS,
                                                                     steps_per_sampling = TEACHER_STEPS,
                                                                     total_steps = ddim_steps_teacher)      
@@ -302,7 +304,7 @@ def teacher_train_student(teacher, sampler_teacher, student, sampler_student, op
                 
 
                                     # x_T_teacher = teacher_intermediate["x_inter"][-1]
-                                    
+                                    # x_T_teacher.requires_grad = True
                                     # x_T_teacher_decode = sampler_teacher.model.decode_first_stage(samples_ddim_teacher)
                                     # x_T_teacher = torch.clamp((x_T_teacher_decode+1.0)/2.0, min=0.0, max=1.0)
                                     
@@ -320,6 +322,7 @@ def teacher_train_student(teacher, sampler_teacher, student, sampler_student, op
                                                                         x_T=x_T_copy,
                                                                         unconditional_guidance_scale=scale,
                                                                         unconditional_conditioning=None, 
+                                                                        quantize_x0=False,
                                                                         eta=ddim_eta,
                                                                         keep_intermediates=False,
                                                                         intermediate_step = steps*STUDENT_STEPS,
@@ -334,9 +337,12 @@ def teacher_train_student(teacher, sampler_teacher, student, sampler_student, op
                                         loss = max(math.log(a_t**2 / (1-a_t) **2), 1) *  criterion(samples_ddim_student, samples_ddim_teacher)
                                         # loss = criterion(samples_ddim_student, samples_ddim_teacher)
                                         # loss =  criterion(samples_ddim_student, samples_ddim_teacher)
-                                        # loss = max(math.log(a_t / (1-a_t)), 1) *  criterion(x_T_student, x_T)
+                                        # loss = criterion(x_T_student, x_T_teacher)
                                         # loss = max(math.log(a_t / (1-a_t)), 1) *  criterion(x_T_student_decode, x_T_teacher_decode) 
                                         # print("step:", steps, "Loss:", loss.item(), "alpha:", a_t[0], end="---")                              
+                                        print(max(math.log(a_t**2 / (1-a_t) **2), 1), "l:", round(loss.item(), 5), end="-")
+                                        
+                                        
                                         loss.backward()
                                         
                                         # print(math.log(a_t**2 / (sigma_t ** 2)))
@@ -360,11 +366,11 @@ def teacher_train_student(teacher, sampler_teacher, student, sampler_student, op
                         #         images, grid = compare_teacher_student(teacher, sampler_teacher, student, sampler_student, steps=[1, 2, 4, 6, 8, 10, 16, 20, 32, 64, 128])
                         #         images = wandb.Image(grid, caption=f"{instance} steps, left: Teacher, right: Student")
                         #         wandb.log({"Intermediate": images})
-                        
+                        all_losses.extend(losses)
                         averaged_losses.append(sum(losses) / len(losses))
                         if session != None:
                             session.log({"generation_loss":averaged_losses[-1]})
-                        tepoch.set_postfix(epoch_loss=averaged_losses[-1], lr=scheduler.get_last_lr())
+                        # tepoch.set_postfix(epoch_loss=averaged_losses[-1], lr=scheduler.get_last_lr())
                         torch.cuda.empty_cache()
                         if early_stop == True and i > 1:
                             if averaged_losses[-1] > (10*losses[-2]):
@@ -377,7 +383,7 @@ def teacher_train_student(teacher, sampler_teacher, student, sampler_student, op
                                 return 
 
                                                             
-    plt.plot(range(len(averaged_losses)), averaged_losses, label="MSE LOSS")
+    plt.plot(range(len(all_losses)), all_losses, label="MSE LOSS")
     plt.xlabel("Generations")
     plt.ylabel("px MSE")
     plt.title("MSEloss student vs teacher")

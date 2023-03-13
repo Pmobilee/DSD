@@ -132,7 +132,7 @@ class DDIMSampler(object):
         C, H, W = shape
         size = (batch_size, C, H, W)
         # print(f'Data shape for DDIM sampling is {size}, eta {eta}')
-        samples, intermediates, x_T_copy, pred_x0, a_t = self.ddim_sampling(conditioning, size,
+        samples, intermediates, x_T_copy, pred_x0, a_t, e_t = self.ddim_sampling(conditioning, size,
                                                     callback=callback,
                                                     img_callback=img_callback,
                                                     quantize_denoised=quantize_x0,
@@ -150,7 +150,7 @@ class DDIMSampler(object):
                                                     intermediate_step=intermediate_step, total_steps = total_steps,
                                                     steps_per_sampling = steps_per_sampling,
                                                     )
-        return samples, intermediates, x_T_copy, pred_x0, a_t
+        return samples, intermediates, x_T_copy, pred_x0, a_t, e_t
     # @torch.enable_grad()
     @torch.no_grad()
     def ddim_sampling(self, cond, shape,
@@ -195,8 +195,9 @@ class DDIMSampler(object):
         # print(f"Running DDIM Sampling with {total_steps} timesteps")
 
         iterator = tqdm(time_range, desc='DDIM Sampler', total=total_steps, disable=True)
-
+        # print("something??")
         for i, step in enumerate(iterator):
+
             # print(i)
             if intermediate_step == None:
                 index = total_steps - i - 1
@@ -217,15 +218,15 @@ class DDIMSampler(object):
                                       corrector_kwargs=corrector_kwargs,
                                       unconditional_guidance_scale=unconditional_guidance_scale,
                                       unconditional_conditioning=unconditional_conditioning)
-            img, pred_x0, a_t = outs
+            img, pred_x0, a_t, e_t = outs
             if callback: callback(i)
             if img_callback: img_callback(pred_x0, i)
 
             if index % log_every_t == 0 or index == total_steps - 1 or keep_intermediates==True:
                 intermediates['x_inter'].append(img)
                 intermediates['pred_x0'].append(pred_x0)
-
-        return img, intermediates, x_T_copy, pred_x0, a_t
+        
+        return img, intermediates, x_T_copy, pred_x0, a_t, e_t
 
     # @torch.enable_grad()
     @torch.no_grad()
@@ -234,7 +235,7 @@ class DDIMSampler(object):
                       unconditional_guidance_scale=1., unconditional_conditioning=None):
         b, *_, device = *x.shape, x.device
 
-        if unconditional_conditioning is None or unconditional_guidance_scale == 1.:
+        if unconditional_conditioning is None or unconditional_guidance_scale == 1. or self.model.parameterization=="x0":
             e_t = self.model.apply_model(x, t, c)
         else:
             x_in = torch.cat([x] * 2)
@@ -269,7 +270,7 @@ class DDIMSampler(object):
         if noise_dropout > 0.:
             noise = torch.nn.functional.dropout(noise, p=noise_dropout, requires_grad=True)
         x_prev = a_prev.sqrt() * pred_x0 + dir_xt + noise
-        return x_prev, pred_x0, a_t
+        return x_prev, pred_x0, a_t, e_t
 
 
 
@@ -320,7 +321,7 @@ class DDIMSampler(object):
         C, H, W = shape
         size = (batch_size, C, H, W)
         # print(f'Data shape for DDIM sampling is {size}, eta {eta}')
-        samples, intermediates, x_T_copy, a_t, pred_x0, sigma_t= self.ddim_sampling_student(conditioning, size,
+        samples, intermediates, x_T_copy, a_t, pred_x0, sigma_t, e_t = self.ddim_sampling_student(conditioning, size,
                                                     callback=callback,
                                                     img_callback=img_callback,
                                                     quantize_denoised=quantize_x0,
@@ -338,7 +339,7 @@ class DDIMSampler(object):
                                                     intermediate_step=intermediate_step, total_steps = total_steps,
                                                     steps_per_sampling = steps_per_sampling,
                                                     )
-        return samples, intermediates, x_T_copy, a_t, pred_x0, sigma_t
+        return samples, intermediates, x_T_copy, a_t, pred_x0, sigma_t, e_t
     
     #### FOR THE STUDENT!!!!!!!!!!
     # @torch.no_grad()
@@ -405,7 +406,7 @@ class DDIMSampler(object):
                                       corrector_kwargs=corrector_kwargs,
                                       unconditional_guidance_scale=unconditional_guidance_scale,
                                       unconditional_conditioning=unconditional_conditioning)
-            img, pred_x0, a_t, sigma_t = outs
+            img, pred_x0, a_t, sigma_t, e_t = outs
             if callback: callback(i)
             if img_callback: img_callback(pred_x0, i)
 
@@ -413,7 +414,7 @@ class DDIMSampler(object):
                 intermediates['x_inter'].append(img)
                 intermediates['pred_x0'].append(pred_x0)
 
-        return img, intermediates, x_T_copy, a_t, pred_x0, sigma_t
+        return img, intermediates, x_T_copy, a_t, pred_x0, sigma_t, e_t
 
 
     #### FOR THE STUDENT!!!!!!!!!!
@@ -424,7 +425,7 @@ class DDIMSampler(object):
                       unconditional_guidance_scale=1., unconditional_conditioning=None):
         b, *_, device = *x.shape, x.device
 
-        if unconditional_conditioning is None or unconditional_guidance_scale == 1.:
+        if unconditional_conditioning is None or unconditional_guidance_scale == 1. or self.model.parameterization == "x0":
             e_t = self.model.apply_model(x, t, c)
         else:
             x_in = torch.cat([x] * 2)
@@ -459,4 +460,4 @@ class DDIMSampler(object):
         if noise_dropout > 0.:
             noise = torch.nn.functional.dropout(noise, p=noise_dropout, requires_grad=True)
         x_prev = a_prev.sqrt() * pred_x0 + dir_xt + noise
-        return x_prev, pred_x0, a_t, sigma_t
+        return x_prev, pred_x0, a_t, sigma_t, e_t,
