@@ -114,7 +114,7 @@ class DDPM(pl.LightningModule):
             self.logvar = nn.Parameter(self.logvar, requires_grad=True)
 
 
-    def register_schedule(self, given_betas=None, beta_schedule="linear", timesteps=1000,
+    def register_schedule(self, given_betas=None, beta_schedule="cosine", timesteps=1000,
                           linear_start=1e-4, linear_end=2e-2, cosine_s=8e-3):
         if exists(given_betas):
             betas = given_betas
@@ -494,7 +494,7 @@ class LatentDiffusion(DDPM):
             print("### USING STD-RESCALING ###")
 
     def register_schedule(self,
-                          given_betas=None, beta_schedule="linear", timesteps=1000,
+                          given_betas=None, beta_schedule="cosine", timesteps=1000,
                           linear_start=1e-4, linear_end=2e-2, cosine_s=8e-3):
         super().register_schedule(given_betas, beta_schedule, timesteps, linear_start, linear_end, cosine_s)
 
@@ -1140,6 +1140,7 @@ class LatentDiffusion(DDPM):
         iterator = tqdm(reversed(range(0, timesteps)), desc='Progressive Generation',
                         total=timesteps) if verbose else reversed(
             range(0, timesteps))
+    
         if type(temperature) == float:
             temperature = [temperature] * timesteps
 

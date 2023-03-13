@@ -46,7 +46,7 @@ class DDPM(pl.LightningModule):
     def __init__(self,
                  unet_config,
                  timesteps=1000,
-                 beta_schedule="linear",
+                 beta_schedule="cosine",
                  loss_type="l2",
                  ckpt_path=None,
                  ignore_keys=[],
@@ -114,7 +114,7 @@ class DDPM(pl.LightningModule):
             self.logvar = nn.Parameter(self.logvar, requires_grad=True)
 
 
-    def register_schedule(self, given_betas=None, beta_schedule="linear", timesteps=1000,
+    def register_schedule(self, given_betas=None, beta_schedule="cosine", timesteps=1000,
                           linear_start=1e-4, linear_end=2e-2, cosine_s=8e-3):
         if exists(given_betas):
             betas = given_betas
@@ -131,7 +131,7 @@ class DDPM(pl.LightningModule):
         self.linear_end = linear_end
         assert alphas_cumprod.shape[0] == self.num_timesteps, 'alphas have to be defined for each timestep'
 
-        to_torch = partial(torch.tensor, dtype=torch.float32)
+        to_torch = partial(torch.tensor, dtype=torch.float32, device=self.device)
 
         self.register_buffer('betas', to_torch(betas))
         self.register_buffer('alphas_cumprod', to_torch(alphas_cumprod))
@@ -214,6 +214,7 @@ class DDPM(pl.LightningModule):
         return mean, variance, log_variance
 
     def predict_start_from_noise(self, x_t, t, noise):
+
         return (
                 extract_into_tensor(self.sqrt_recip_alphas_cumprod, t, x_t.shape) * x_t -
                 extract_into_tensor(self.sqrt_recipm1_alphas_cumprod, t, x_t.shape) * noise
@@ -227,6 +228,7 @@ class DDPM(pl.LightningModule):
         )
 
     def q_posterior(self, x_start, x_t, t):
+
         posterior_mean = (
                 extract_into_tensor(self.posterior_mean_coef1, t, x_t.shape) * x_start +
                 extract_into_tensor(self.posterior_mean_coef2, t, x_t.shape) * x_t
@@ -516,7 +518,7 @@ class LatentDiffusion(DDPM):
             print("### USING STD-RESCALING ###")
 
     def register_schedule(self,
-                          given_betas=None, beta_schedule="linear", timesteps=1000,
+                          given_betas=None, beta_schedule="cosine", timesteps=1000,
                           linear_start=1e-4, linear_end=2e-2, cosine_s=8e-3):
         super().register_schedule(given_betas, beta_schedule, timesteps, linear_start, linear_end, cosine_s)
 
@@ -1149,8 +1151,8 @@ class LatentDiffusion(DDPM):
             img = torch.randn(shape, device=self.device)
         else:
             img = x_T
-        intermediates = []
-        imgs = []
+        x_T_copy = img
+  
         if cond is not None:
             if isinstance(cond, dict):
                 cond = {key: cond[key][:batch_size] if not isinstance(cond[key], list) else
@@ -1158,20 +1160,27 @@ class LatentDiffusion(DDPM):
             else:
                 cond = [c[:batch_size] for c in cond] if isinstance(cond, list) else cond[:batch_size]
 
-        if start_T is not None:
-            timesteps = min(timesteps, start_T)
-        iterator = tqdm(reversed(range(0, timesteps)), desc='Progressive Generation',
-                        total=timesteps) if verbose else reversed(
-            range(0, timesteps))
+        # subset_end = int(min(intermediate_step / self.ddim_timesteps.shape[0], 1) * self.ddim_timesteps.shape[0]) - 1
+        # timesteps = self.ddim_timesteps[intermediate_step:intermediate_step+steps_per_sampling]
+        # time_range = np.flip(self.ddim_timesteps)[intermediate_step:intermediate_step+steps_per_sampling]
+        # total_steps = total_steps
+    
+    
+        # iterator = tqdm(reversed(range(0, timesteps)), desc='Progressive Generation',
+        #                 total=self.num_timesteps) if verbose else reversed(
+        #     range(0, timesteps))
+        
+
         if type(temperature) == float:
             temperature = [temperature] * timesteps
 
-        for i in iterator:
+        steps = list(reversed(range(0, timesteps)))[start_T:start_T+2]
+        
+        for i in steps:
+            
             ts = torch.full((b,), i, device=self.device, dtype=torch.long)
-            if self.shorten_cond_schedule:
-                assert self.model.conditioning_key != 'hybrid'
-                tc = self.cond_ids[ts].to(cond.device)
-                cond = self.q_sample(x_start=cond, t=tc, noise=torch.randn_like(cond))
+      
+
 
             img, x0_partial = self.p_sample(img, cond, ts,
                                             clip_denoised=self.clip_denoised,
@@ -1183,12 +1192,12 @@ class LatentDiffusion(DDPM):
                 img_orig = self.q_sample(x0, ts)
                 img = img_orig * mask + (1. - mask) * img
 
-            if i % log_every_t == 0 or i == timesteps - 1 or keep_intermediates==True:
-                intermediates.append(x0_partial)
-                imgs.append(img)
+            # if i % log_every_t == 0 or i == timesteps - 1 or keep_intermediates==True:
+            #     intermediates.append(x0_partial)
+            #     imgs.append(img)
             if callback: callback(i)
             if img_callback: img_callback(img, i)
-        return img, intermediates, imgs
+        return img, x0_partial, x_T_copy
 
     @torch.no_grad()
     def p_sample_loop(self, cond, shape, return_intermediates=False,
