@@ -118,48 +118,33 @@ def get_model(config_path, model_path):
 
 
 @torch.no_grad()
-def generate(model, sampler, num_imgs=1, steps=20, eta=0.0, scale=3.0, x_T=None, class_prompt=None, keep_intermediates=False):
+def generate(model, x0=True, num_imgs=1, steps=20, x_T=None, class_prompt=None, keep_intermediates=False):
     """
     Params: model, sampler, num_imgs=1, steps=20, eta=0.0, scale=3.0, x_T=None, class_prompt=None, keep_intermediates=False. 
     Task: returns final generated samples from the provided model and accompanying sampler. Unless the class prompt is specified,
     all generated images are of one of the random classes.
     """
-    NUM_CLASSES = 1000
-    sampler.make_schedule(ddim_num_steps=steps, ddim_eta=eta, verbose=False)
-
-    if class_prompt == None:
-        class_prompt = torch.randint(0, NUM_CLASSES, (num_imgs,))
-
-    with torch.no_grad():
-        with model.ema_scope():
-                uc = model.get_learned_conditioning(
-                        {model.cond_stage_key: torch.tensor(num_imgs*[1000]).to(model.device)}
-                        )
-                
-                
-                xc = torch.tensor(num_imgs*[class_prompt])
-                c = model.get_learned_conditioning({model.cond_stage_key: xc.to(model.device)})
-                
-                samples_ddim, _, x_T_copy, pred_x0, a_t = sampler.sample(S=steps,
-                                                conditioning=c,
-                                                batch_size=1,
-                                                shape=[3, 64, 64],
-                                                verbose=False,
-                                                x_T=x_T,
-                                                unconditional_guidance_scale=scale,
-                                                unconditional_conditioning=uc, 
-                                                eta=eta,
-                                                keep_intermediates=keep_intermediates,
-                                                intermediate_step=None,
-                                                total_steps=None)
+    timesteps =  steps
+    class_embed = torch.randint(0, 1000, (1,))
+    xc = torch.tensor([class_embed])
+    model.num_timesteps = timesteps
+    c = model.get_learned_conditioning({model.cond_stage_key: xc.to(model.device)})
+    img, x, x_T_copy = model.progressive_denoising(cond=c, shape=[3, 64, 64], verbose=True, callback=None, quantize_denoised=False,
+                                img_callback=None, mask=None, x0=None, temperature=1., noise_dropout=0.,
+                                score_corrector=None, corrector_kwargs=None, batch_size=1, x_T=None, start_T=None,
+                                log_every_t=None)
           
                                     
     # display as grid
-    x_samples_ddim = model.decode_first_stage(_["x_inter"][-1])
+    if x0 == True:
+        target = x
+    else:
+        target = img
+
+    x_samples_ddim = model.decode_first_stage(target)
     x_samples_ddim = torch.clamp((x_samples_ddim+1.0)/2.0, 
                                 min=0.0, max=1.0)
-
-
+                                
     grid = rearrange(x_samples_ddim, 'b c h w -> (b) c h w')
     grid = make_grid(grid, nrow=1)
 
@@ -167,7 +152,7 @@ def generate(model, sampler, num_imgs=1, steps=20, eta=0.0, scale=3.0, x_T=None,
     grid = 255. * rearrange(grid, 'c h w -> h w c').cpu().numpy()
     image = Image.fromarray(grid.astype(np.uint8))
 
-    return image, x_T_copy, class_prompt, _["x_inter"]
+    return image, x_T_copy, class_prompt
 
 
 def latent_to_img(model, latent):
