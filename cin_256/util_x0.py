@@ -125,11 +125,14 @@ def generate(model, x0=True, num_imgs=1, steps=20, x_T=None, class_prompt=None, 
     all generated images are of one of the random classes.
     """
     timesteps =  steps
-    class_embed = torch.randint(0, 1000, (1,))
+    if class_prompt == None:
+        class_embed = torch.randint(0, 1000, (1,))
+    else:
+        class_embed = class_prompt
     xc = torch.tensor([class_embed])
     model.num_timesteps = timesteps
     c = model.get_learned_conditioning({model.cond_stage_key: xc.to(model.device)})
-    img, x, x_T_copy = model.progressive_denoising(cond=c, shape=[3, 64, 64], verbose=True, callback=None, quantize_denoised=False,
+    img, x, x_T_copy, _ = model.progressive_denoising(cond=c, shape=[3, 64, 64], verbose=True, callback=None, quantize_denoised=False,
                                 img_callback=None, mask=None, x0=None, temperature=1., noise_dropout=0.,
                                 score_corrector=None, corrector_kwargs=None, batch_size=1, x_T=None, start_T=None,
                                 log_every_t=None)
@@ -356,9 +359,6 @@ def compare_teacher_student(teacher, student, steps=[10], class_prompt=None):
                     class_image = torch.tensor([class_prompt])
                 student.num_timesteps=sampling_steps
                 teacher.num_timesteps=sampling_steps
-                # student.reregister_schedule(timesteps=sampling_steps,linear_start=0.0015 * (sampling_steps/1000) , linear_end=0.0195 * (sampling_steps/1000), beta_schedule="linear", force=True)
-                # teacher.reregister_schedule(timesteps=sampling_steps,linear_start=0.0015 * (sampling_steps/1000) , linear_end=0.0195 * (sampling_steps/1000), beta_schedule="linear", force=True)
-
                 xc = torch.tensor([class_image])
                 c = teacher.get_learned_conditioning({teacher.cond_stage_key: xc.to(teacher.device)})
                 c_student = student.get_learned_conditioning({student.cond_stage_key: xc.to(student.device)})
