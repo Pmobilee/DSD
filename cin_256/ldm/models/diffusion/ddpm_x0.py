@@ -1264,7 +1264,7 @@ class LatentDiffusion(DDPM):
       
 
 
-            img, x0_partial = self.p_sample(img, cond, ts,
+            img, x0_partial, noise = self.p_sample(img, cond, ts,
                                             clip_denoised=self.clip_denoised,
                                             quantize_denoised=quantize_denoised, return_x0=True,
                                             temperature=temperature[i], noise_dropout=noise_dropout,
