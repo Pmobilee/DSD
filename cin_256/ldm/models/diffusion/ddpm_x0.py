@@ -1186,7 +1186,7 @@ class LatentDiffusion(DDPM):
         if start_T is not None:
             timesteps = min(timesteps, start_T)
         iterator = tqdm(reversed(range(0, timesteps)), desc='Progressive Generation',
-                        total=timesteps) if verbose else reversed(
+                        total=timesteps, disable=True) if verbose else reversed(
             range(0, timesteps))
     
         if type(temperature) == float:
@@ -1201,7 +1201,7 @@ class LatentDiffusion(DDPM):
 
             img, x0_partial = self.p_sample(img, cond, ts,
                                             clip_denoised=self.clip_denoised,
-                                            quantize_denoised=quantize_denoised, return_x0=True,
+                                            quantize_denoised=quantize_denoised, repeat_noise=False, return_x0=True,
                                             temperature=temperature[i], noise_dropout=noise_dropout,
                                             score_corrector=score_corrector, corrector_kwargs=corrector_kwargs)
             # if mask is not None:
@@ -1384,7 +1384,7 @@ class LatentDiffusion(DDPM):
             return model_mean + nonzero_mask * (0.5 * model_log_variance).exp() * noise
 
     @torch.enable_grad()
-    def progressive_denoising_student(self, cond, shape, verbose=True, callback=None, quantize_denoised=False,
+    def iterative_progressive_denoising_student(self, cond, shape, verbose=True, callback=None, quantize_denoised=False,
                               img_callback=None, mask=None, x0=None, temperature=1., noise_dropout=0.,
                               score_corrector=None, corrector_kwargs=None, batch_size=None, x_T=None, start_T=None,
                               log_every_t=None, keep_intermediates=False):
@@ -1400,8 +1400,8 @@ class LatentDiffusion(DDPM):
             img = torch.randn(shape, device=self.device)
         else:
             img = x_T
-        intermediates = []
-        imgs = []
+        x_T_copy = img
+  
         if cond is not None:
             if isinstance(cond, dict):
                 cond = {key: cond[key][:batch_size] if not isinstance(cond[key], list) else
@@ -1409,20 +1409,15 @@ class LatentDiffusion(DDPM):
             else:
                 cond = [c[:batch_size] for c in cond] if isinstance(cond, list) else cond[:batch_size]
 
-        if start_T is not None:
-            timesteps = min(timesteps, start_T)
-        iterator = tqdm(reversed(range(0, timesteps)), desc='Progressive Generation',
-                        total=timesteps) if verbose else reversed(
-            range(0, timesteps))
         if type(temperature) == float:
             temperature = [temperature] * timesteps
 
-        for i in iterator:
+        steps = list(reversed(range(0, timesteps)))[start_T:start_T+1]
+        
+        for i in steps:
             ts = torch.full((b,), i, device=self.device, dtype=torch.long)
-            if self.shorten_cond_schedule:
-                assert self.model.conditioning_key != 'hybrid'
-                tc = self.cond_ids[ts].to(cond.device)
-                cond = self.q_sample_student(x_start=cond, t=tc, noise=torch.randn_like(cond))
+      
+
 
             img, x0_partial = self.p_sample_student(img, cond, ts,
                                             clip_denoised=self.clip_denoised,
@@ -1434,12 +1429,10 @@ class LatentDiffusion(DDPM):
                 img_orig = self.q_sample_student(x0, ts)
                 img = img_orig * mask + (1. - mask) * img
 
-            if i % log_every_t == 0 or i == timesteps - 1 or keep_intermediates==True:
-                intermediates.append(x0_partial)
-                imgs.append(img)
             if callback: callback(i)
             if img_callback: img_callback(img, i)
-        return img, intermediates, imgs
+        a_t = self.alphas_cumprod[i]
+        return img, x0_partial, x_T_copy, a_t
 
     @torch.enable_grad()
     def p_sample_loop_student(self, cond, shape, return_intermediates=False,

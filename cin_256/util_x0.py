@@ -343,47 +343,43 @@ def create_models(config_path, model_path, student=False, timesteps=1000):
         return model
 
 @torch.no_grad()
-def compare_teacher_student(teacher, student, steps=[10]):
-    scale = 3.0
-    ddim_eta = 0.0
+def compare_teacher_student(teacher, student, steps=[10], class_prompt=None):
+    
     images = []
 
     with torch.no_grad():
         with teacher.ema_scope():
             for sampling_steps in steps:
-                class_image = torch.randint(0, 999, (1,))
-                uc = teacher.get_learned_conditioning({teacher.cond_stage_key: torch.tensor(1*[1000]).to(teacher.device)})
+                if class_prompt == None:
+                    class_image = torch.randint(0, 1000, (1,))
+                else:
+                    class_image = torch.tensor([class_prompt])
+                student.num_timesteps=sampling_steps
+                teacher.num_timesteps=sampling_steps
+                # student.reregister_schedule(timesteps=sampling_steps,linear_start=0.0015 * (sampling_steps/1000) , linear_end=0.0195 * (sampling_steps/1000), beta_schedule="linear", force=True)
+                # teacher.reregister_schedule(timesteps=sampling_steps,linear_start=0.0015 * (sampling_steps/1000) , linear_end=0.0195 * (sampling_steps/1000), beta_schedule="linear", force=True)
+
                 xc = torch.tensor([class_image])
                 c = teacher.get_learned_conditioning({teacher.cond_stage_key: xc.to(teacher.device)})
-                teacher_samples_ddim, _, x_T_copy, _f, a_t, e_t= sampler_teacher.sample(S=sampling_steps,
-                                                    conditioning=c,
-                                                    batch_size=1,
-                                                    x_T=None,
-                                                    shape=[3, 64, 64],
-                                                    verbose=False,
-                                                    unconditional_guidance_scale=scale,
-                                                    unconditional_conditioning=uc, 
-                                                    eta=ddim_eta)
+                c_student = student.get_learned_conditioning({student.cond_stage_key: xc.to(student.device)})
+                img = None
+                img, x0, x_T_copy = teacher.progressive_denoising(cond=c, shape=[3, 64, 64], verbose=True, callback=None, quantize_denoised=False,
+                                    img_callback=None, mask=None, x0=None, temperature=1.0, noise_dropout=0.,
+                                    score_corrector=None, corrector_kwargs=None, batch_size=1, x_T=img,
+                                    log_every_t=None) 
 
-                # x_samples_ddim = teacher.decode_first_stage(_["pred_x0"][-1)
-                x_samples_ddim = teacher.decode_first_stage(_["pred_x0"][-1])
+
+                x_samples_ddim = teacher.decode_first_stage(x0)
                 x_samples_ddim = torch.clamp((x_samples_ddim+1.0)/2.0, min=0.0, max=1.0)
                 images.append(x_samples_ddim)
 
-                uc = student.get_learned_conditioning({student.cond_stage_key: torch.tensor(1*[1000]).to(student.device)})
-                c = student.get_learned_conditioning({student.cond_stage_key: xc.to(student.device)})
-                student_samples_ddim, _, x_T_delete, _f, a_t, e_t = sampler_student.sample(S=sampling_steps,
-                                                    conditioning=c,
-                                                    batch_size=1,
-                                                    x_T=x_T_copy,
-                                                    shape=[3, 64, 64],
-                                                    verbose=False,
-                                                    unconditional_guidance_scale=scale,
-                                                    unconditional_conditioning=uc, 
-                                                    eta=ddim_eta)
+             
+                img_student, x0_student, x_T_copy = student.progressive_denoising(cond=c_student, shape=[3, 64, 64], verbose=True, callback=None, quantize_denoised=False,
+                                        img_callback=None, mask=None, x0=None, temperature=1.0, noise_dropout=0.,
+                                        score_corrector=None, corrector_kwargs=None, batch_size=1, x_T=x_T_copy,
+                                        log_every_t=None)   
 
-                x_samples_ddim = student.decode_first_stage(_["pred_x0"][-1])
-                # x_samples_ddim = teacher.decode_first_stage(_f)
+                x_samples_ddim = student.decode_first_stage(x0_student)
                 x_samples_ddim = torch.clamp((x_samples_ddim+1.0)/2.0, min=0.0, max=1.0)
                 images.append(x_samples_ddim)
 
