@@ -333,8 +333,9 @@ def teacher_train_student(teacher, sampler_teacher, student, sampler_student, op
     
 
 @torch.no_grad()
-def create_models(config_path, model_path, student=False):
+def create_models(config_path, model_path, student=False, timesteps=1000):
     model = get_model(config_path=config_path, model_path=model_path)
+    model.reregister_schedule(timesteps=timesteps,linear_start=0.0015 * (timesteps/1000) , linear_end=0.0195 * (timesteps/1000), beta_schedule="linear", force=True)
     if student == True:
         student = copy.deepcopy(model)
         return model, student
