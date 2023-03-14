@@ -72,7 +72,9 @@ class DDPM(pl.LightningModule):
                  learn_logvar=False,
                  logvar_init=0.,
                  ):
+        
         super().__init__()
+        
         assert parameterization in ["eps", "x0"], 'currently only supporting "eps" and "x0"'
         self.parameterization = parameterization
         print(f"{self.__class__.__name__}: Running in {self.parameterization}-prediction mode")
@@ -84,6 +86,11 @@ class DDPM(pl.LightningModule):
         self.channels = channels
         self.use_positional_encodings = use_positional_encodings
         self.model = DiffusionWrapper(unet_config, conditioning_key)
+        
+
+        
+
+
         count_params(self.model, verbose=True)
         self.use_ema = use_ema
         if self.use_ema:
@@ -95,6 +102,9 @@ class DDPM(pl.LightningModule):
             self.scheduler_config = scheduler_config
 
         self.v_posterior = v_posterior
+        
+        
+
         self.original_elbo_weight = original_elbo_weight
         self.l_simple_weight = l_simple_weight
 
@@ -103,11 +113,12 @@ class DDPM(pl.LightningModule):
         if ckpt_path is not None:
             self.init_from_ckpt(ckpt_path, ignore_keys=ignore_keys, only_model=load_only_unet)
 
-        # self.register_schedule(given_betas=given_betas, beta_schedule=beta_schedule, timesteps=timesteps,
-        #                         linear_start=linear_start, linear_end=linear_end, cosine_s=cosine_s)
-        self.reregister_schedule()
-        self.loss_type = loss_type
+        self.register_schedule(given_betas=given_betas, beta_schedule=beta_schedule, timesteps=timesteps,
+                                linear_start=linear_start, linear_end=linear_end, cosine_s=cosine_s)
+        
 
+        self.loss_type = loss_type
+        
         self.learn_logvar = learn_logvar
         self.logvar = torch.full(fill_value=logvar_init, size=(self.num_timesteps,))
         if self.learn_logvar:
@@ -171,7 +182,7 @@ class DDPM(pl.LightningModule):
         assert not torch.isnan(self.lvlb_weights).all()
 
 
-    def reregister_schedule(self, timesteps=1000,beta_schedule="cosine", linear_start=1e-4, linear_end=2e-2, cosine_s=8e-3, force=False):
+    def reregister_schedule(self, timesteps=200,beta_schedule="cosine", linear_start=1e-4, linear_end=2e-2, cosine_s=8e-3, force=False):
         self.register_schedule(beta_schedule=beta_schedule, timesteps=timesteps,
                           linear_start=linear_start, linear_end=linear_end, cosine_s=8e-3, force=False)
         self.logvar = torch.full(fill_value=0., size=(timesteps,))
