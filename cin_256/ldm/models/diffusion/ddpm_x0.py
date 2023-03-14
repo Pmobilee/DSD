@@ -1128,7 +1128,7 @@ class LatentDiffusion(DDPM):
     @torch.no_grad()
     def p_sample(self, x, c, t, clip_denoised=False, repeat_noise=False,
                  return_codebook_ids=False, quantize_denoised=False, return_x0=True,
-                 temperature=1., noise_dropout=0., score_corrector=None, corrector_kwargs=None):
+                 temperature=1., noise_dropout=0., score_corrector=None, corrector_kwargs=None, noise=None):
         b, *_, device = *x.shape, x.device
         outputs = self.p_mean_variance(x=x, c=c, t=t, clip_denoised=clip_denoised,
                                        return_codebook_ids=return_codebook_ids,
@@ -1143,16 +1143,20 @@ class LatentDiffusion(DDPM):
         else:
             model_mean, _, model_log_variance = outputs
 
-        noise = noise_like(x.shape, device, repeat_noise) * temperature
+        if noise == None:
+            noise = noise_like(x.shape, device, repeat_noise) * temperature
+        else:
+            noise=noise
         if noise_dropout > 0.:
             noise = torch.nn.functional.dropout(noise, p=noise_dropout)
+ 
         # no noise when t == 0
         nonzero_mask = (1 - (t == 0).float()).reshape(b, *((1,) * (len(x.shape) - 1)))
 
         if return_codebook_ids:
             return model_mean + nonzero_mask * (0.5 * model_log_variance).exp() * noise, logits.argmax(dim=1)
         if return_x0:
-            return model_mean + nonzero_mask * (0.5 * model_log_variance).exp() * noise, x0
+            return model_mean + nonzero_mask * (0.5 * model_log_variance).exp() * noise, x0, noise
         else:
             return model_mean + nonzero_mask * (0.5 * model_log_variance).exp() * noise
 
@@ -1161,7 +1165,7 @@ class LatentDiffusion(DDPM):
     def progressive_denoising(self, cond, shape, verbose=True, callback=None, quantize_denoised=False,
                               img_callback=None, mask=None, x0=None, temperature=1., noise_dropout=0.,
                               score_corrector=None, corrector_kwargs=None, batch_size=None, x_T=None, start_T=None,
-                              log_every_t=None):
+                              log_every_t=None, noise=None):
         if not log_every_t:
             log_every_t = self.log_every_t
         timesteps = self.num_timesteps
@@ -1188,22 +1192,26 @@ class LatentDiffusion(DDPM):
         iterator = tqdm(reversed(range(0, timesteps)), desc='Progressive Generation',
                         total=timesteps, disable=True) if verbose else reversed(
             range(0, timesteps))
-    
+        noises = []
         if type(temperature) == float:
             temperature = [temperature] * timesteps
-
+   
         for i in iterator:
+                   
             ts = torch.full((b,), i, device=self.device, dtype=torch.long)
             # if self.shorten_cond_schedule:
             #     assert self.model.conditioning_key != 'hybrid'
             #     tc = self.cond_ids[ts].to(cond.device)
             #     cond = self.q_sample(x_start=cond, t=tc, noise=torch.randn_like(cond))
-
-            img, x0_partial = self.p_sample(img, cond, ts,
+            if noise != None:
+                noise_step = noise[i]
+            else:
+                noise_step = None
+            img, x0_partial, noise_return = self.p_sample(img, cond, ts,
                                             clip_denoised=self.clip_denoised,
                                             quantize_denoised=quantize_denoised, repeat_noise=False, return_x0=True,
                                             temperature=temperature[i], noise_dropout=noise_dropout,
-                                            score_corrector=score_corrector, corrector_kwargs=corrector_kwargs)
+                                            score_corrector=score_corrector, corrector_kwargs=corrector_kwargs, noise=noise_step)
             # if mask is not None:
             #     assert x0 is not None
             #     img_orig = self.q_sample(x0, ts)
@@ -1211,9 +1219,13 @@ class LatentDiffusion(DDPM):
 
             # if i % log_every_t == 0 or i == timesteps - 1:
             #     intermediates.append(x0_partial)
+            if noise == None:
+                noises.append(noise_return)
             if callback: callback(i)
             if img_callback: img_callback(img, i)
-        return img, x0_partial, x_T_copy
+        if noise == None:
+            noise_return = noises
+        return img, x0_partial, x_T_copy, noise_return
 
     @torch.no_grad()
     def iterative_progressive_denoising(self, cond, shape, verbose=True, callback=None, quantize_denoised=False,

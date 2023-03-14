@@ -363,26 +363,26 @@ def compare_teacher_student(teacher, student, steps=[10], class_prompt=None):
                 c = teacher.get_learned_conditioning({teacher.cond_stage_key: xc.to(teacher.device)})
                 c_student = student.get_learned_conditioning({student.cond_stage_key: xc.to(student.device)})
                 img = None
-                img, x0, x_T_copy = teacher.progressive_denoising(cond=c, shape=[3, 64, 64], verbose=True, callback=None, quantize_denoised=False,
+                img, x0, x_T_copy, noise = teacher.progressive_denoising(cond=c, shape=[3, 64, 64], verbose=True, callback=None, quantize_denoised=False,
                                     img_callback=None, mask=None, x0=None, temperature=1.0, noise_dropout=0.,
                                     score_corrector=None, corrector_kwargs=None, batch_size=1, x_T=img,
-                                    log_every_t=None) 
-
+                                    log_every_t=None, noise=None) 
+                
 
                 x_samples_ddim = teacher.decode_first_stage(x0)
                 x_samples_ddim = torch.clamp((x_samples_ddim+1.0)/2.0, min=0.0, max=1.0)
                 images.append(x_samples_ddim)
-
+                noise.reverse()
              
-                img_student, x0_student, x_T_copy = student.progressive_denoising(cond=c_student, shape=[3, 64, 64], verbose=True, callback=None, quantize_denoised=False,
+                img_student, x0_student, x_T_copy, noise = student.progressive_denoising(cond=c_student, shape=[3, 64, 64], verbose=True, callback=None, quantize_denoised=False,
                                         img_callback=None, mask=None, x0=None, temperature=1.0, noise_dropout=0.,
                                         score_corrector=None, corrector_kwargs=None, batch_size=1, x_T=x_T_copy,
-                                        log_every_t=None)   
+                                        log_every_t=None, noise=noise)   
 
                 x_samples_ddim = student.decode_first_stage(x0_student)
                 x_samples_ddim = torch.clamp((x_samples_ddim+1.0)/2.0, min=0.0, max=1.0)
                 images.append(x_samples_ddim)
-
+    
     grid = torch.stack(images, 0)
     grid = rearrange(grid, 'n b c h w -> (n b) c h w')
     grid = make_grid(grid, nrow=2)
