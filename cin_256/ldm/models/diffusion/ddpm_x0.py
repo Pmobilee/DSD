@@ -1165,7 +1165,7 @@ class LatentDiffusion(DDPM):
     def progressive_denoising(self, cond, shape, verbose=True, callback=None, quantize_denoised=False,
                               img_callback=None, mask=None, x0=None, temperature=1., noise_dropout=0.,
                               score_corrector=None, corrector_kwargs=None, batch_size=None, x_T=None, start_T=None,
-                              log_every_t=None, noise=None):
+                              log_every_t=None, noise=None, keep_intermediates=False):
         if not log_every_t:
             log_every_t = self.log_every_t
         timesteps = self.num_timesteps
@@ -1195,7 +1195,8 @@ class LatentDiffusion(DDPM):
         noises = []
         if type(temperature) == float:
             temperature = [temperature] * timesteps
-   
+        log_imgs = []
+        log_x0 = []
         for i in iterator:
                    
             ts = torch.full((b,), i, device=self.device, dtype=torch.long)
@@ -1212,6 +1213,11 @@ class LatentDiffusion(DDPM):
                                             quantize_denoised=quantize_denoised, repeat_noise=False, return_x0=True,
                                             temperature=temperature[i], noise_dropout=noise_dropout,
                                             score_corrector=score_corrector, corrector_kwargs=corrector_kwargs, noise=noise_step)
+
+            if keep_intermediates == True:
+                log_imgs.append(img)
+                log_x0.append(x0_partial)
+            
             # if mask is not None:
             #     assert x0 is not None
             #     img_orig = self.q_sample(x0, ts)
@@ -1225,7 +1231,10 @@ class LatentDiffusion(DDPM):
             if img_callback: img_callback(img, i)
         if noise == None:
             noise_return = noises
-        return img, x0_partial, x_T_copy, noise_return
+        if keep_intermediates == True:
+            return img, x0_partial, x_T_copy, noise_return, log_imgs, log_x0
+        else:
+            return img, x0_partial, x_T_copy, noise_return
 
     @torch.no_grad()
     def iterative_progressive_denoising(self, cond, shape, verbose=True, callback=None, quantize_denoised=False,
@@ -1245,7 +1254,7 @@ class LatentDiffusion(DDPM):
         else:
             img = x_T
         x_T_copy = img
-  
+        log_imgs = []
         if cond is not None:
             if isinstance(cond, dict):
                 cond = {key: cond[key][:batch_size] if not isinstance(cond[key], list) else
@@ -1269,6 +1278,8 @@ class LatentDiffusion(DDPM):
                                             quantize_denoised=quantize_denoised, return_x0=True,
                                             temperature=temperature[i], noise_dropout=noise_dropout,
                                             score_corrector=score_corrector, corrector_kwargs=corrector_kwargs)
+            if keep_intermediates == True:
+                log_imgs.append(x0_partial)
             if mask is not None:
                 assert x0 is not None
                 img_orig = self.q_sample(x0, ts)
@@ -1276,7 +1287,10 @@ class LatentDiffusion(DDPM):
 
             if callback: callback(i)
             if img_callback: img_callback(img, i)
-        return img, x0_partial, x_T_copy
+        if keep_intermediates == True:
+            return img, x0_partial, x_T_copy, log_imgs
+        else:
+            return img, x0_partial, x_T_copy
 
     @torch.no_grad()
     def p_sample_loop(self, cond, shape, return_intermediates=False,
@@ -1443,8 +1457,9 @@ class LatentDiffusion(DDPM):
 
             if callback: callback(i)
             if img_callback: img_callback(img, i)
-        a_t = self.alphas_cumprod[i]
-        return img, x0_partial, x_T_copy, a_t
+        a_t = self.sqrt_alphas_cumprod[i]
+        s_t = self.sqrt_one_minus_alphas_cumprod[i]
+        return img, x0_partial, x_T_copy, a_t, s_t
 
     @torch.enable_grad()
     def p_sample_loop_student(self, cond, shape, return_intermediates=False,

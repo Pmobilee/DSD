@@ -118,7 +118,7 @@ def get_model(config_path, model_path):
 
 
 @torch.no_grad()
-def generate(model, x0=True, num_imgs=1, steps=20, x_T=None, class_prompt=None, keep_intermediates=False):
+def generate(model, x0=True, num_imgs=1, steps=20, x_T=None, class_prompt=None, keep_intermediates=True):
     """
     Params: model, sampler, num_imgs=1, steps=20, eta=0.0, scale=3.0, x_T=None, class_prompt=None, keep_intermediates=False. 
     Task: returns final generated samples from the provided model and accompanying sampler. Unless the class prompt is specified,
@@ -132,10 +132,17 @@ def generate(model, x0=True, num_imgs=1, steps=20, x_T=None, class_prompt=None, 
     xc = torch.tensor([class_embed])
     model.num_timesteps = timesteps
     c = model.get_learned_conditioning({model.cond_stage_key: xc.to(model.device)})
-    img, x, x_T_copy, _ = model.progressive_denoising(cond=c, shape=[3, 64, 64], verbose=True, callback=None, quantize_denoised=False,
+
+    if keep_intermediates == True:
+        img, x, x_T_copy, _, log_imgs, log_x0 = model.progressive_denoising(cond=c, shape=[3, 64, 64], verbose=True, callback=None, quantize_denoised=False,
                                 img_callback=None, mask=None, x0=None, temperature=1., noise_dropout=0.,
                                 score_corrector=None, corrector_kwargs=None, batch_size=1, x_T=None, start_T=None,
-                                log_every_t=None)
+                                log_every_t=None, keep_intermediates=True)
+    else:
+        img, x, x_T_copy, _, = model.progressive_denoising(cond=c, shape=[3, 64, 64], verbose=True, callback=None, quantize_denoised=False,
+                                img_callback=None, mask=None, x0=None, temperature=1., noise_dropout=0.,
+                                score_corrector=None, corrector_kwargs=None, batch_size=1, x_T=None, start_T=None,
+                                log_every_t=None, keep_intermediates=False)
           
                                     
     # display as grid
@@ -154,8 +161,10 @@ def generate(model, x0=True, num_imgs=1, steps=20, x_T=None, class_prompt=None, 
     # to image
     grid = 255. * rearrange(grid, 'c h w -> h w c').cpu().numpy()
     image = Image.fromarray(grid.astype(np.uint8))
-
-    return image, x_T_copy, class_prompt
+    if keep_intermediates==True:
+        return image, x_T_copy, class_prompt, log_imgs, log_x0
+    else:
+        return image, x_T_copy, class_prompt
 
 
 def latent_to_img(model, latent):
@@ -379,7 +388,7 @@ def compare_teacher_student(teacher, student, steps=[10], class_prompt=None):
                                         score_corrector=None, corrector_kwargs=None, batch_size=1, x_T=x_T_copy,
                                         log_every_t=None, noise=noise)   
 
-                x_samples_ddim = student.decode_first_stage(x0_student)
+                x_samples_ddim = student.decode_first_stage(img_student)
                 x_samples_ddim = torch.clamp((x_samples_ddim+1.0)/2.0, min=0.0, max=1.0)
                 images.append(x_samples_ddim)
     
