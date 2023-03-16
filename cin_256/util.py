@@ -247,11 +247,12 @@ def teacher_train_student(teacher, sampler_teacher, student, sampler_student, op
     NUM_CLASSES = 1000
     generations = generations
     intermediate_generation = generations // 5
+
     ddim_steps_teacher = steps
     ddim_steps_student = int(ddim_steps_teacher / 2)
     TEACHER_STEPS = 2
     STUDENT_STEPS = 1
-    ddim_eta = 0.01
+    ddim_eta = 0.0
     scale = 3.0
     updates = int(ddim_steps_teacher / TEACHER_STEPS)
     optimizer=optimizer
@@ -289,6 +290,7 @@ def teacher_train_student(teacher, sampler_teacher, student, sampler_student, op
                         c = teacher.get_learned_conditioning({teacher.cond_stage_key: xc.to(teacher.device)})
                         c_student = teacher.get_learned_conditioning({teacher.cond_stage_key: xc.to(teacher.device)})
                         x_T = None
+                        x_T_student = None
                         
                         for steps in range(updates):          
                                     instance += 1
@@ -305,7 +307,7 @@ def teacher_train_student(teacher, sampler_teacher, student, sampler_student, op
                                                                     # unconditional_conditioning=uc, 
                                                                     eta=ddim_eta,
                                                                     keep_intermediates=False,
-                                                                    intermediate_step = steps*TEACHER_STEPS,
+                                                                    intermediate_step = steps,
                                                                     steps_per_sampling = TEACHER_STEPS,
                                                                     total_steps = ddim_steps_teacher)      
                                     
@@ -318,11 +320,12 @@ def teacher_train_student(teacher, sampler_teacher, student, sampler_student, op
                                     
                                     # teacher_target = torch.clamp((x_T_teacher_decode+1.0)/2.0, min=0.0, max=1.0)
                                     
-
+                                    if steps == 0:
+                                        x_T_student == x_T
                                     with torch.enable_grad():
                                         # sampler_student.make_schedule(ddim_num_steps=ddim_steps_student, ddim_eta=ddim_eta, verbose=False)
                                         optimizer.zero_grad()
-                                        pred_x0_student, st, at= sampler_student.sample_student(S=STUDENT_STEPS,
+                                        pred_x0_student, st, at, x_T_student= sampler_student.sample_student(S=STUDENT_STEPS,
                                                                         conditioning=c_student,
                                                                         batch_size=1,
                                                                         shape=[3, 64, 64],
@@ -333,7 +336,7 @@ def teacher_train_student(teacher, sampler_teacher, student, sampler_student, op
                                                                         # unconditional_conditioning=c, 
                                                                         eta=ddim_eta,
                                                                         keep_intermediates=False,
-                                                                        intermediate_step = steps*STUDENT_STEPS,
+                                                                        intermediate_step = steps,
                                                                         steps_per_sampling = STUDENT_STEPS,
                                                                         total_steps = ddim_steps_student)
                                         
@@ -344,10 +347,22 @@ def teacher_train_student(teacher, sampler_teacher, student, sampler_student, op
                                         # student_target  = torch.clamp((x_T_student_decode +1.0)/2.0, min=0.0, max=1.0)
                                         # loss = max(math.log(a_t**2 / (1-a_t) **2), 1) *  criterion(samples_ddim_student, samples_ddim_teacher)
                                         # loss = math.log(a_t / (sigma_t)) * criterion(pred_x0_student, pred_x0_teacher)
-                                        # loss =  abs(math.log(a_t / (1-a_t))) * criterion(e_t_student, e_t_teacher)
+                                        # loss =  abs(math.log(a_t / (1-a_t))) * criterion(e_t_student, e_t_teacher
                                         # loss = math.log(a_t**2 / (1-a_t) **2) * criterion(e_t_student, e_t_teacher)
-                                        loss = 1 -  torch.exp(torch.log(((at  ) / (st )))) * criterion(pred_x0_student, pred_x0_teacher)
-                                        # print(torch.exp(torch.log(((at  ) / (st )))))
+                                        # loss = torch.log(((st  ) / (at ))) * 
+                                        # signal = at
+                                        # noise = 1 - at
+                                        # log_snr = torch.log(signal / noise)
+                                        # weight = max(torch.exp(log_snr), 1)
+                                        # loss = torch.exp(torch.log(((at  ) / (st )))) * (1 - criterion(pred_x0_student, pred_x0_teacher))
+                                        loss = torch.exp(torch.log(((at  ) / (st )))) *  (1-criterion(pred_x0_student, pred_x0_teacher))
+                                        # loss =  weight * (1-criterion(pred_x0_student, pred_x0_teacher))
+                                        # print(weight)
+                                        # loss = (1 -  torch.exp(torch.log(((at  ) / (st ))))) * torch.mean(torch.square(pred_x0_student - pred_x0_teacher))
+                                        # loss = torch.exp(torch.log(((at **2 ) / (st ** 2 ** 2 )))) * torch.mean(torch.square(pred_x0_student - pred_x0_teacher))
+                                        # print("scale:", torch.exp(torch.log(((at) / (1 - at ** 2)))))
+                                        # print("st:", st, "at", at, end="-")
+                                        # print(torch.exp(torch.log(((st  ) / (at )))))
                                         # print(1 -  torch.exp(torch.log(((at  ) / (st )))))
                                         # loss = 1 -  torch.exp(torch.log(((at  ) / (st )))) * criterion(student_target, teacher_target)
                                         # print(torch.exp(torch.log(((at ** 2 ) / (st ** 2)))), end=" ")
@@ -375,12 +390,12 @@ def teacher_train_student(teacher, sampler_teacher, student, sampler_student, op
 
                         with torch.no_grad():
                             if session != None:
-                                # if generation > 2 and generation % intermediate_generation == 0:
-                                # save_model(sampler_student, optimizer, scheduler, name=f"intermediate_{instance}", steps=ddim_steps_student, run_name=run_name)
-                                images, grid = compare_teacher_student(teacher, sampler_teacher, student, sampler_student, steps=[1, 2, 4, 6, 8, 10, 16, 20, 32, 64, 128], prompt=992)
-                                images = wandb.Image(grid, caption=f"{instance} steps, left: Teacher, right: Student")
-                                wandb.log({"Intermediate": images})
-                        
+                                if generation > 2 and generation % intermediate_generation == 0:
+                                    save_model(sampler_student, optimizer, scheduler, name=f"intermediate_{instance}", steps=ddim_steps_student, run_name=run_name)
+                                    images, grid = compare_teacher_student(teacher, sampler_teacher, student, sampler_student, steps=[1, 2, 4, 6, 8, 10, 16, 20, 32, 64, 128], prompt=992)
+                                    images = wandb.Image(grid, caption=f"{instance} steps, left: Teacher, right: Student")
+                                    wandb.log({"Intermediate": images})
+                            
                         
                         
                         all_losses.extend(losses)
@@ -598,7 +613,7 @@ def distill(ddim_steps, generations, run_name, config, original_model_path, lr):
             sampler_student = DDIMSampler(student)
         notes = f"""This is a serious attempt to distill the {step} step original teacher into a {steps} step student, trained on {model_generations * ddim_steps[index]} instances"""
         wandb_session = wandb_log(name=f"Train_student_on_{step}_pretrained", lr=lr, model=student, tags=["distillation", "auto", run_name], notes=notes)
-        optimizer, scheduler = get_optimizer(sampler_student, iterations=model_generations * steps, lr=lr)
+        optimizer, scheduler = get_optimizer(sampler_student, iterations=generations, lr=lr)
         teacher_train_student(teacher, sampler_teacher, student, sampler_student, optimizer, scheduler, steps=step, generations=model_generations, early_stop=False, session=wandb_session, run_name=run_name)
         save_model(sampler_student, optimizer, scheduler, name="lr8_scheduled", steps=steps, run_name = run_name)
         images, grid = compare_teacher_student(teacher, sampler_teacher, student, sampler_student, steps=[1, 2, 4, 8, 16, 32, 64, 128])

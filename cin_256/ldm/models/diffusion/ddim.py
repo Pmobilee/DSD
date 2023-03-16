@@ -347,7 +347,7 @@ class DDIMSampler(object):
 
 
         # CHANGE THESE TO MAKE IT WORK
-        return pred_x0, st, at
+        return pred_x0, sigma_t, a_t, x_T_copy
     
     #### FOR THE STUDENT!!!!!!!!!!
     # @torch.no_grad()
