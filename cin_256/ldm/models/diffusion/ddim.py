@@ -150,7 +150,7 @@ class DDIMSampler(object):
                                                     intermediate_step=intermediate_step, total_steps = total_steps,
                                                     steps_per_sampling = steps_per_sampling,
                                                     )
-        return samples, intermediates, x_T_copy, pred_x0, a_t, e_t
+        return samples, intermediates, x_T_copy, pred_x0, a_t
     # @torch.enable_grad()
     @torch.no_grad()
     def ddim_sampling(self, cond, shape,
@@ -340,7 +340,14 @@ class DDIMSampler(object):
                                                     intermediate_step=intermediate_step, total_steps = total_steps,
                                                     steps_per_sampling = steps_per_sampling,
                                                     )
-        return samples, intermediates, x_T_copy, a_t, pred_x0, sigma_t, e_t
+        # return samples, intermediates, x_T_copy, a_t, pred_x0
+  
+        st = 1 - self.sqrt_one_minus_alphas_cumprod[intermediate_step]
+        at = self.sqrt_one_minus_alphas_cumprod[intermediate_step]
+
+
+        # CHANGE THESE TO MAKE IT WORK
+        return pred_x0, st, at
     
     #### FOR THE STUDENT!!!!!!!!!!
     # @torch.no_grad()
@@ -378,7 +385,7 @@ class DDIMSampler(object):
             # time_range = np.flip(timesteps)[step:step+2]
             total_steps = total_steps
 
-
+        
         # print("timesteps:", timesteps)
         intermediates = {'x_inter': [img], 'pred_x0': [img]}
         
@@ -449,8 +456,6 @@ class DDIMSampler(object):
         sigma_t = torch.full((b, 1, 1, 1), sigmas[index], device=device, requires_grad=True)
         sqrt_one_minus_at = torch.full((b, 1, 1, 1), sqrt_one_minus_alphas[index],device=device, requires_grad=True)
 
-        # print("a_prev", a_prev)
-
         # current prediction for x_0
         pred_x0 = (x - sqrt_one_minus_at * e_t) / a_t.sqrt()
         if quantize_denoised:
@@ -461,4 +466,4 @@ class DDIMSampler(object):
         if noise_dropout > 0.:
             noise = torch.nn.functional.dropout(noise, p=noise_dropout, requires_grad=True)
         x_prev = a_prev.sqrt() * pred_x0 + dir_xt + noise
-        return x_prev, pred_x0, a_t, sigma_t, e_t
+        return x_prev, pred_x0, a_t, sqrt_one_minus_at, e_t
