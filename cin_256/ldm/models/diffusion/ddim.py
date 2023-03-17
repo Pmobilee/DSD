@@ -131,6 +131,7 @@ class DDIMSampler(object):
         # sampling
         C, H, W = shape
         size = (batch_size, C, H, W)
+        samples = x_T
         # print(f'Data shape for DDIM sampling is {size}, eta {eta}')
         samples, intermediates, x_T_copy, pred_x0, a_t, e_t = self.ddim_sampling(conditioning, size,
                                                     callback=callback,
@@ -142,7 +143,7 @@ class DDIMSampler(object):
                                                     temperature=temperature,
                                                     score_corrector=score_corrector,
                                                     corrector_kwargs=corrector_kwargs,
-                                                    x_T=x_T,
+                                                    x_T=samples,
                                                     keep_intermediates = keep_intermediates,
                                                     log_every_t=log_every_t,
                                                     unconditional_guidance_scale=unconditional_guidance_scale,
@@ -205,14 +206,14 @@ class DDIMSampler(object):
             else: 
                 index = total_steps - intermediate_step - i -1
             
-        
+            
             # print("index:", index)
             ts = torch.full((b,), step, device=device, dtype=torch.long)
 
-            if mask is not None:
-                assert x0 is not None
-                img_orig = self.model.q_sample(x0, ts)  # TODO: deterministic forward pass?
-                img = img_orig * mask + (1. - mask) * img
+            # if mask is not None:
+            #     assert x0 is not None
+            #     img_orig = self.model.q_sample(x0, ts)  # TODO: deterministic forward pass?
+            #     img = img_orig * mask + (1. - mask) * img
 
             outs = self.p_sample_ddim(img, cond, ts, index=index, use_original_steps=ddim_use_original_steps,
                                       quantize_denoised=quantize_denoised, temperature=temperature,
@@ -402,7 +403,7 @@ class DDIMSampler(object):
                 index = total_steps - intermediate_step - i -1
             # print("student index:", index)
             ts = torch.full((b,), step, device=device, dtype=torch.long)
-
+        
             # if mask is not None:
             #     assert x0 is not None
             #     img_orig = self.model.q_sample(x0, ts)  # TODO: deterministic forward pass?
