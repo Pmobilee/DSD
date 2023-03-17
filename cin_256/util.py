@@ -252,7 +252,7 @@ def teacher_train_student(teacher, sampler_teacher, student, sampler_student, op
     ddim_steps_student = int(ddim_steps_teacher / 2)
     TEACHER_STEPS = 2
     STUDENT_STEPS = 1
-    ddim_eta = 0.0
+    ddim_eta = 0.01
     scale = 3.0
     updates = int(ddim_steps_teacher / TEACHER_STEPS)
     optimizer=optimizer
@@ -352,10 +352,11 @@ def teacher_train_student(teacher, sampler_teacher, student, sampler_student, op
                                         # loss = torch.log(((st  ) / (at ))) * 
                                         # signal = at
                                         # noise = 1 - at
-                                        # log_snr = torch.log(signal / noise)
-                                        # weight = max(torch.exp(log_snr), 1)
-                                        # loss = torch.exp(torch.log(((at  ) / (st )))) * (1 - criterion(pred_x0_student, pred_x0_teacher))
-                                        loss = torch.exp(torch.log(((at  ) / (st )))) *  (1-criterion(pred_x0_student, pred_x0_teacher))
+                                        # log_snr = torch.exp(torch.log(signal / noise))
+                                        # weight = 1 + log_snr
+                                        loss = torch.exp(torch.log(((at  ) / (st )))) * (1 - criterion(pred_x0_student, pred_x0_teacher))
+                                        # loss = torch.mean(torch.square(pred_x0_teacher - pred_x0_student))
+                                        # print("weight:", weight, "sign:", signal, "noise", noise)
                                         # loss =  weight * (1-criterion(pred_x0_student, pred_x0_teacher))
                                         # print(weight)
                                         # loss = (1 -  torch.exp(torch.log(((at  ) / (st ))))) * torch.mean(torch.square(pred_x0_student - pred_x0_teacher))
@@ -518,17 +519,6 @@ def train_student_from_dataset(model, sampler, dataset, student_steps, optimizer
     plt.ylabel("px MSE")
     plt.title("MSEloss student vs teacher")
     plt.show()
-
-# @torch.no_grad()
-# def create_models(config_path, model_path, student=False):
-#     model = get_model(config_path=config_path, model_path=model_path)
-#     sampler = PLMSSampler(model)
-#     if student == True:
-#         student = copy.deepcopy(model)
-#         sampler_student = PLMSSampler(student)
-#         return model, sampler, student, sampler_student
-#     else:
-#         return model, sampler
     
 
 @torch.no_grad()
