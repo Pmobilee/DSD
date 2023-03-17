@@ -150,6 +150,7 @@ class DDIMSampler(object):
                                                     intermediate_step=intermediate_step, total_steps = total_steps,
                                                     steps_per_sampling = steps_per_sampling,
                                                     )
+        
         return samples, intermediates, x_T_copy, pred_x0, a_t
     # @torch.enable_grad()
     @torch.no_grad()
@@ -164,10 +165,11 @@ class DDIMSampler(object):
         b = shape[0]
         if x_T is None:
             img = torch.randn(shape, device=device)
+            x_T_copy = img
             
         else:
             img = x_T
-        x_T_copy = img
+            x_T_copy = x_T
         if intermediate_step == None:
             #                      NOT USED FOR OWN STEP SIZE
             if timesteps is None:
@@ -186,7 +188,7 @@ class DDIMSampler(object):
             time_range = np.flip(self.ddim_timesteps)[intermediate_step:intermediate_step+steps_per_sampling]
             # time_range = np.flip(timesteps)[step:step+2]
             total_steps = total_steps
-
+       
 
         # print("timesteps:", timesteps)
         intermediates = {'x_inter': [img], 'pred_x0': [img]}
@@ -198,7 +200,6 @@ class DDIMSampler(object):
         # print("something??")
         for i, step in enumerate(iterator):
 
-            # print(i)
             if intermediate_step == None:
                 index = total_steps - i - 1
             else: 
@@ -322,7 +323,7 @@ class DDIMSampler(object):
         C, H, W = shape
         size = (batch_size, C, H, W)
         # print(f'Data shape for DDIM sampling is {size}, eta {eta}')
-        samples, intermediates, x_T_copy, a_t, pred_x0, sigma_t, e_t = self.ddim_sampling_student(conditioning, size,
+        samples, intermediates, a_t, pred_x0, sigma_t, e_t = self.ddim_sampling_student(conditioning, size,
                                                     callback=callback,
                                                     img_callback=img_callback,
                                                     quantize_denoised=quantize_x0,
@@ -347,7 +348,7 @@ class DDIMSampler(object):
 
 
         # CHANGE THESE TO MAKE IT WORK
-        return pred_x0, sigma_t, a_t, x_T_copy
+        return pred_x0, sigma_t, a_t,
     
     #### FOR THE STUDENT!!!!!!!!!!
     # @torch.no_grad()
@@ -361,12 +362,10 @@ class DDIMSampler(object):
                       intermediate_step=None, total_steps = None, steps_per_sampling = None):
         device = self.model.betas.device
         b = shape[0]
-        if x_T is None:
-            img = torch.randn(shape, device=device, requires_grad=True)
-            
-        else:
-            img = x_T
-        x_T_copy = img
+
+        
+        img = x_T
+      
         if intermediate_step == None:
             #                      NOT USED FOR OWN STEP SIZE
             if timesteps is None:
@@ -395,7 +394,7 @@ class DDIMSampler(object):
         iterator = tqdm(time_range, desc='DDIM Sampler', total=total_steps, disable=True)
 
         for i, step in enumerate(iterator):
-            # print(i)
+            
             if intermediate_step == None:
                 index = total_steps - i -1
             else: 
@@ -403,10 +402,10 @@ class DDIMSampler(object):
             # print("student index:", index)
             ts = torch.full((b,), step, device=device, dtype=torch.long)
 
-            if mask is not None:
-                assert x0 is not None
-                img_orig = self.model.q_sample(x0, ts)  # TODO: deterministic forward pass?
-                img = img_orig * mask + (1. - mask) * img
+            # if mask is not None:
+            #     assert x0 is not None
+            #     img_orig = self.model.q_sample(x0, ts)  # TODO: deterministic forward pass?
+            #     img = img_orig * mask + (1. - mask) * img
 
             outs = self.p_sample_ddim_student(img, cond, ts, index=index, use_original_steps=ddim_use_original_steps,
                                       quantize_denoised=quantize_denoised, temperature=temperature,
@@ -422,7 +421,7 @@ class DDIMSampler(object):
                 intermediates['x_inter'].append(img)
                 intermediates['pred_x0'].append(pred_x0)
 
-        return img, intermediates, x_T_copy, a_t, pred_x0, sigma_t, e_t
+        return img, intermediates, a_t, pred_x0, sigma_t, e_t
 
 
     #### FOR THE STUDENT!!!!!!!!!!
