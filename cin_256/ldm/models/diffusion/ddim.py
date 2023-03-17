@@ -199,12 +199,13 @@ class DDIMSampler(object):
         iterator = tqdm(time_range, desc='DDIM Sampler', total=total_steps, disable=True)
         # print("something??")
         for i, step in enumerate(iterator):
-
+            
             if intermediate_step == None:
                 index = total_steps - i - 1
             else: 
-                index = total_steps - intermediate_step - i - 1
-            # print("teacher index:", index)
+                index = total_steps - intermediate_step - i -1
+            
+        
             # print("index:", index)
             ts = torch.full((b,), step, device=device, dtype=torch.long)
 
