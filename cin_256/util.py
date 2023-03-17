@@ -263,6 +263,8 @@ def teacher_train_student(teacher, sampler_teacher, student, sampler_student, op
     instance = 0
     generation = 0
     
+    if session != None:
+        session.log({"ddim_eta":ddim_eta})
 
     a_t = np.linspace(0, 1, updates)
 
@@ -359,9 +361,9 @@ def teacher_train_student(teacher, sampler_teacher, student, sampler_student, op
                                         
                                         if session != None:
                                             if generation > 0 and generation % intermediate_generation_compare == 0:
-                                                x_T_teacher_decode = sampler_teacher.model.decode_first_stage(pred_x0_teacher)
+                                                x_T_teacher_decode = sampler_teacher.model.decode_first_stage(pred_x0_teacher.detach())
                                                 teacher_target = torch.clamp((x_T_teacher_decode+1.0)/2.0, min=0.0, max=1.0)
-                                                x_T_student_decode = sampler_teacher.model.decode_first_stage(pred_x0_student)
+                                                x_T_student_decode = sampler_teacher.model.decode_first_stage(pred_x0_student.detach())
                                                 student_target  = torch.clamp((x_T_student_decode +1.0)/2.0, min=0.0, max=1.0)
                                                 predictions_temp.append(teacher_target)
                                                 predictions_temp.append(student_target)
