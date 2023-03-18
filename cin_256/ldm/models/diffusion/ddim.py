@@ -113,6 +113,7 @@ class DDIMSampler(object):
                intermediate_step=None,
                total_steps = None,
                steps_per_sampling = None,
+               custom_schedule=False,
                # this has to come in the same format as the conditioning, # e.g. as encoded tokens, ...
                **kwargs
                ):
@@ -126,7 +127,7 @@ class DDIMSampler(object):
                     print(f"Warning: Got {conditioning.shape[0]} conditionings but batch-size is {batch_size}")
         # if keep_intermediates == True:
         #     print("Keeping all intermediate steps")
-        if intermediate_step == None:
+        if intermediate_step == None and custom_schedule != True:
             self.make_schedule(ddim_num_steps=S, ddim_eta=eta, verbose=verbose)
         # sampling
         C, H, W = shape

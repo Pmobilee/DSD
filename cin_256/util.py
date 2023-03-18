@@ -53,7 +53,7 @@ def load_trained(model_path, config):
     config = OmegaConf.load(config)  
     ckpt = torch.load(model_path)
     model = instantiate_from_config(config.model)
-    m, u = model.load_state_dict(ckpt["model"], strict=False)
+    model.load_state_dict(ckpt["model"], strict=False)
     model.eval()
     model.cuda()
     sampler = DDIMSampler(model)
@@ -295,7 +295,7 @@ def teacher_train_student(teacher, sampler_teacher, student, sampler_student, op
                         x_T = None
                         samples_ddim_teacher = None
                         predictions_temp = []
-                        for steps in range(updates - 1):          
+                        for steps in range(updates):          
                                     instance += 1
 
                                     samples_ddim_teacher, teacher_intermediate, x_T, pred_x0_teacher, a_t_teacher = sampler_teacher.sample(S=TEACHER_STEPS,
@@ -569,7 +569,7 @@ def compare_teacher_student(teacher, sampler_teacher, student, sampler_student, 
                                                     unconditional_conditioning=uc, 
                                                     eta=ddim_eta)
 
-                x_samples_ddim = student.decode_first_stage(pred_x0_student)
+                x_samples_ddim = teacher.decode_first_stage(pred_x0_student)
                 # x_samples_ddim = teacher.decode_first_stage(_f)
                 x_samples_ddim = torch.clamp((x_samples_ddim+1.0)/2.0, min=0.0, max=1.0)
                 images.append(x_samples_ddim)
@@ -582,16 +582,18 @@ def compare_teacher_student(teacher, sampler_teacher, student, sampler_student, 
     grid = 255. * rearrange(grid, 'c h w -> h w c').cpu().numpy()
     return Image.fromarray(grid.astype(np.uint8)), grid.astype(np.uint8)
 
-def distill(ddim_steps, generations, run_name, config, original_model_path, lr):
+def distill(ddim_steps, generations, run_name, config, original_model_path, lr, start_trained=False):
     for index, step in enumerate(ddim_steps):
         steps = int(step / 2)
         model_generations = generations // steps
-        if index == 0:
-            config_path=config
+        config_path=config
+        if index == 0 and start_trained != True:
             model_path=original_model_path
             teacher, sampler_teacher, student, sampler_student = create_models(config_path, model_path, student=True)
+            print("Loading New Student and teacher:", ddim_steps[index])
         else:
             model_path = f"{cwd}/data/trained_models/{run_name}/{ddim_steps[index]}/student_lr8_scheduled.pt"
+            print("Loading New Student and teacher:", ddim_steps[index])
             teacher, sampler_teacher, optimizer, scheduler = load_trained(model_path, config_path)
             student = copy.deepcopy(teacher)
             sampler_student = DDIMSampler(student)
