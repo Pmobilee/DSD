@@ -295,7 +295,7 @@ def teacher_train_student(teacher, sampler_teacher, student, sampler_student, op
                         x_T = None
                         samples_ddim_teacher = None
                         predictions_temp = []
-                        for steps in range(updates):          
+                        for steps in range(updates - 1):          
                                     instance += 1
 
                                     samples_ddim_teacher, teacher_intermediate, x_T, pred_x0_teacher, a_t_teacher = sampler_teacher.sample(S=TEACHER_STEPS,
@@ -343,7 +343,7 @@ def teacher_train_student(teacher, sampler_teacher, student, sampler_student, op
                             
                                         signal = at
                                         noise = 1 - at
-                                        log_snr = torch.exp(torch.log(signal / noise))
+                                        log_snr = torch.log(signal / noise)
                                         weight = max(log_snr, 1)
                                         # loss = torch.exp(torch.log(((at  ) / (st )))) * criterion(pred_x0_student, pred_x0_teacher)
                                         loss = weight * criterion(pred_x0_student, pred_x0_teacher)
@@ -597,6 +597,7 @@ def distill(ddim_steps, generations, run_name, config, original_model_path, lr):
             sampler_student = DDIMSampler(student)
         notes = f"""This is a serious attempt to distill the {step} step original teacher into a {steps} step student, trained on {model_generations * ddim_steps[index]} instances"""
         wandb_session = wandb_log(name=f"Train_student_on_{step}_pretrained", lr=lr, model=student, tags=["distillation", "auto", run_name], notes=notes)
+        wandb.run.log_code(".")
         optimizer, scheduler = get_optimizer(sampler_student, iterations=generations, lr=lr)
         teacher_train_student(teacher, sampler_teacher, student, sampler_student, optimizer, scheduler, steps=step, generations=model_generations, early_stop=False, session=wandb_session, run_name=run_name)
         save_model(sampler_student, optimizer, scheduler, name="lr8_scheduled", steps=steps, run_name = run_name)
