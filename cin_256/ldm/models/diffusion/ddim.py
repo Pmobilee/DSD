@@ -326,7 +326,27 @@ class DDIMSampler(object):
         C, H, W = shape
         size = (batch_size, C, H, W)
         # print(f'Data shape for DDIM sampling is {size}, eta {eta}')
-        samples, intermediates, a_t, pred_x0, sigma_t, e_t = self.ddim_sampling_student(conditioning, size,
+        if keep_intermediates == True:
+            samples, intermediates, a_t, pred_x0, sigma_t, e_t, first, second = self.ddim_sampling_student(conditioning, size,
+                                                    callback=callback,
+                                                    img_callback=img_callback,
+                                                    quantize_denoised=quantize_x0,
+                                                    mask=mask, x0=x0,
+                                                    ddim_use_original_steps=False,
+                                                    noise_dropout=noise_dropout,
+                                                    temperature=temperature,
+                                                    score_corrector=score_corrector,
+                                                    corrector_kwargs=corrector_kwargs,
+                                                    x_T=x_T,
+                                                    keep_intermediates = keep_intermediates,
+                                                    log_every_t=log_every_t,
+                                                    unconditional_guidance_scale=unconditional_guidance_scale,
+                                                    unconditional_conditioning=unconditional_conditioning,
+                                                    intermediate_step=intermediate_step, total_steps = total_steps,
+                                                    steps_per_sampling = steps_per_sampling,
+                                                    )
+        else:
+            samples, intermediates, a_t, pred_x0, sigma_t, e_t = self.ddim_sampling_student(conditioning, size,
                                                     callback=callback,
                                                     img_callback=img_callback,
                                                     quantize_denoised=quantize_x0,
@@ -350,8 +370,9 @@ class DDIMSampler(object):
         at = self.sqrt_one_minus_alphas_cumprod[intermediate_step]
 
 
-        # CHANGE THESE TO MAKE IT WORK
-        return pred_x0, sigma_t, a_t,
+        if keep_intermediates == True:
+            return samples, pred_x0, sigma_t, a_t, intermediates, first
+        return samples, pred_x0, sigma_t, a_t
     
     #### FOR THE STUDENT!!!!!!!!!!
     # @torch.no_grad()
@@ -365,9 +386,13 @@ class DDIMSampler(object):
                       intermediate_step=None, total_steps = None, steps_per_sampling = None):
         device = self.model.betas.device
         b = shape[0]
-
+        if x_T is None:
+            img = torch.randn(shape, device=device) 
+        else:
+            img = x_T
+           
         
-        img = x_T
+   
       
         if intermediate_step == None:
             #                      NOT USED FOR OWN STEP SIZE
@@ -420,10 +445,18 @@ class DDIMSampler(object):
             if callback: callback(i)
             if img_callback: img_callback(pred_x0, i)
 
-            if index % log_every_t == 0 or index == total_steps - 1 or keep_intermediates==True:
-                intermediates['x_inter'].append(img)
-                intermediates['pred_x0'].append(pred_x0)
+            if keep_intermediates == True:
+                if i == 0:
+                    first = pred_x0
+                    
+                if i == 1:
+                    second = pred_x0
+            # if index % log_every_t == 0 or index == total_steps - 1 or keep_intermediates==True:
+            #     intermediates['x_inter'].append(img)
+            #     intermediates['pred_x0'].append(pred_x0)
 
+        if keep_intermediates == True:
+            return img, intermediates, a_t, pred_x0, sigma_t, e_t, first
         return img, intermediates, a_t, pred_x0, sigma_t, e_t
 
 
