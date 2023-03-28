@@ -1,0 +1,50 @@
+{
+    "os": "Windows-10-10.0.22621-SP0",
+    "python": "3.9.16",
+    "heartbeatAt": "2023-03-24T16:53:43.890612",
+    "startedAt": "2023-03-24T16:53:43.217707",
+    "docker": null,
+    "cuda": null,
+    "args": [],
+    "state": "running",
+    "program": "c:\\Diffusion_Thesis\\bloem\\experiments\\self-distill.py",
+    "codePath": "bloem\\experiments\\self-distill.py",
+    "git": {
+        "remote": "https://github.com/Pmobilee/Diffusion_Thesis.git",
+        "commit": "fd031be16e0bb9d6e5f041fcd015eec3322282fd"
+    },
+    "email": "muldamion@gmail.com",
+    "root": "C:/Diffusion_Thesis",
+    "host": "BigDaddy",
+    "username": "Damion",
+    "executable": "C:\\ProgramData\\Anaconda3\\envs\\thesis\\python.exe",
+    "cpu_count": 6,
+    "cpu_count_logical": 12,
+    "cpu_freq": {
+        "current": 3693.0,
+        "min": 0.0,
+        "max": 3693.0
+    },
+    "cpu_freq_per_core": [
+        {
+            "current": 3693.0,
+            "min": 0.0,
+            "max": 3693.0
+        }
+    ],
+    "disk": {
+        "total": 465.10546493530273,
+        "used": 409.1102294921875
+    },
+    "gpu": "NVIDIA GeForce RTX 3060",
+    "gpu_count": 1,
+    "gpu_devices": [
+        {
+            "name": "NVIDIA GeForce RTX 3060",
+            "memory_total": 12884901888
+        }
+    ],
+    "memory": {
+        "total": 31.906330108642578
+    }
+}

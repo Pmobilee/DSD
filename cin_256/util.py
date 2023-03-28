@@ -794,9 +794,12 @@ def self_distillation(student, sampler_student, optimizer, scheduler, session=No
     instance = 0
     generation = 0
     all_losses = []
-    halvings = math.floor(math.log(steps)/math.log(2))
-    halving_generation = generations // (halvings - 1)
-    intermediate_generation_compare = generations // (halvings+1)
+    halvings = math.floor(math.log(steps)/math.log(2)) - 1
+    halving_steps = []
+    for i in range(1, halvings+1):
+        halving_steps.append(int(generations * (1 / (halvings + 2)) * i))
+
+    intermediate_generation_compare = int(generations * 0.8 / (halvings + 1))
 
     with torch.no_grad():
         with student.ema_scope():
@@ -809,7 +812,7 @@ def self_distillation(student, sampler_student, optimizer, scheduler, session=No
                             )
                 with tqdm.tqdm(torch.randint(0, NUM_CLASSES, (generations,))) as tepoch:
                     for i, class_prompt in enumerate(tepoch):
-                        if i > 0 and generation % halving_generation == 0 and decrease_steps==True:
+                        if i in halving_steps and decrease_steps==True:
                             ddim_steps_student = int( ddim_steps_student/ 2)
                             
                             updates = int(ddim_steps_student / TEACHER_STEPS)
@@ -935,5 +938,3 @@ def self_distillation(student, sampler_student, optimizer, scheduler, session=No
 
 
 
-def single_step_distillation():
-    pass

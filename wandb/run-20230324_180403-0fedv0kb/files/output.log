@@ -1,0 +1,33 @@
+c:\Diffusion_Thesis\bloem\experiments\self-distill.py:117: DeprecationWarning: The binary mode of fromstring is deprecated, as it behaves surprisingly on unicode inputs. Use frombuffer instead
+  X = np.fromstring(file.read(n_train + n_valid + n_test), dtype=np.uint8)
+  0%|                                                                                                                                                                                                                                                                    | 0/1000000 [00:00<?, ?it/s]
+Training model.
+  0%|                                                                                                                                                                                                                                                       | 1/1000000 [00:04<1237:58:02,  4.46s/it]
+Traceback (most recent call last):
+  File "c:\Diffusion_Thesis\bloem\experiments\self-distill.py", line 453, in <module>
+    fire.Fire(go)
+  File "C:\ProgramData\Anaconda3\envs\thesis\lib\site-packages\fire\core.py", line 141, in Fire
+    component_trace = _Fire(component, args, parsed_flag_args, context, name)
+  File "C:\ProgramData\Anaconda3\envs\thesis\lib\site-packages\fire\core.py", line 475, in _Fire
+    component, remaining_args = _CallAndUpdateTrace(
+  File "C:\ProgramData\Anaconda3\envs\thesis\lib\site-packages\fire\core.py", line 691, in _CallAndUpdateTrace
+    component = fn(*varargs, **kwargs)
+  File "c:\Diffusion_Thesis\bloem\experiments\self-distill.py", line 371, in go
+    output, doutput = model(source) # forward pass
+  File "C:\ProgramData\Anaconda3\envs\thesis\lib\site-packages\torch\nn\modules\module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "c:\Diffusion_Thesis\bloem\experiments\self-distill.py", line 79, in forward
+    x = block(x) + x
+  File "C:\ProgramData\Anaconda3\envs\thesis\lib\site-packages\torch\nn\modules\module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "c:\Diffusion_Thesis\bloem\experiments\former\modules.py", line 617, in forward
+    fedforward = self.ff(x)
+  File "C:\ProgramData\Anaconda3\envs\thesis\lib\site-packages\torch\nn\modules\module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "C:\ProgramData\Anaconda3\envs\thesis\lib\site-packages\torch\nn\modules\container.py", line 204, in forward
+    input = module(input)
+  File "C:\ProgramData\Anaconda3\envs\thesis\lib\site-packages\torch\nn\modules\module.py", line 1194, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "C:\ProgramData\Anaconda3\envs\thesis\lib\site-packages\torch\nn\modules\linear.py", line 114, in forward
+    return F.linear(input, self.weight, self.bias)
+torch.cuda.OutOfMemoryError: CUDA out of memory. Tried to allocate 192.00 MiB (GPU 0; 12.00 GiB total capacity; 10.98 GiB already allocated; 0 bytes free; 11.24 GiB reserved in total by PyTorch) If reserved memory is >> allocated memory try setting max_split_size_mb to avoid fragmentation.  See documentation for Memory Management and PYTORCH_CUDA_ALLOC_CONF

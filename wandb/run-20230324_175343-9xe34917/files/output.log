@@ -1,0 +1,32 @@
+c:\Diffusion_Thesis\bloem\experiments\self-distill.py:116: DeprecationWarning: The binary mode of fromstring is deprecated, as it behaves surprisingly on unicode inputs. Use frombuffer instead
+  X = np.fromstring(file.read(n_train + n_valid + n_test), dtype=np.uint8)
+  0%|                                                                                                                                                                                                                                                                                    | 0/1000000 [00:00<?, ?it/s]
+  0%|                                                                                                                                                                                                                                                                      | 1/1000000 [01:08<19120:57:52, 68.84s/it]
+Traceback (most recent call last):
+  File "c:\Diffusion_Thesis\bloem\experiments\self-distill.py", line 452, in <module>
+    fire.Fire(go)
+  File "C:\ProgramData\Anaconda3\envs\thesis\lib\site-packages\fire\core.py", line 141, in Fire
+    component_trace = _Fire(component, args, parsed_flag_args, context, name)
+  File "C:\ProgramData\Anaconda3\envs\thesis\lib\site-packages\fire\core.py", line 475, in _Fire
+    component, remaining_args = _CallAndUpdateTrace(
+  File "C:\ProgramData\Anaconda3\envs\thesis\lib\site-packages\fire\core.py", line 691, in _CallAndUpdateTrace
+    component = fn(*varargs, **kwargs)
+  File "c:\Diffusion_Thesis\bloem\experiments\self-distill.py", line 370, in go
+    output, doutput = model(source) # forward pass
+  File "C:\ProgramData\Anaconda3\envs\thesis\lib\site-packages\torch\nn\modules\module.py", line 1501, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "c:\Diffusion_Thesis\bloem\experiments\self-distill.py", line 78, in forward
+    x = block(x) + x
+  File "C:\ProgramData\Anaconda3\envs\thesis\lib\site-packages\torch\nn\modules\module.py", line 1501, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "c:\Diffusion_Thesis\bloem\experiments\former\modules.py", line 611, in forward
+    attended = self.attention(x)
+  File "C:\ProgramData\Anaconda3\envs\thesis\lib\site-packages\torch\nn\modules\module.py", line 1501, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "c:\Diffusion_Thesis\bloem\experiments\former\modules.py", line 97, in forward
+    return self.unifyheads(out)
+  File "C:\ProgramData\Anaconda3\envs\thesis\lib\site-packages\torch\nn\modules\module.py", line 1501, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "C:\ProgramData\Anaconda3\envs\thesis\lib\site-packages\torch\nn\modules\linear.py", line 114, in forward
+    return F.linear(input, self.weight, self.bias)
+KeyboardInterrupt

@@ -1,0 +1,18 @@
+Traceback (most recent call last):
+  File "c:\Diffusion_Thesis\bloem\experiments\self-distill.py", line 452, in <module>
+    fire.Fire(go)
+  File "C:\ProgramData\Anaconda3\envs\thesis\lib\site-packages\fire\core.py", line 141, in Fire
+    component_trace = _Fire(component, args, parsed_flag_args, context, name)
+  File "C:\ProgramData\Anaconda3\envs\thesis\lib\site-packages\fire\core.py", line 475, in _Fire
+    component, remaining_args = _CallAndUpdateTrace(
+  File "C:\ProgramData\Anaconda3\envs\thesis\lib\site-packages\fire\core.py", line 691, in _CallAndUpdateTrace
+    component = fn(*varargs, **kwargs)
+  File "c:\Diffusion_Thesis\bloem\experiments\self-distill.py", line 338, in go
+    data_train, data_val, data_test = enwik8(data)
+  File "c:\Diffusion_Thesis\bloem\experiments\self-distill.py", line 115, in enwik8
+    with gzip.open(path) if path.endswith('.gz') else open(path) as file:
+  File "C:\ProgramData\Anaconda3\envs\thesis\lib\gzip.py", line 58, in open
+    binary_file = GzipFile(filename, gz_mode, compresslevel)
+  File "C:\ProgramData\Anaconda3\envs\thesis\lib\gzip.py", line 173, in __init__
+    fileobj = self.myfileobj = builtins.open(filename, mode or 'rb')
+FileNotFoundError: [Errno 2] No such file or directory: 'c:\\Diffusion_Thesis\\bloem\\experiments\\data\\enwik8.gz'
