@@ -7,3 +7,4 @@ cin_256/wandb/
 *.pt
 *.p
 *.wandb
+*.png

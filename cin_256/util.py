@@ -19,6 +19,7 @@ import copy
 import wandb
 import math
 import traceback
+import pytorch_fid as fid
 
 """
 This module is property of the Vrije Universiteit Amsterdam, department of Beta Science. It contains in part code
@@ -155,7 +156,7 @@ def generate(model, sampler, num_imgs=1, steps=20, eta=0.0, scale=3.0, x_T=None,
           
                                     
     # display as grid
-    x_samples_ddim = model.decode_first_stage(_["x_inter"][-1])
+    x_samples_ddim = model.decode_first_stage(pred_x0)
     x_samples_ddim = torch.clamp((x_samples_ddim+1.0)/2.0, 
                                 min=0.0, max=1.0)
 
@@ -168,6 +169,28 @@ def generate(model, sampler, num_imgs=1, steps=20, eta=0.0, scale=3.0, x_T=None,
     image = Image.fromarray(grid.astype(np.uint8))
 
     return image, x_T_copy, class_prompt, _["x_inter"]
+
+
+def save_images(model, sampler, num_imgs, name, steps):
+    basic_path = f"{cwd}/saved_images/"
+
+    if not os.path.exists(basic_path + name + "/"):
+        os.mkdir(basic_path + name + "/")
+    
+    for step in steps:
+        new_path = basic_path + name + "/" + str(step) + "/"
+        if not os.path.exists(new_path):
+            os.mkdir(new_path)
+        items_present = len(os.listdir(new_path))
+        print(f"Folder {step} contains {items_present} images, generating {50000-items_present} more images")
+        if items_present >= num_imgs:
+            print("Folder already contains 50000 images, skipping")
+            continue
+        num_imgs = num_imgs - items_present
+        for i in range(num_imgs):
+            image, _, class_prompt, _ = generate(model, sampler, steps=step)
+            image.save(new_path + str(class_prompt.item()) + "_" + str(i) + ".png")
+
 
 @torch.no_grad()
 def return_intermediates_for_student(model, sampler, steps=20, eta=0.0, scale=3.0):
@@ -690,6 +713,78 @@ def compare_latents(images):
     grid = 255. * rearrange(grid, 'c h w -> h w c').cpu().numpy()
     return Image.fromarray(grid.astype(np.uint8)), grid.astype(np.uint8)
 
+# @torch.no_grad()
+# def compute_fid(images):
+#     from torchmetrics.image.fid import FrechetInceptionDistance 
+#     fid = FrechetInceptionDistance(feature=64)
+#     grid = torch.stack(images, 0)
+#     grid = rearrange(grid, 'n b c h w -> (n b) c h w')
+#     ndarr = grid.mul(255).add_(0.5).clamp_(0, 255).permute(1, 2, 0).to("cpu", torch.uint8).numpy()
+#     # grid = make_grid(grid, nrow=1)
+#     # grid = torch.tensor(255. * grid.cpu().numpy(), dtype=torch.uint8)
+#     im = Image.fromarray(ndarr)
+#     try:
+#         fid.update(im, real=False)
+#     except:
+#         print("failed")
+#         fid.update(ndarr, real=False)
+#     print("fid:", fid.compute())
+   
+
+# @torch.no_grad()
+# def compare_fid_teacher_student(teacher, sampler_teacher, student, sampler_student, steps=[10], prompt=None):
+#     scale = 3.0
+#     ddim_eta = 0.0
+#     images_student = []
+#     images_teacher = []
+
+#     with torch.no_grad():
+#         with student.ema_scope():
+#             for sampling_steps in steps:
+#                 sampler_teacher.make_schedule(ddim_num_steps=sampling_steps, ddim_eta=ddim_eta, verbose=False)
+#                 sampler_student.make_schedule(ddim_num_steps=sampling_steps, ddim_eta=ddim_eta, verbose=False)
+#                 if prompt == None:
+#                     class_image = torch.randint(0, 999, (1,))
+#                 else:
+#                     class_image = torch.tensor([prompt])
+#                 uc = teacher.get_learned_conditioning({teacher.cond_stage_key: torch.tensor(1*[1000]).to(teacher.device)})
+#                 xc = torch.tensor([class_image])
+#                 c = teacher.get_learned_conditioning({teacher.cond_stage_key: xc.to(teacher.device)})
+#                 teacher_samples_ddim, _, x_T_copy, pred_x0_teacher, a_t= sampler_teacher.sample(S=sampling_steps,
+#                                                     conditioning=c,
+#                                                     batch_size=1,
+#                                                     x_T=None,
+#                                                     shape=[3, 64, 64],
+#                                                     verbose=False,
+#                                                     unconditional_guidance_scale=scale,
+#                                                     unconditional_conditioning=uc, 
+#                                                     eta=ddim_eta)
+
+#                 # x_samples_ddim = teacher.decode_first_stage(_["pred_x0"][-1)
+#                 x_samples_ddim = teacher.decode_first_stage(pred_x0_teacher)
+#                 x_samples_ddim = torch.clamp((x_samples_ddim+1.0)/2.0, min=0.0, max=1.0)
+#                 images_teacher.append(x_samples_ddim)
+
+#                 uc = student.get_learned_conditioning({student.cond_stage_key: torch.tensor(1*[1000]).to(student.device)})
+#                 c = student.get_learned_conditioning({student.cond_stage_key: xc.to(student.device)})
+#                 student_samples_ddim, _, x_T_delete, pred_x0_student, a_t = sampler_student.sample(S=sampling_steps,
+#                                                     conditioning=c,
+#                                                     batch_size=1,
+#                                                     x_T=x_T_copy,
+#                                                     shape=[3, 64, 64],
+#                                                     verbose=False,
+#                                                     unconditional_guidance_scale=scale,
+#                                                     unconditional_conditioning=uc, 
+#                                                     eta=ddim_eta)
+
+#                 x_samples_ddim = student.decode_first_stage(pred_x0_student)
+#                 # x_samples_ddim = teacher.decode_first_stage(_f)
+#                 x_samples_ddim = torch.clamp((x_samples_ddim+1.0)/2.0, min=0.0, max=1.0)
+#                 images_student.append(x_samples_ddim)
+
+#     compute_fid(images_teacher)
+#     compute_fid(images_student)
+#     # return Image.fromarray(grid.astype(np.uint8)), grid.astype(np.uint8)
 
 @torch.no_grad()
 def compare_teacher_student(teacher, sampler_teacher, student, sampler_student, steps=[10], prompt=None):
@@ -741,6 +836,8 @@ def compare_teacher_student(teacher, sampler_teacher, student, sampler_student, 
                 x_samples_ddim = torch.clamp((x_samples_ddim+1.0)/2.0, min=0.0, max=1.0)
                 images.append(x_samples_ddim)
 
+    # from torchmetrics.image.fid import FrechetInceptionDistance
+    # print(fid.compute())
     grid = torch.stack(images, 0)
     grid = rearrange(grid, 'n b c h w -> (n b) c h w')
     grid = make_grid(grid, nrow=2)
@@ -779,7 +876,7 @@ def distill(ddim_steps, generations, run_name, config, original_model_path, lr, 
 
 
 
-def self_distillation(student, sampler_student, optimizer, scheduler, session=None, steps=20, generations=200, early_stop=True, run_name="test", decrease_steps=False):
+def self_distillation(student, sampler_student, original, sampler_original, optimizer, scheduler, session=None, steps=20, generations=200, early_stop=True, run_name="test", decrease_steps=False):
     NUM_CLASSES = 1000
     generations = generations
     
