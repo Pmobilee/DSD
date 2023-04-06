@@ -40,7 +40,7 @@ cwd = os.getcwd()
 
 def save_model(sampler, optimizer, scheduler, name, steps, run_name):
     """
-    Params: model, sampler, optimizer, scherduler, name, steps. Task: saves both the student and sampler models under 
+    Params: model, sampler, optimizer, scheduler, name, steps. Task: saves both the student and sampler models under 
     "/data/trained_models/{steps}/"
     """
     path = f"{cwd}/data/trained_models/{run_name}/{steps}/"
@@ -52,6 +52,9 @@ def save_model(sampler, optimizer, scheduler, name, steps, run_name):
 
 
 def load_trained(model_path, config):
+    """
+    Params: model_path, config. Task: returns model, sampler, optimizer, scheduler for the provided model path and configuration
+    """
     config = OmegaConf.load(config)  
     ckpt = torch.load(model_path)
     model = instantiate_from_config(config.model)
@@ -124,7 +127,7 @@ def generate(model, sampler, num_imgs=1, steps=20, eta=0.0, scale=3.0, x_T=None,
     """
     Params: model, sampler, num_imgs=1, steps=20, eta=0.0, scale=3.0, x_T=None, class_prompt=None, keep_intermediates=False. 
     Task: returns final generated samples from the provided model and accompanying sampler. Unless the class prompt is specified,
-    all generated images are of one of the random classes.
+    all generated images are of one of the random classes. Pred_x0 and samples_ddim are identical when the final denoising step is returned.
     """
     NUM_CLASSES = 1000
     sampler.make_schedule(ddim_num_steps=steps, ddim_eta=eta, verbose=False)
@@ -173,6 +176,9 @@ def generate(model, sampler, num_imgs=1, steps=20, eta=0.0, scale=3.0, x_T=None,
 
 
 def save_images(model, sampler, num_imgs, name, steps, verbose=False):
+    """
+    Params: model, sampler, num_imgs, name, steps, verbose=False. Task: saves generated images to the specified folder name
+    """
     basic_path = f"{cwd}/saved_images/"
     imgs_per_batch = num_imgs
     if not os.path.exists(basic_path + name + "/"):
@@ -198,6 +204,10 @@ def save_images(model, sampler, num_imgs, name, steps, verbose=False):
 
 @torch.no_grad()
 def return_intermediates_for_student(model, sampler, steps=20, eta=0.0, scale=3.0):
+    """
+    Params: model, sampler, steps=20, eta=0.0, scale=3.0. Task: returns intermediate samples from the provided model and accompanying sampler.
+    Has not been updated to work with the newest version of the code, as self-distillation does not require teacher intermediates.
+    """
     NUM_CLASSES = 1000
     ddim_steps = steps
     ddim_eta = eta
@@ -239,6 +249,9 @@ def return_intermediates_for_student(model, sampler, steps=20, eta=0.0, scale=3.
 
 
 def latent_to_img(model, latent):
+    """
+    Params: model, latent. Task: converts a latent vector to an image
+    """
     x_samples_ddim = model.decode_first_stage(latent)
     x_samples_ddim = torch.clamp((x_samples_ddim+1.0)/2.0, min=0.0, max=1.0)
     grid = rearrange(x_samples_ddim, 'b c h w -> (b) c h w')
@@ -248,12 +261,19 @@ def latent_to_img(model, latent):
     return image
 
 def print_size_of_model(model):
+    """
+    Params: model. Task: prints the size of the model in MB
+    """
     torch.save(model.state_dict(), "temp.p")
     print('Size (MB):', os.path.getsize("temp.p")/1e6)
     os.remove('temp.p')
 
 @torch.no_grad()
 def make_dataset(model, sampler, num_images, sampling_steps, path, name):
+    """
+    Params: model, sampler, num_images, sampling_steps, path, name. Task: creates a dataset of generated images and saves it to the specified path.
+    Only used for indirect self-distillation between a teacher and a student initialized from the teacher.
+    """
     dataset = dict()
     if not os.path.exists(path):
         os.mkdir(path)
@@ -271,6 +291,10 @@ def make_dataset(model, sampler, num_images, sampling_steps, path, name):
     
 
 def teacher_train_student(teacher, sampler_teacher, student, sampler_student, optimizer, scheduler, session=None, steps=20, generations=200, early_stop=True, run_name="test"):
+    """
+    Params: teacher, sampler_teacher, student, sampler_student, optimizer, scheduler, session=None, steps=20, generations=200, early_stop=True, run_name="test". 
+    Task: trains the student model using the identical teacher model as a guide. Not used in direct self-distillation where a teacher distills into itself.
+    """
     NUM_CLASSES = 1000
     generations = generations
     intermediate_generation_save = generations // 2
@@ -436,6 +460,9 @@ def teacher_train_student(teacher, sampler_teacher, student, sampler_student, op
 
 @torch.enable_grad()
 def train_student_from_dataset(model, sampler, dataset, student_steps, optimizer, scheduler, early_stop=False, session=None, run_name="test"):
+    """
+    Train a student model from a pre-generated dataset.
+    """
     device = torch.device("cuda")
     model.requires_grad=True
     sampler.requires_grad=True
@@ -533,6 +560,9 @@ def train_student_from_dataset(model, sampler, dataset, student_steps, optimizer
 
 @torch.no_grad()
 def create_models(config_path, model_path, student=False):
+    """
+    Create a model and sampler from a config and model path.
+    """
     model = get_model(config_path=config_path, model_path=model_path)
     sampler = DDIMSampler(model)
     if student == True:
@@ -544,88 +574,22 @@ def create_models(config_path, model_path, student=False):
 
 @torch.no_grad()
 def compare_latents(images):
-    
+    """
+    Compare the latents of a batch of images.
+    """
     grid = torch.stack(images, 0)
     grid = rearrange(grid, 'n b c h w -> (n b) c h w')
     grid = make_grid(grid, nrow=2)
     grid = 255. * rearrange(grid, 'c h w -> h w c').cpu().numpy()
     return Image.fromarray(grid.astype(np.uint8)), grid.astype(np.uint8)
-
-# @torch.no_grad()
-# def compute_fid(images):
-#     from torchmetrics.image.fid import FrechetInceptionDistance 
-#     fid = FrechetInceptionDistance(feature=64)
-#     grid = torch.stack(images, 0)
-#     grid = rearrange(grid, 'n b c h w -> (n b) c h w')
-#     ndarr = grid.mul(255).add_(0.5).clamp_(0, 255).permute(1, 2, 0).to("cpu", torch.uint8).numpy()
-#     # grid = make_grid(grid, nrow=1)
-#     # grid = torch.tensor(255. * grid.cpu().numpy(), dtype=torch.uint8)
-#     im = Image.fromarray(ndarr)
-#     try:
-#         fid.update(im, real=False)
-#     except:
-#         print("failed")
-#         fid.update(ndarr, real=False)
-#     print("fid:", fid.compute())
    
-
-# @torch.no_grad()
-# def compare_fid_teacher_student(teacher, sampler_teacher, student, sampler_student, steps=[10], prompt=None):
-#     scale = 3.0
-#     ddim_eta = 0.0
-#     images_student = []
-#     images_teacher = []
-
-#     with torch.no_grad():
-#         with student.ema_scope():
-#             for sampling_steps in steps:
-#                 sampler_teacher.make_schedule(ddim_num_steps=sampling_steps, ddim_eta=ddim_eta, verbose=False)
-#                 sampler_student.make_schedule(ddim_num_steps=sampling_steps, ddim_eta=ddim_eta, verbose=False)
-#                 if prompt == None:
-#                     class_image = torch.randint(0, 999, (1,))
-#                 else:
-#                     class_image = torch.tensor([prompt])
-#                 uc = teacher.get_learned_conditioning({teacher.cond_stage_key: torch.tensor(1*[1000]).to(teacher.device)})
-#                 xc = torch.tensor([class_image])
-#                 c = teacher.get_learned_conditioning({teacher.cond_stage_key: xc.to(teacher.device)})
-#                 teacher_samples_ddim, _, x_T_copy, pred_x0_teacher, a_t= sampler_teacher.sample(S=sampling_steps,
-#                                                     conditioning=c,
-#                                                     batch_size=1,
-#                                                     x_T=None,
-#                                                     shape=[3, 64, 64],
-#                                                     verbose=False,
-#                                                     unconditional_guidance_scale=scale,
-#                                                     unconditional_conditioning=uc, 
-#                                                     eta=ddim_eta)
-
-#                 # x_samples_ddim = teacher.decode_first_stage(_["pred_x0"][-1)
-#                 x_samples_ddim = teacher.decode_first_stage(pred_x0_teacher)
-#                 x_samples_ddim = torch.clamp((x_samples_ddim+1.0)/2.0, min=0.0, max=1.0)
-#                 images_teacher.append(x_samples_ddim)
-
-#                 uc = student.get_learned_conditioning({student.cond_stage_key: torch.tensor(1*[1000]).to(student.device)})
-#                 c = student.get_learned_conditioning({student.cond_stage_key: xc.to(student.device)})
-#                 student_samples_ddim, _, x_T_delete, pred_x0_student, a_t = sampler_student.sample(S=sampling_steps,
-#                                                     conditioning=c,
-#                                                     batch_size=1,
-#                                                     x_T=x_T_copy,
-#                                                     shape=[3, 64, 64],
-#                                                     verbose=False,
-#                                                     unconditional_guidance_scale=scale,
-#                                                     unconditional_conditioning=uc, 
-#                                                     eta=ddim_eta)
-
-#                 x_samples_ddim = student.decode_first_stage(pred_x0_student)
-#                 # x_samples_ddim = teacher.decode_first_stage(_f)
-#                 x_samples_ddim = torch.clamp((x_samples_ddim+1.0)/2.0, min=0.0, max=1.0)
-#                 images_student.append(x_samples_ddim)
-
-#     compute_fid(images_teacher)
-#     compute_fid(images_student)
-#     # return Image.fromarray(grid.astype(np.uint8)), grid.astype(np.uint8)
 
 @torch.no_grad()
 def compare_teacher_student(teacher, sampler_teacher, student, sampler_student, steps=[10], prompt=None):
+    """
+    Compare the a trained model and an original (teacher). Terms used are teacher and student models, though these may be the same model but at different
+    stages of training.
+    """
     scale = 3.0
     ddim_eta = 0.0
     images = []
@@ -685,6 +649,10 @@ def compare_teacher_student(teacher, sampler_teacher, student, sampler_student, 
     return Image.fromarray(grid.astype(np.uint8)), grid.astype(np.uint8)
 
 def distill(ddim_steps, generations, run_name, config, original_model_path, lr, start_trained=False):
+    """
+    Distill a model into a smaller model. This is done by training a student model to match the teacher model with identical initialization.
+    This is not direct self-distillation as the teacher model does not distill into itself, but rather into a student model.
+    """
     for index, step in enumerate(ddim_steps):
         steps = int(step / 2)
         model_generations = generations // steps
@@ -717,6 +685,10 @@ def distill(ddim_steps, generations, run_name, config, original_model_path, lr, 
 def self_distillation(student, sampler_student, original, sampler_original, optimizer, scheduler, 
             session=None, steps=20, generations=200, early_stop=True, run_name="test", decrease_steps=False,
             step_scheduler="deterministic"):
+    """
+    Distill a model into itself. This is done by having a (teacher) model distill knowledge into itself. Copies of the original model and sampler 
+    are passed in to compare the original untrained version with the distilled model at scheduled intervals.
+    """
     NUM_CLASSES = 1000
     generations = generations
     
@@ -830,12 +802,6 @@ def self_distillation(student, sampler_student, original, sampler_original, opti
                                         scheduler.step()
                                         losses.append(loss.item())
                                         
-                                    
-                                            
-                                            
-                                        
-
-                                        
                                     if session != None:
                                         if generation > 0 and generation % intermediate_generation_compare == 0:
                                             x_T_teacher_decode = sampler_student.model.decode_first_stage(pred_x0_teacher)
@@ -923,6 +889,10 @@ def self_distillation(student, sampler_student, original, sampler_original, opti
 
 
 def get_fid(model, sampler, num_imgs, name,instance, steps =[4, 2, 1]):
+    """
+    Calculates the FID score for a given model and sampler. Potentially useful for monitoring training, or comparing distillation
+    methods.
+    """
     fid_list = []
     if not os.path.exists(f"{cwd}/saved_images/FID/{name}/{instance}"):
         os.makedirs(f"{cwd}/saved_images/FID/{name}/{instance}")
