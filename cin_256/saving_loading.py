@@ -33,7 +33,7 @@ def save_model(sampler, optimizer, scheduler, name, steps, run_name):
     Params: model, sampler, optimizer, scheduler, name, steps. Task: saves both the student and sampler models under 
     "/data/trained_models/{steps}/"
     """
-    path = f"{cwd}/data/trained_models/{run_name}/{steps}/"
+    path = f"{cwd}/data/trained_models/{name}/{run_name}/{steps}/"
     if not os.path.exists(f"{cwd}/data/trained_models/{run_name}/"):
         os.mkdir(f"{cwd}/data/trained_models/{run_name}/")
     if not os.path.exists(path):

@@ -30,7 +30,7 @@ cwd = os.getcwd()
 
 
 
-def self_distillation_CIN(student, sampler_student, original, sampler_original, optimizer, scheduler, 
+def self_distillation_CIN(student, sampler_student, original, sampler_original, optimizer, scheduler,
             session=None, steps=20, generations=200, early_stop=True, run_name="test", decrease_steps=False,
             step_scheduler="deterministic"):
     """
@@ -72,14 +72,14 @@ def self_distillation_CIN(student, sampler_student, original, sampler_original, 
                             {student.cond_stage_key: torch.tensor(1*[1000]).to(student.device)}
                             )
                 
-                if step_scheduler!="deterministic":
+                if step_scheduler =="FID":
                     current_fid = get_fid(student, sampler_student, num_imgs=100, name=run_name, instance = 0, steps=[ddim_steps_student])
                 with tqdm.tqdm(torch.randint(0, NUM_CLASSES, (generations,))) as tepoch:
 
                     for i, class_prompt in enumerate(tepoch):
-                        if i in halving_steps and decrease_steps==True and step_scheduler=="deterministic":
+                        if i in halving_steps and decrease_steps==True and step_scheduler=="iterative":
                             ddim_steps_student = int( ddim_steps_student/ 2)
-                            save_model(sampler_student, optimizer, scheduler, name, ddim_steps_student, run_name)
+                            save_model(sampler_student, optimizer, scheduler, name=step_scheduler, ddim_steps_student=ddim_steps_student, run_name=run_name)
                             updates = int(ddim_steps_student / TEACHER_STEPS)
                             sampler_student.make_schedule(ddim_num_steps=ddim_steps_student, ddim_eta=ddim_eta, verbose=False)
                             sc = student.get_learned_conditioning({student.cond_stage_key: torch.tensor(1*[1000]).to(student.device)})
@@ -163,7 +163,7 @@ def self_distillation_CIN(student, sampler_student, original, sampler_original, 
                                     
 
                                   
-                        if generation > 0 and generation % 20 == 0 and ddim_steps_student != 1 and step_scheduler!="deterministic":
+                        if generation > 0 and generation % 20 == 0 and ddim_steps_student != 1 and step_scheduler=="FID":
                             fid = get_fid(student, sampler_student, num_imgs=100, name=run_name, 
                                         instance = instance, steps=[ddim_steps_student])
                             if fid[0] <= current_fid[0] * 0.9 and decrease_steps==True:
@@ -185,7 +185,7 @@ def self_distillation_CIN(student, sampler_student, original, sampler_original, 
 
                             
                             
-                        if session != None and generation % 20 == 0 and generation > 0:
+                        if session != None and instance % 2000 == 0 and generation > 0:
                             fids = get_fid(student, sampler_student, num_imgs=100, name=run_name, instance = instance+1, steps=[32, 16, 8, 4, 2, 1])
                             session.log({"fid_32":fids[0]})
                             session.log({"fid_16":fids[1]})
