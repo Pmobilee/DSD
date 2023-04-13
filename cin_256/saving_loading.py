@@ -20,10 +20,8 @@ import math
 import traceback
 from pytorch_fid import fid_score
 import shutil
-from self_distillation import *
-from distillation import *
-from util import *
-from generate import *
+import util
+import generate
 
 # Receiving base current working directory
 cwd = os.getcwd()
@@ -33,12 +31,12 @@ def save_model(sampler, optimizer, scheduler, name, steps, run_name):
     Params: model, sampler, optimizer, scheduler, name, steps. Task: saves both the student and sampler models under 
     "/data/trained_models/{steps}/"
     """
-    path = f"{cwd}/data/trained_models/{name}/{run_name}/{steps}/"
-    if not os.path.exists(f"{cwd}/data/trained_models/{run_name}/"):
-        os.mkdir(f"{cwd}/data/trained_models/{run_name}/")
+    path = f"{cwd}/data/trained_models/{name}/{run_name}/"
     if not os.path.exists(path):
         os.mkdir(path)
-    torch.save({"model":sampler.model.state_dict(), "optimizer":optimizer, "scheduler":scheduler}, path + f"student_{name}.pt")
+    if not os.path.exists(path):
+        os.mkdir(path)
+    torch.save({"model":sampler.model.state_dict(), "optimizer":optimizer, "scheduler":scheduler}, path + f"{steps}.pt")
 
 def load_trained(model_path, config):
     """
@@ -61,7 +59,7 @@ def get_optimizer(sampler, iterations, lr=0.0000001):
     """
     lr = lr
     optimizer = torch.optim.Adam(sampler.model.parameters(), lr=lr, betas=(0.9, 0.99), weight_decay=0.001)
-    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=iterations, last_epoch=-1, verbose=False)
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=iterations,eta_min=lr*0.1, last_epoch=-1, verbose=False)
     return optimizer, scheduler
 
 def wandb_log(name, lr, model, tags, notes):
@@ -133,7 +131,7 @@ def save_images(model, sampler, num_imgs, name, steps, verbose=False):
             continue
         num_imgs = num_imgs - items_present
         for i in range(num_imgs):
-            image, _, class_prompt, _ = generate(model, sampler, steps=step)
+            image, _, class_prompt, _ = generate.generate_images(model, sampler, steps=step)
             image.save(new_path + str(class_prompt.item()) + "_" + str(i) + ".png")
 
 @torch.no_grad()
@@ -142,6 +140,47 @@ def return_intermediates_for_student(model, sampler, steps=20, eta=0.0, scale=3.
     Params: model, sampler, steps=20, eta=0.0, scale=3.0. Task: returns intermediate samples from the provided model and accompanying sampler.
     Has not been updated to work with the newest version of the code, as self-distillation does not require teacher intermediates.
     """
+    NUM_CLASSES = 1000
+    ddim_steps = steps
+    ddim_eta = eta
+    scale = scale
+    updates = int(ddim_steps / 2)
+    intermediates = list()
+
+    with torch.no_grad():
+        with model.ema_scope():
+                uc = model.get_learned_conditioning(
+                        {model.cond_stage_key: torch.tensor(1*[1000]).to(model.device)}
+                        )
+                for class_prompt in torch.randint(0, NUM_CLASSES, (1,)):
+                        sampler.make_schedule(ddim_num_steps=ddim_steps, ddim_eta=ddim_eta, verbose=False)
+                        xc = torch.tensor([class_prompt])
+                        c = model.get_learned_conditioning({model.cond_stage_key: xc.to(model.device)})
+                        x_T = None
+                        for steps in range(updates):
+                            samples_ddim, _, x_T_copy, pred_x0 = sampler.sample(S=2,
+                                                            conditioning=c,
+                                                            batch_size=1,
+                                                            shape=[3, 64, 64],
+                                                            verbose=False,
+                                                            x_T=x_T,
+                                                            unconditional_guidance_scale=scale,
+                                                            unconditional_conditioning=uc, 
+                                                            eta=ddim_eta,
+                                                            keep_intermediates=True,
+                                                            intermediate_step = steps*2,
+                                                            steps_per_sampling = 2,
+                                                            total_steps = ddim_steps)
+                            if steps == 0:
+                                starting_noise = x_T_copy
+                                intermediates.append(x_T_copy)
+
+                            intermediates.append(pred_x0)
+
+    return torch.stack(intermediates), starting_noise, class_prompt
+
+@torch.no_grad()
+def return_intermediates_for_student_celeb(model, sampler, steps=20, eta=0.0, scale=3.0):
     NUM_CLASSES = 1000
     ddim_steps = steps
     ddim_eta = eta

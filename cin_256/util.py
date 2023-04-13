@@ -80,7 +80,7 @@ def compare_teacher_student(teacher, sampler_teacher, student, sampler_student, 
     images = []
 
     with torch.no_grad():
-        with student.ema_scope():
+        with teacher.ema_scope():
             for sampling_steps in steps:
                 sampler_teacher.make_schedule(ddim_num_steps=sampling_steps, ddim_eta=ddim_eta, verbose=False)
                 sampler_student.make_schedule(ddim_num_steps=sampling_steps, ddim_eta=ddim_eta, verbose=False)
@@ -94,6 +94,7 @@ def compare_teacher_student(teacher, sampler_teacher, student, sampler_student, 
                 teacher_samples_ddim, _, x_T_copy, pred_x0_teacher, a_t= sampler_teacher.sample(S=sampling_steps,
                                                     conditioning=c,
                                                     batch_size=1,
+                                                    temperature=0.0,
                                                     x_T=None,
                                                     shape=[3, 64, 64],
                                                     verbose=False,
@@ -105,26 +106,75 @@ def compare_teacher_student(teacher, sampler_teacher, student, sampler_student, 
                 x_samples_ddim = teacher.decode_first_stage(pred_x0_teacher)
                 x_samples_ddim = torch.clamp((x_samples_ddim+1.0)/2.0, min=0.0, max=1.0)
                 images.append(x_samples_ddim)
+                with student.ema_scope():
+                    uc = student.get_learned_conditioning({student.cond_stage_key: torch.tensor(1*[1000]).to(student.device)})
+                    c = student.get_learned_conditioning({student.cond_stage_key: xc.to(student.device)})
+                    student_samples_ddim, _, x_T_delete, pred_x0_student, a_t = sampler_student.sample(S=sampling_steps,
+                                                        conditioning=c,
+                                                        batch_size=1,
+                                                        temperature=0.0,
+                                                        x_T=x_T_copy,
+                                                        shape=[3, 64, 64],
+                                                        verbose=False,
+                                                        unconditional_guidance_scale=scale,
+                                                        unconditional_conditioning=uc, 
+                                                        eta=ddim_eta)
 
-                uc = student.get_learned_conditioning({student.cond_stage_key: torch.tensor(1*[1000]).to(student.device)})
-                c = student.get_learned_conditioning({student.cond_stage_key: xc.to(student.device)})
-                student_samples_ddim, _, x_T_delete, pred_x0_student, a_t = sampler_student.sample(S=sampling_steps,
-                                                    conditioning=c,
-                                                    batch_size=1,
-                                                    x_T=x_T_copy,
-                                                    shape=[3, 64, 64],
-                                                    verbose=False,
-                                                    unconditional_guidance_scale=scale,
-                                                    unconditional_conditioning=uc, 
-                                                    eta=ddim_eta)
-
-                x_samples_ddim = student.decode_first_stage(pred_x0_student)
-                # x_samples_ddim = teacher.decode_first_stage(_f)
-                x_samples_ddim = torch.clamp((x_samples_ddim+1.0)/2.0, min=0.0, max=1.0)
-                images.append(x_samples_ddim)
+                    x_samples_ddim = student.decode_first_stage(pred_x0_student)
+                    # x_samples_ddim = teacher.decode_first_stage(_f)
+                    x_samples_ddim = torch.clamp((x_samples_ddim+1.0)/2.0, min=0.0, max=1.0)
+                    images.append(x_samples_ddim)
 
     # from torchmetrics.image.fid import FrechetInceptionDistance
     # print(fid.compute())
+    grid = torch.stack(images, 0)
+    grid = rearrange(grid, 'n b c h w -> (n b) c h w')
+    grid = make_grid(grid, nrow=2)
+
+    # to image
+    grid = 255. * rearrange(grid, 'c h w -> h w c').cpu().numpy()
+    return Image.fromarray(grid.astype(np.uint8)), grid.astype(np.uint8)
+
+@torch.no_grad()
+def compare_teacher_student_celeb(teacher, sampler_teacher, student, sampler_student, steps=[10]):
+    scale = 3.0
+    ddim_eta = 0.0
+    images = []
+
+    with torch.no_grad():
+        with teacher.ema_scope():
+            for sampling_steps in steps:
+                
+                teacher_samples_ddim, _, x_T_copy, pred_x0, a_t= sampler_teacher.sample(S=sampling_steps,
+                                                    conditioning=None,
+                                                    batch_size=1,
+                                                    x_T=None,
+                                                    temperature=0.0,
+                                                    shape=[3, 64, 64],
+                                                    verbose=False,
+                                                    unconditional_guidance_scale=scale,
+                                                    unconditional_conditioning=None, 
+                                                    eta=ddim_eta)
+
+                x_samples_ddim = teacher.decode_first_stage(pred_x0)
+                x_samples_ddim = torch.clamp((x_samples_ddim+1.0)/2.0, min=0.0, max=1.0)
+                images.append(x_samples_ddim)
+                with student.ema_scope():
+                    student_samples_ddim, _, x_T_delete, pred_x0_student, a_t = sampler_student.sample(S=sampling_steps,
+                                                        conditioning=None,
+                                                        batch_size=1,
+                                                        temperature=0.0,
+                                                        x_T= x_T_copy,
+                                                        shape=[3, 64, 64],
+                                                        verbose=False,
+                                                        unconditional_guidance_scale=scale,
+                                                        unconditional_conditioning=None, 
+                                                        eta=ddim_eta)
+
+                    x_samples_ddim = student.decode_first_stage(pred_x0_student)
+                    x_samples_ddim = torch.clamp((x_samples_ddim+1.0)/2.0, min=0.0, max=1.0)
+                    images.append(x_samples_ddim)
+
     grid = torch.stack(images, 0)
     grid = rearrange(grid, 'n b c h w -> (n b) c h w')
     grid = make_grid(grid, nrow=2)

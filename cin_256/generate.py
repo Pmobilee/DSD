@@ -28,7 +28,7 @@ from util import *
 
 
 @torch.no_grad()
-def generate(model, sampler, num_imgs=1, steps=20, eta=0.0, scale=3.0, x_T=None, class_prompt=None, keep_intermediates=False):
+def generate_images(model, sampler, num_imgs=1, steps=20, eta=0.0, scale=3.0, x_T=None, class_prompt=None, keep_intermediates=False):
     """
     Params: model, sampler, num_imgs=1, steps=20, eta=0.0, scale=3.0, x_T=None, class_prompt=None, keep_intermediates=False. 
     Task: returns final generated samples from the provided model and accompanying sampler. Unless the class prompt is specified,
@@ -56,6 +56,7 @@ def generate(model, sampler, num_imgs=1, steps=20, eta=0.0, scale=3.0, x_T=None,
                                                 shape=[3, 64, 64],
                                                 verbose=False,
                                                 x_T=x_T,
+                                                temperature=0.0,
                                                 unconditional_guidance_scale=scale,
                                                 unconditional_conditioning=uc, 
                                                 eta=eta,
@@ -66,6 +67,53 @@ def generate(model, sampler, num_imgs=1, steps=20, eta=0.0, scale=3.0, x_T=None,
                                     
     # display as grid
     x_samples_ddim = model.decode_first_stage(pred_x0)
+    x_samples_ddim = torch.clamp((x_samples_ddim+1.0)/2.0, 
+                                min=0.0, max=1.0)
+
+
+    grid = rearrange(x_samples_ddim, 'b c h w -> (b) c h w')
+    grid = make_grid(grid, nrow=1)
+
+    # to image
+    grid = 255. * rearrange(grid, 'c h w -> h w c').cpu().numpy()
+    image = Image.fromarray(grid.astype(np.uint8))
+
+    return image, x_T_copy, class_prompt, _["x_inter"]
+
+@torch.no_grad()
+def generate_images_celeb(model, sampler, num_imgs=1, steps=20, eta=0.0, scale=3.0, x_T=None, class_prompt=None, keep_intermediates=False):
+    """
+    Params: model, sampler, num_imgs=1, steps=20, eta=0.0, scale=3.0, x_T=None, class_prompt=None, keep_intermediates=False. 
+    Task: returns final generated samples from the provided model and accompanying sampler. Unless the class prompt is specified,
+    all generated images are of one of the random classes.
+    """
+    NUM_CLASSES = 1000
+    sampler.make_schedule(ddim_num_steps=steps, ddim_eta=eta, verbose=False)
+
+    if class_prompt == None:
+        class_prompt = torch.randint(0, NUM_CLASSES, (num_imgs,))
+
+    with torch.no_grad():
+        with model.ema_scope():
+         
+                
+                
+                samples_ddim, _, x_T_copy, pred_x0, a_t = sampler.sample(S=steps,
+                                               
+                                                batch_size=1,
+                                                shape=[3, 64, 64],
+                                                verbose=False,
+                                                x_T=x_T,
+                                                temperature=0.0,
+                                                unconditional_guidance_scale=scale,
+                                                eta=eta,
+                                                keep_intermediates=keep_intermediates,
+                                                intermediate_step=None,
+                                                total_steps=None)
+          
+                                    
+    # display as grid
+    x_samples_ddim = model.decode_first_stage(_["x_inter"][-1])
     x_samples_ddim = torch.clamp((x_samples_ddim+1.0)/2.0, 
                                 min=0.0, max=1.0)
 
