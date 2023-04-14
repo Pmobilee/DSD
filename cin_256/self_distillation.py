@@ -66,6 +66,7 @@ def self_distillation_CIN(student, sampler_student, original, sampler_original, 
         with student.ema_scope():
                 
                 sampler_student.make_schedule(ddim_num_steps=ddim_steps_student, ddim_eta=ddim_eta, verbose=False)
+                sampler_original.make_schedule(ddim_num_steps=ddim_steps_student, ddim_eta=ddim_eta, verbose=False)
                 sc = student.get_learned_conditioning(
                             {student.cond_stage_key: torch.tensor(1*[1000]).to(student.device)}
                             )
@@ -163,7 +164,8 @@ def self_distillation_CIN(student, sampler_student, original, sampler_original, 
                                                 predictions_temp.append(student_target)
                                             session.log({"intermediate_loss":loss.item()})
                                         
-                                        if session != None and instance % 2000 == 0 and generation > 0:
+
+                                        if session != None and instance % 10000 == 0 and generation > 0:
                                             fids = util.get_fid(student, sampler_student, num_imgs=100, name=run_name, instance = instance+1, steps=[64, 32, 16, 8, 4, 2, 1])
                                             session.log({"fid_32":fids[0]})
                                             session.log({"fid_16":fids[1]})
@@ -171,6 +173,20 @@ def self_distillation_CIN(student, sampler_student, original, sampler_original, 
                                             session.log({"fid_4":fids[3]})
                                             session.log({"fid_2":fids[4]})
                                             session.log({"fid_1":fids[5]})
+                                        
+                                        if session != None and instance % 2000 == 0:
+                                            with torch.no_grad():
+                                                images, _ = util.compare_teacher_student(original, sampler_original, original, sampler_original, steps=[64, 32, 16, 8,  4, 2, 1], prompt=992)
+                                                images = wandb.Image(_, caption="left: Teacher, right: Student")
+                                                wandb.log({"pred_x0": images})
+                                                images, _ = util.compare_teacher_student_with_schedule(original, sampler_original, original, sampler_original, steps=[64, 32, 16, 8,  4, 2, 1], prompt=992)
+                                                images = wandb.Image(_, caption="left: Teacher, right: Student")
+                                                wandb.log({"schedule": images})
+
+                                                sampler_student.make_schedule(ddim_num_steps=ddim_steps_student, ddim_eta=ddim_eta, verbose=False)
+                                                sampler_original.make_schedule(ddim_num_steps=ddim_steps_student, ddim_eta=ddim_eta, verbose=False)
+
+                                                
                                     
                                             
 
@@ -178,25 +194,25 @@ def self_distillation_CIN(student, sampler_student, original, sampler_original, 
                                         
 
                                     
-                            if generation > 0 and generation % 20 == 0 and ddim_steps_student != 1 and step_scheduler=="FID":
-                                fid = util.get_fid(student, sampler_student, num_imgs=100, name=run_name, 
-                                            instance = instance, steps=[ddim_steps_student])
-                                if fid[0] <= current_fid[0] * 0.9 and decrease_steps==True:
-                                    print(fid[0], current_fid[0])
-                                    if ddim_steps_student in [16, 8, 4, 2, 1]:
-                                        name = "intermediate"
-                                        saving_loading.save_model(sampler_student, optimizer, scheduler, name, steps * 2, run_name)
-                                    if ddim_steps_student != 2:
-                                        ddim_steps_student -= 2
-                                        updates -= 1
+                            # if generation > 0 and generation % 20 == 0 and ddim_steps_student != 1 and step_scheduler=="FID":
+                            #     fid = util.get_fid(student, sampler_student, num_imgs=100, name=run_name, 
+                            #                 instance = instance, steps=[ddim_steps_student])
+                            #     if fid[0] <= current_fid[0] * 0.9 and decrease_steps==True:
+                            #         print(fid[0], current_fid[0])
+                            #         if ddim_steps_student in [16, 8, 4, 2, 1]:
+                            #             name = "intermediate"
+                            #             saving_loading.save_model(sampler_student, optimizer, scheduler, name, steps * 2, run_name)
+                            #         if ddim_steps_student != 2:
+                            #             ddim_steps_student -= 2
+                            #             updates -= 1
                                         
 
-                                    else:
-                                        ddim_steps_student = 1
-                                        updates = 1    
+                            #         else:
+                            #             ddim_steps_student = 1
+                            #             updates = 1    
 
-                                    current_fid = fid
-                                    print("steps decresed:", ddim_steps_student)    
+                            #         current_fid = fid
+                            #         print("steps decresed:", ddim_steps_student)    
 
                                 
                                 
@@ -210,7 +226,7 @@ def self_distillation_CIN(student, sampler_student, original, sampler_original, 
                                         wandb.log({"Inter_Comp": images})
                                         del img, grid, predictions_temp, x_T_student_decode, x_T_teacher_decode, student_target, teacher_target
                                         torch.cuda.empty_cache()
-                                    
+                            
                             
                             
                             
