@@ -108,7 +108,7 @@ def get_model(config_path, model_path):
     model = load_model_from_config(config, model_path)
     return model
 
-def save_images(model, sampler, num_imgs, name, steps, verbose=False):
+def save_images(model, sampler, num_imgs, name, steps, verbose=False, celeb=False):
     """
     Params: model, sampler, num_imgs, name, steps, verbose=False. Task: saves generated images to the specified folder name
     """
@@ -131,7 +131,10 @@ def save_images(model, sampler, num_imgs, name, steps, verbose=False):
             continue
         num_imgs = num_imgs - items_present
         for i in range(num_imgs):
-            image, _, class_prompt, _ = generate.generate_images(model, sampler, steps=step)
+            if celeb==False:
+                image, _, class_prompt, _ = generate.generate_images(model, sampler, steps=step)
+            else:
+                image, _, class_prompt, _ = generate.generate_images_celeb(model, sampler, steps=step)
             image.save(new_path + str(class_prompt.item()) + "_" + str(i) + ".png")
 
 @torch.no_grad()

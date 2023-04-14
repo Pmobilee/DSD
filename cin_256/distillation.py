@@ -91,7 +91,7 @@ def train_student_from_dataset(model, sampler, dataset, student_steps, optimizer
                                                                 shape=[3, 64, 64],
                                                                 verbose=False,
                                                                 x_T=x_T,
-                                                                temperature=0.0,
+                                                             
                                                                 unconditional_guidance_scale=scale,
                                                                 unconditional_conditioning=uc, 
                                                                 eta=ddim_eta,
@@ -185,7 +185,7 @@ def train_student_from_dataset_celeb(model, sampler, dataset, student_steps, opt
                                                                 shape=[3, 64, 64],
                                                                 verbose=False,
                                                                 x_T=x_T,
-                                                                temperature=0.0,
+                                                            
                                                                 unconditional_guidance_scale=scale,
                                                                 unconditional_conditioning=uc, 
                                                                 eta=ddim_eta,
@@ -296,7 +296,7 @@ def teacher_train_student(teacher, sampler_teacher, student, sampler_student, op
                                                                     shape=[3, 64, 64],
                                                                     verbose=False,
                                                                     x_T=samples_ddim_teacher,
-                                                                    temperature=0.0,
+                                                                
                                                                     # quantize_x0 = True,
                                                                     unconditional_guidance_scale=scale,
                                                                     unconditional_conditioning=uc, 
@@ -322,7 +322,7 @@ def teacher_train_student(teacher, sampler_teacher, student, sampler_student, op
                                                                             shape=[3, 64, 64],
                                                                             verbose=False,
                                                                             x_T=x_T,
-                                                                            temperature=0.0,
+                                                                         
                                                                             # quantize_x0 = True,
                                                                             unconditional_guidance_scale=scale,
                                                                             unconditional_conditioning=sc, 
@@ -452,7 +452,7 @@ def teacher_train_student_celeb(teacher, sampler_teacher, student, sampler_stude
                                                                     unconditional_guidance_scale=scale,
                                                                     unconditional_conditioning=None, 
                                                                     eta=ddim_eta,
-                                                                    temperature=0.0,
+                                                                  
                                                                     keep_intermediates=False,
                                                                     quantize_x0=False,
                                                                     intermediate_step = steps*TEACHER_STEPS,
@@ -476,7 +476,7 @@ def teacher_train_student_celeb(teacher, sampler_teacher, student, sampler_stude
                                                                             unconditional_guidance_scale=scale,
                                                                             unconditional_conditioning=None, 
                                                                             quantize_x0=False,
-                                                                            temperature=0.0,
+                                                                    
                                                                             eta=ddim_eta,
                                                                             keep_intermediates=False,
                                                                             intermediate_step = steps*STUDENT_STEPS,
