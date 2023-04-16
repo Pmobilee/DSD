@@ -4,6 +4,6 @@
 #SBATCH -N 1
 #SBATCH --gpus=2
 #SBATCH --mem=30G
-module load 2021
+module load cuda11.7
 conda activate D-SD
 python distill.py -t SI
