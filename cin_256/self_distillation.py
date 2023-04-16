@@ -147,13 +147,14 @@ def self_distillation_CIN(student, sampler_student, original, sampler_original, 
                                         
 
                                         if session != None and instance % 10000 == 0 and generation > 0:
-                                            fids = util.get_fid(student, sampler_student, num_imgs=100, name=run_name, instance = instance+1, steps=[32, 16, 8, 4, 2, 1])
-                                            session.log({"fid_32":fids[0]})
-                                            session.log({"fid_16":fids[1]})
-                                            session.log({"fid_8":fids[2]})
-                                            session.log({"fid_4":fids[3]})
-                                            session.log({"fid_2":fids[4]})
-                                            session.log({"fid_1":fids[5]})
+                                            fids = util.get_fid(student, sampler_student, num_imgs=100, name=run_name, instance = instance+1, steps=[64, 32, 16, 8, 4, 2, 1])
+                                            session.log({"fid_64":fids[0]})
+                                            session.log({"fid_32":fids[1]})
+                                            session.log({"fid_16":fids[2]})
+                                            session.log({"fid_8":fids[3]})
+                                            session.log({"fid_4":fids[4]})
+                                            session.log({"fid_2":fids[5]})
+                                            session.log({"fid_1":fids[6]})
                                         
                                         if session != None and instance % 2000 == 0:
                                             with torch.no_grad():
