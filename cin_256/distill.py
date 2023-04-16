@@ -68,3 +68,9 @@ if __name__ == '__main__':
 
         self_distillation.self_distillation_CIN(teacher, sampler_teacher, original, sampler_original, optimizer, scheduler, session=wandb_session, 
                         steps=args.steps, generations=args.updates, run_name=args.name, decrease_steps=decrease_steps, step_scheduler=step_scheduler)
+    
+    elif args.task == "SI":
+
+        
+        teacher, sampler_teacher = util.create_models(config_path, model_path, student=False)
+        util.save_images(teacher, sampler_teacher, 30000, "original_scheduler", [64, 32, 16, 8, 4, 2, 1], verbose=True)
