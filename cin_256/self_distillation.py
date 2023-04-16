@@ -61,9 +61,7 @@ def self_distillation_CIN(student, sampler_student, original, sampler_original, 
 
     with torch.no_grad():
         with student.ema_scope():              
-                sampler_student.make_schedule(ddim_num_steps=ddim_steps_student, ddim_eta=ddim_eta, verbose=False)
-                sampler_original.make_schedule(ddim_num_steps=ddim_steps_student, ddim_eta=ddim_eta, verbose=False)
-                sc = student.get_learned_conditioning({student.cond_stage_key: torch.tensor(1*[1000]).to(student.device)})
+                
                 
                 if step_scheduler =="FID":
                     current_fid = util.get_fid(student, sampler_student, num_imgs=100, name=run_name, instance = 0, steps=[ddim_steps_student])
@@ -71,12 +69,15 @@ def self_distillation_CIN(student, sampler_student, original, sampler_original, 
                 updates = ddim_steps_student
 
                 for i in range(halvings):
-                    updates = int(updates / TEACHER_STEPS)
-                    generations = updates_per_halving // updates
                     if instance != 0:
                         util.save_model(sampler_student, optimizer, scheduler, name=step_scheduler, steps=updates, run_name=run_name)
-                    print("updates:", updates)
-                
+                        ddim_steps_student = int(ddim_steps_student / TEACHER_STEPS)
+                    updates = int(ddim_steps_student / TEACHER_STEPS)
+                    generations = updates_per_halving // updates
+                    print("DDIM STEPS:", ddim_steps_student)
+                    sampler_student.make_schedule(ddim_num_steps=ddim_steps_student, ddim_eta=ddim_eta, verbose=False)
+                    sampler_original.make_schedule(ddim_num_steps=ddim_steps_student, ddim_eta=ddim_eta, verbose=False)
+                    sc = student.get_learned_conditioning({student.cond_stage_key: torch.tensor(1*[1000]).to(student.device)})
                     with tqdm.tqdm(torch.randint(0, NUM_CLASSES, (generations,))) as tepoch:
 
                         for i, class_prompt in enumerate(tepoch):
