@@ -33,9 +33,7 @@ def save_model(sampler, optimizer, scheduler, name, steps, run_name):
     """
     path = f"{cwd}/data/trained_models/{name}/{run_name}/"
     if not os.path.exists(path):
-        os.mkdir(path)
-    if not os.path.exists(path):
-        os.mkdir(path)
+        os.makedirs(path)
     torch.save({"model":sampler.model.state_dict(), "optimizer":optimizer, "scheduler":scheduler}, path + f"{steps}.pt")
 
 def load_trained(model_path, config):
@@ -62,13 +60,13 @@ def get_optimizer(sampler, iterations, lr=0.0000001):
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=iterations,eta_min=lr*0.1, last_epoch=-1, verbose=False)
     return optimizer, scheduler
 
-def wandb_log(name, lr, model, tags, notes):
+def wandb_log(name, lr, model, tags, notes, project="diffusion-thesis"):
     """
     Params: wandb name, lr, model, wand tags, wandb notes. Task: returns a wandb session with CIFAR-1000 information,
     logs: Loss, Generational Loss, hardware specs, model gradients
     """
     session = wandb.init(
-    project="diffusion-thesis", 
+    project=project, 
     name=name, 
     config={"learning_rate": lr, "architecture": "Diffusion Model","dataset": "CIFAR-1000"}, tags=tags, notes=notes)
     session.watch(model, log="all", log_freq=1000)
@@ -130,7 +128,7 @@ def save_images(model, sampler, num_imgs, name, steps, verbose=False, celeb=Fals
                 print("Folder already contains 50000 images, skipping")
             continue
         num_imgs = num_imgs - items_present
-        for i in range(num_imgs):
+        for i in tqdm.tqdm(range(num_imgs)):
             if celeb==False:
                 image, _, class_prompt, _ = generate.generate_images(model, sampler, steps=step)
             else:
