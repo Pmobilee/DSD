@@ -69,7 +69,7 @@ def wandb_log(name, lr, model, tags, notes, project="diffusion-thesis"):
     project=project, 
     name=name, 
     config={"learning_rate": lr, "architecture": "Diffusion Model","dataset": "CIFAR-1000"}, tags=tags, notes=notes)
-    session.watch(model, log="all", log_freq=1000)
+    # session.watch(model, log="all", log_freq=1000)
     return session
 
 def instantiate_from_config(config):

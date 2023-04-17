@@ -149,38 +149,40 @@ def self_distillation_CIN(student, sampler_student, original, sampler_original, 
                                                     # scheduler.step()
                                                     losses.append(loss.item())
                                             
-                                                if session != None:
-                                                    if generation > 0 and generation % intermediate_generation_compare == 0:
-                                                        x_T_teacher_decode = sampler_student.model.decode_first_stage(pred_x0_teacher)
-                                                        teacher_target = torch.clamp((x_T_teacher_decode+1.0)/2.0, min=0.0, max=1.0)
-                                                        x_T_student_decode = sampler_student.model.decode_first_stage(pred_x0_student.detach())
-                                                        student_target  = torch.clamp((x_T_student_decode +1.0)/2.0, min=0.0, max=1.0)
-                                                        predictions_temp.append(teacher_target)
-                                                        predictions_temp.append(student_target)
-                                                    session.log({"intermediate_loss":loss.item()})
-                                                
-                                            
+                                        if session != None:
+                                            if generation > 0 and generation % intermediate_generation_compare == 0:
+                               
+                                                x_T_teacher_decode = sampler_student.model.decode_first_stage(pred_x0_teacher)
+                                                teacher_target = torch.clamp((x_T_teacher_decode+1.0)/2.0, min=0.0, max=1.0)
+                                                x_T_student_decode = sampler_student.model.decode_first_stage(pred_x0_student.detach())
+                                                student_target  = torch.clamp((x_T_student_decode +1.0)/2.0, min=0.0, max=1.0)
+                                                predictions_temp.append(teacher_target)
+                                                predictions_temp.append(student_target)
+                                            session.log({"intermediate_loss":loss.item()})
+                                        
+                                    
 
-                                                if session != None and instance % 10000 == 0 and generation > 0:
-                                                    fids = util.get_fid(student, sampler_student, num_imgs=100, name=run_name, instance = instance+1, steps=[64, 32, 16, 8, 4, 2, 1])
-                                                    session.log({"fid_64":fids[0]})
-                                                    session.log({"fid_32":fids[1]})
-                                                    session.log({"fid_16":fids[2]})
-                                                    session.log({"fid_8":fids[3]})
-                                                    session.log({"fid_4":fids[4]})
-                                                    session.log({"fid_2":fids[5]})
-                                                    session.log({"fid_1":fids[6]})
-                                                
-                                                if session != None and instance % 2000 == 0:
-                                                    with torch.no_grad():
-                                                        images, _ = util.compare_teacher_student(original, sampler_original, student, sampler_student, steps=[64, 32, 16, 8,  4, 2, 1], prompt=992)
-                                                        images = wandb.Image(_, caption="left: Teacher, right: Student")
-                                                        wandb.log({"pred_x0": images})
-                                                        images, _ = util.compare_teacher_student_with_schedule(original, sampler_original, student, sampler_student, steps=[64, 32, 16, 8,  4, 2, 1], prompt=992)
-                                                        images = wandb.Image(_, caption="left: Teacher, right: Student")
-                                                        wandb.log({"schedule": images})
-                                                        sampler_student.make_schedule(ddim_num_steps=original_steps, ddim_eta=ddim_eta, verbose=False)
-                                                        sampler_original.make_schedule(ddim_num_steps=original_steps, ddim_eta=ddim_eta, verbose=False)
+                                        if session != None and instance % 10000 == 0 and generation > 0:
+                                            fids = util.get_fid(student, sampler_student, num_imgs=100, name=run_name, instance = instance+1, steps=[64, 32, 16, 8, 4, 2, 1])
+                                            session.log({"fid_64":fids[0]})
+                                            session.log({"fid_32":fids[1]})
+                                            session.log({"fid_16":fids[2]})
+                                            session.log({"fid_8":fids[3]})
+                                            session.log({"fid_4":fids[4]})
+                                            session.log({"fid_2":fids[5]})
+                                            session.log({"fid_1":fids[6]})
+                                        
+                                        if session != None and instance % 2000 == 0:
+                                 
+                                            with torch.no_grad():
+                                                images, _ = util.compare_teacher_student(original, sampler_original, student, sampler_student, steps=[64, 32, 16, 8,  4, 2, 1], prompt=992)
+                                                images = wandb.Image(_, caption="left: Teacher, right: Student")
+                                                wandb.log({"pred_x0": images})
+                                                images, _ = util.compare_teacher_student_with_schedule(original, sampler_original, student, sampler_student, steps=[64, 32, 16, 8,  4, 2, 1], prompt=992)
+                                                images = wandb.Image(_, caption="left: Teacher, right: Student")
+                                                wandb.log({"schedule": images})
+                                                sampler_student.make_schedule(ddim_num_steps=original_steps, ddim_eta=ddim_eta, verbose=False)
+                                                sampler_original.make_schedule(ddim_num_steps=original_steps, ddim_eta=ddim_eta, verbose=False)
 
                             if generation > 0 and generation % 20 == 0 and ddim_steps_student != 1 and step_scheduler=="FID":
                                 fid = util.get_fid(student, sampler_student, num_imgs=100, name=run_name, 
