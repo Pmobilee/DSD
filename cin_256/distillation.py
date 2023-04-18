@@ -13,7 +13,7 @@ from ldm.models.diffusion.ddim import DDIMSampler
 from ldm.models.diffusion.plms import PLMSSampler
 from ldm.util import *
 import torch.nn as nn
-import matplotlib.pyplot as plt
+# import matplotlib.pyplot as plt
 import copy
 import wandb
 import math
@@ -121,21 +121,7 @@ def train_student_from_dataset(model, sampler, dataset, student_steps, optimizer
                         if session != None:
                             session.log({"generation_loss":averaged_losses[-1]})
                             session.log({"generation":generation})
-                        if early_stop == True and i > 1:
-                            if averaged_losses[-1] > (10*averaged_losses[-2]):
-                                print(f"Early stop initiated: Prev loss: {round(averaged_losses[-2], 5)}, Current loss: {round(averaged_losses[-1], 5)}")
-                                plt.plot(range(len(averaged_losses)), averaged_losses, label="MSE LOSS")
-                                plt.xlabel("Generations")
-                                plt.ylabel("px MSE")
-                                plt.title("MSEloss student vs teacher")
-                                plt.show()
-                                return 
-                                                                    
-    plt.plot(range(len(averaged_losses)), averaged_losses, label="MSE LOSS")
-    plt.xlabel("Generations")
-    plt.ylabel("px MSE")
-    plt.title("MSEloss student vs teacher")
-    plt.show()
+
     
 
 @torch.enable_grad()
@@ -215,21 +201,7 @@ def train_student_from_dataset_celeb(model, sampler, dataset, student_steps, opt
                         if session != None:
                             session.log({"generation_loss":averaged_losses[-1]})
                             session.log({"generation":generation})
-                        if early_stop == True and i > 1:
-                            if averaged_losses[-1] > (10*averaged_losses[-2]):
-                                print(f"Early stop initiated: Prev loss: {round(averaged_losses[-2], 5)}, Current loss: {round(averaged_losses[-1], 5)}")
-                                plt.plot(range(len(averaged_losses)), averaged_losses, label="MSE LOSS")
-                                plt.xlabel("Generations")
-                                plt.ylabel("px MSE")
-                                plt.title("MSEloss student vs teacher")
-                                plt.show()
-                                return 
-                                                                    
-    plt.plot(range(len(averaged_losses)), averaged_losses, label="MSE LOSS")
-    plt.xlabel("Generations")
-    plt.ylabel("px MSE")
-    plt.title("MSEloss student vs teacher")
-    plt.show()
+
 
 def teacher_train_student(teacher, sampler_teacher, student, sampler_student, optimizer, scheduler, session=None, steps=20, generations=200, early_stop=True, run_name="test", cas=False):
     """
