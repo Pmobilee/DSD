@@ -16,7 +16,7 @@ parser.add_argument('--task', '-t', type=str, default= "DSDI", help='Task to per
 parser.add_argument('--model', '-m', type=str, default= "cin", help='Model type', choices=['cin', 'celeb'])
 parser.add_argument('--steps', '-s', type=int, default= 64, help='DDIM steps to distill from')
 parser.add_argument('--updates', '-u', type=int, default= 100000, help='Number of total weight updates')
-parser.add_argument('--learning_rate', '-lr', default= 0.000000001, type=float, help='Learning Rate')
+parser.add_argument('--learning_rate', '-lr', default= 0.000000003, type=float, help='Learning Rate')
 parser.add_argument('--cas', '-c', type=bool, default= False, help='Include Cosine Annealing Scheduler for learning rate')
 parser.add_argument('--name', '-n', type=str, help='Name to give the run')
 parser.add_argument('--save', '-sv', type=bool, default= True, help='Save intermediate models')
@@ -68,7 +68,8 @@ if __name__ == '__main__':
 
         self_distillation.self_distillation_CIN(teacher, sampler_teacher, original, sampler_original, optimizer, scheduler, session=wandb_session, 
                         steps=args.steps, generations=args.updates, run_name=args.name, decrease_steps=decrease_steps, step_scheduler=step_scheduler)
-    
+        
+
     elif args.task == "SI":
 
         

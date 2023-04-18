@@ -28,14 +28,14 @@ from util import *
 
 
 @torch.no_grad()
-def generate_images(model, sampler, num_imgs=1, steps=20, total_steps=64, eta=0.0, scale=3.0, x_T=None, class_prompt=None, keep_intermediates=False):
+def generate_images(model, sampler, num_imgs=1, steps=20, eta=0.0, scale=3.0, x_T=None, class_prompt=None, keep_intermediates=False):
     """
     Params: model, sampler, num_imgs=1, steps=20, eta=0.0, scale=3.0, x_T=None, class_prompt=None, keep_intermediates=False. 
     Task: returns final generated samples from the provided model and accompanying sampler. Unless the class prompt is specified,
     all generated images are of one of the random classes. Pred_x0 and samples_ddim are identical when the final denoising step is returned.
     """
     NUM_CLASSES = 1000
-    sampler.make_schedule(ddim_num_steps=total_steps, ddim_eta=eta, verbose=False)
+    sampler.make_schedule(ddim_num_steps=steps, ddim_eta=eta, verbose=False)
 
     if class_prompt == None:
         class_prompt = torch.randint(0, NUM_CLASSES, (num_imgs,))
@@ -62,7 +62,7 @@ def generate_images(model, sampler, num_imgs=1, steps=20, total_steps=64, eta=0.
                                                 eta=eta,
                                                 keep_intermediates=keep_intermediates,
                                                 intermediate_step=0,
-                                                total_steps=total_steps,
+                                                total_steps=steps,
                                                 steps_per_sampling=steps)
           
                                     

@@ -49,7 +49,7 @@ def load_trained(model_path, config):
     sampler = DDIMSampler(model)
     return model, sampler, ckpt["optimizer"], ckpt["scheduler"]
 
-def get_optimizer(sampler, iterations, lr=0.0000001):
+def get_optimizer(sampler, iterations, lr=0.000000003):
     """
     Params: sampler, iterations, lr=1e-8. Task: 
     returns both an optimizer (Adam, lr=1e-8, eps=1e-08, decay=0.001), and a scheduler for the optimizer
@@ -69,7 +69,7 @@ def wandb_log(name, lr, model, tags, notes, project="diffusion-thesis"):
     project=project, 
     name=name, 
     config={"learning_rate": lr, "architecture": "Diffusion Model","dataset": "CIFAR-1000"}, tags=tags, notes=notes)
-    session.watch(model, log="all", log_freq=1000)
+    # session.watch(model, log="all", log_freq=1000)
     return session
 
 def instantiate_from_config(config):
@@ -106,7 +106,7 @@ def get_model(config_path, model_path):
     model = load_model_from_config(config, model_path)
     return model
 
-def save_images(model, sampler, num_imgs, name, steps, verbose=False, celeb=False):
+def save_images(model, sampler, num_imgs, name, steps, verbose=False, celeb=False, total_steps=64):
     """
     Params: model, sampler, num_imgs, name, steps, verbose=False. Task: saves generated images to the specified folder name
     """
