@@ -282,7 +282,7 @@ def get_fid(model, sampler, num_imgs, name,instance, steps =[4, 2, 1]):
         run_name = f"FID/{name}/{instance}/"
         save_images(model, sampler, num_imgs, run_name, steps, verbose=False)
         for step in steps:
-            fid = fid_score.calculate_fid_given_paths(["C:/val_saved/real_fid_both.npz", 
+            fid = fid_score.calculate_fid_given_paths([f"{cwd}/val_saved/real_fid_both.npz", 
             f"{cwd}/saved_images/FID/{name}/{instance}/{step}"], batch_size = num_imgs, device='cuda', dims=2048)
             fid_list.append(fid)
     return fid_list
