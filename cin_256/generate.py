@@ -61,7 +61,7 @@ def generate_images(model, sampler, num_imgs=1, steps=20, eta=0.0, scale=3.0, x_
                                                 unconditional_conditioning=uc, 
                                                 eta=eta,
                                                 keep_intermediates=keep_intermediates,
-                                                intermediate_step=0,
+                                                intermediate_step=None,
                                                 total_steps=steps,
                                                 steps_per_sampling=steps)
           
