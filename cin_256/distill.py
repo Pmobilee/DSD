@@ -25,7 +25,7 @@ parser.add_argument('--wandb', '-w', type=bool, default=True, help='Weights and 
 
 
 if __name__ == '__main__':
-    !wandb login 4baa24c4fc6c8eed782cacb721d34977149d4fcb
+    
     os.environ['WANDB_NOTEBOOK_NAME'] = "Cin_256_custom.ipynb"
     args = parser.parse_args()
 
