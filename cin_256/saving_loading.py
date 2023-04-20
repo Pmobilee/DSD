@@ -57,7 +57,7 @@ def get_optimizer(sampler, iterations, lr=0.000000003):
     """
     lr = lr
     optimizer = torch.optim.Adam(sampler.model.parameters(), lr=lr, betas=(0.9, 0.99), weight_decay=0.001)
-    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=iterations,eta_min=lr / 3, last_epoch=-1, verbose=False)
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=iterations,eta_min=lr *0.1, last_epoch=-1, verbose=False)
     return optimizer, scheduler
 
 def wandb_log(name, lr, model, tags, notes, project="diffusion-thesis"):
