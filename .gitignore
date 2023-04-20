@@ -3,6 +3,7 @@ pretrained/
 cin_256/wandb/
 *.jpg
 *.jpeg
+*.pyc
 *.pack
 *.pt
 *.p
