@@ -159,7 +159,7 @@ def self_distillation_CIN(student, sampler_student, original, sampler_original, 
                                         loss = weight * criterion(pred_x0_student, pred_x0_teacher.detach())
                                         loss.backward()
                                         optimizer.step()
-                                        scheduler.step()
+                                        # scheduler.step()
                                         torch.nn.utils.clip_grad_norm_(sampler_student.model.parameters(), 1)
                                         
                                         losses.append(loss.item())
