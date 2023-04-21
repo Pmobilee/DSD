@@ -78,11 +78,12 @@ def compare_teacher_student(teacher, sampler_teacher, student, sampler_student, 
     scale = 3.0
     ddim_eta = 0.0
     images = []
-    sampler_teacher.make_schedule(ddim_num_steps=total_steps, ddim_eta=0.0, verbose=False)
-    sampler_student.make_schedule(ddim_num_steps=total_steps, ddim_eta=0.0, verbose=False)
+    
     with torch.no_grad():
         with teacher.ema_scope():
             for sampling_steps in steps:
+                sampler_teacher.make_schedule(ddim_num_steps=sampling_steps, ddim_eta=0.0, verbose=False)
+                sampler_student.make_schedule(ddim_num_steps=sampling_steps, ddim_eta=0.0, verbose=False)
                 
                 if prompt == None:
                     class_image = torch.randint(0, 999, (1,))
@@ -90,6 +91,7 @@ def compare_teacher_student(teacher, sampler_teacher, student, sampler_student, 
                     class_image = torch.tensor([prompt])
 
                 intermediate_step = None if sampling_steps != 1 else 0
+             
                 uc = teacher.get_learned_conditioning({teacher.cond_stage_key: torch.tensor(1*[1000]).to(teacher.device)})
                 xc = torch.tensor([class_image])
                 c = teacher.get_learned_conditioning({teacher.cond_stage_key: xc.to(teacher.device)})
@@ -104,7 +106,7 @@ def compare_teacher_student(teacher, sampler_teacher, student, sampler_student, 
                                                     unconditional_conditioning=uc, 
                                                     eta=ddim_eta,
                                                     intermediate_step=intermediate_step ,
-                                                    total_steps=total_steps,
+                                                    total_steps=sampling_steps,
                                                     steps_per_sampling=sampling_steps)
 
                 # x_samples_ddim = teacher.decode_first_stage(_["pred_x0"][-1)
@@ -125,7 +127,7 @@ def compare_teacher_student(teacher, sampler_teacher, student, sampler_student, 
                                                         unconditional_conditioning=sc, 
                                                         eta=ddim_eta,
                                                         intermediate_step=intermediate_step,
-                                                        total_steps=total_steps,
+                                                        total_steps=sampling_steps,
                                                         steps_per_sampling=sampling_steps)
 
                     x_samples_ddim = student.decode_first_stage(pred_x0_student)
