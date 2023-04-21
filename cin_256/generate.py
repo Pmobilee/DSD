@@ -45,7 +45,9 @@ def generate_images(model, sampler, num_imgs=1, steps=20, eta=0.0, scale=3.0, x_
                 uc = model.get_learned_conditioning(
                         {model.cond_stage_key: torch.tensor(num_imgs*[1000]).to(model.device)}
                         )
+                intermediate_step = None if steps != 1 else 0
                 
+                    
                 
                 xc = torch.tensor(num_imgs*[class_prompt])
                 c = model.get_learned_conditioning({model.cond_stage_key: xc.to(model.device)})
@@ -61,7 +63,7 @@ def generate_images(model, sampler, num_imgs=1, steps=20, eta=0.0, scale=3.0, x_
                                                 unconditional_conditioning=uc, 
                                                 eta=eta,
                                                 keep_intermediates=keep_intermediates,
-                                                intermediate_step=None,
+                                                intermediate_step=intermediate_step,
                                                 total_steps=steps,
                                                 steps_per_sampling=steps)
           
@@ -93,7 +95,7 @@ def generate_images_celeb(model, sampler, num_imgs=1, steps=20, total_steps=64, 
 
     if class_prompt == None:
         class_prompt = torch.randint(0, NUM_CLASSES, (num_imgs,))
-
+    #intermediate_step = None if sampling_steps != 1 else 0
     with torch.no_grad():
         with model.ema_scope():
          

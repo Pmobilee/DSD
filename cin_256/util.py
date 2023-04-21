@@ -88,6 +88,8 @@ def compare_teacher_student(teacher, sampler_teacher, student, sampler_student, 
                     class_image = torch.randint(0, 999, (1,))
                 else:
                     class_image = torch.tensor([prompt])
+
+                intermediate_step = None if sampling_steps != 1 else 0
                 uc = teacher.get_learned_conditioning({teacher.cond_stage_key: torch.tensor(1*[1000]).to(teacher.device)})
                 xc = torch.tensor([class_image])
                 c = teacher.get_learned_conditioning({teacher.cond_stage_key: xc.to(teacher.device)})
@@ -101,7 +103,7 @@ def compare_teacher_student(teacher, sampler_teacher, student, sampler_student, 
                                                     unconditional_guidance_scale=scale,
                                                     unconditional_conditioning=uc, 
                                                     eta=ddim_eta,
-                                                    intermediate_step=None,
+                                                    intermediate_step=intermediate_step ,
                                                     total_steps=total_steps,
                                                     steps_per_sampling=sampling_steps)
 
@@ -122,7 +124,7 @@ def compare_teacher_student(teacher, sampler_teacher, student, sampler_student, 
                                                         unconditional_guidance_scale=scale,
                                                         unconditional_conditioning=sc, 
                                                         eta=ddim_eta,
-                                                        intermediate_step=None,
+                                                        intermediate_step=intermediate_step,
                                                         total_steps=total_steps,
                                                         steps_per_sampling=sampling_steps)
 
@@ -158,7 +160,7 @@ def compare_teacher_student(teacher, sampler_teacher, student, sampler_student, 
 #             for sampling_steps in steps:
 #                 sampler_teacher.make_schedule(ddim_num_steps=sampling_steps, ddim_eta=0.0, verbose=False)
 #                 sampler_student.make_schedule(ddim_num_steps=sampling_steps, ddim_eta=0.0, verbose=False)
-                
+                    #intermediate_step = None if sampling_steps != 1 else 0
 #                 if prompt == None:
 #                     class_image = torch.randint(0, 999, (1,))
 #                 else:
@@ -236,6 +238,7 @@ def compare_teacher_student_with_schedule(teacher, sampler_teacher, student, sam
                     class_image = torch.randint(0, 999, (1,))
                 else:
                     class_image = torch.tensor([prompt])
+                intermediate_step = None if sampling_steps != 1 else 0
                 uc = teacher.get_learned_conditioning({teacher.cond_stage_key: torch.tensor(1*[1000]).to(teacher.device)})
                 xc = torch.tensor([class_image])
                 c = teacher.get_learned_conditioning({teacher.cond_stage_key: xc.to(teacher.device)})
@@ -249,7 +252,7 @@ def compare_teacher_student_with_schedule(teacher, sampler_teacher, student, sam
                                                     unconditional_guidance_scale=scale,
                                                     unconditional_conditioning=uc, 
                                                     eta=ddim_eta,
-                                                    intermediate_step=None,
+                                                    intermediate_step=intermediate_step,
                                                     total_steps=sampling_steps,
                                                     steps_per_sampling=sampling_steps)
 
@@ -270,7 +273,7 @@ def compare_teacher_student_with_schedule(teacher, sampler_teacher, student, sam
                                                         unconditional_guidance_scale=scale,
                                                         unconditional_conditioning=sc, 
                                                         eta=ddim_eta,
-                                                        intermediate_step=None,
+                                                        intermediate_step=intermediate_step,
                                                         total_steps=sampling_steps,
                                                         steps_per_sampling=sampling_steps)
 
@@ -299,7 +302,7 @@ def compare_teacher_student_celeb(teacher, sampler_teacher, student, sampler_stu
     with torch.no_grad():
         with teacher.ema_scope():
             for sampling_steps in steps:
-                
+                intermediate_step = None if sampling_steps != 1 else 0
                 teacher_samples_ddim, _, x_T_copy, pred_x0, a_t= sampler_teacher.sample(S=sampling_steps,
                                                     conditioning=None,
                                                     batch_size=1,
@@ -309,7 +312,7 @@ def compare_teacher_student_celeb(teacher, sampler_teacher, student, sampler_stu
                                                     unconditional_guidance_scale=scale,
                                                     unconditional_conditioning=None, 
                                                     eta=ddim_eta,
-                                                    intermediate_step=None,
+                                                    intermediate_step=intermediate_step,
                                                     total_steps=total_steps,
                                                     steps_per_sampling=sampling_steps)
 
@@ -326,7 +329,7 @@ def compare_teacher_student_celeb(teacher, sampler_teacher, student, sampler_stu
                                                         unconditional_guidance_scale=scale,
                                                         unconditional_conditioning=None, 
                                                         eta=ddim_eta,
-                                                        intermediate_step=None,
+                                                        intermediate_step=intermediate_step,
                                                         total_steps=total_steps,
                                                         steps_per_sampling=sampling_steps)
 
