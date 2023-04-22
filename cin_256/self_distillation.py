@@ -199,8 +199,8 @@ def self_distillation_CIN(student, sampler_student, original, sampler_original, 
                                                 # images, _ = util.compare_teacher_student_with_schedule(original, sampler_original, student, sampler_student, steps=[64, 32, 16, 8,  4, 2, 1], prompt=992)
                                                 # images = wandb.Image(_, caption="left: Teacher, right: Student")
                                                 # wandb.log({"schedule": images})
-                                                sampler_student.make_schedule(ddim_num_steps=ddim_steps_student, ddim_eta=ddim_eta, verbose=False)
-                                                sampler_original.make_schedule(ddim_num_steps=ddim_steps_student, ddim_eta=ddim_eta, verbose=False)
+                                                sampler_student.make_schedule(ddim_num_steps=updates*2, ddim_eta=ddim_eta, verbose=False)
+                                                sampler_original.make_schedule(ddim_num_steps=updates*2, ddim_eta=ddim_eta, verbose=False)
 
                             if generation > 0 and generation % 20 == 0 and ddim_steps_student != 1 and step_scheduler=="FID":
                                 fid = util.get_fid(student, sampler_student, num_imgs=100, name=run_name, 
@@ -378,8 +378,8 @@ def self_distillation_CELEB(student, sampler_student, original, sampler_original
                                                 images, _ = util.compare_teacher_student_celeb(original, sampler_original, student, sampler_student, steps=[64, 32, 16, 8,  4, 2, 1])
                                                 images = wandb.Image(_, caption="left: Teacher, right: Student")
                                                 wandb.log({"pred_x0": images})
-                                                sampler_student.make_schedule(ddim_num_steps=ddim_steps_student, ddim_eta=ddim_eta, verbose=False)
-                                                sampler_original.make_schedule(ddim_num_steps=ddim_steps_student, ddim_eta=ddim_eta, verbose=False)
+                                                sampler_student.make_schedule(ddim_num_steps=updates*2, ddim_eta=ddim_eta, verbose=False)
+                                                sampler_original.make_schedule(ddim_num_steps=updates*2, ddim_eta=ddim_eta, verbose=False)
 
                             # if generation > 0 and generation % 20 == 0 and ddim_steps_student != 1 and step_scheduler=="FID":
                             #     fid = util.get_fid(student, sampler_student, num_imgs=100, name=run_name, 
