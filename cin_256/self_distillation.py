@@ -167,7 +167,7 @@ def self_distillation_CIN(student, sampler_student, original, sampler_original, 
                                                 
                                                 losses.append(loss.item())
                                             
-                                        if session != None and instance % 2000 == 0 and generation > 0:
+                                        if session != None and generation % 200 == 0 and generation > 0:
                                                 
                                             x_T_teacher_decode = sampler_student.model.decode_first_stage(pred_x0_teacher)
                                             teacher_target = torch.clamp((x_T_teacher_decode+1.0)/2.0, min=0.0, max=1.0)
@@ -175,7 +175,7 @@ def self_distillation_CIN(student, sampler_student, original, sampler_original, 
                                             student_target  = torch.clamp((x_T_student_decode +1.0)/2.0, min=0.0, max=1.0)
                                             predictions_temp.append(teacher_target)
                                             predictions_temp.append(student_target)
-                                            session.log({"intermediate_loss":loss.item()})
+                                            
                                         
                                     
 
@@ -190,7 +190,7 @@ def self_distillation_CIN(student, sampler_student, original, sampler_original, 
                                             session.log({"fid_1":fids[6]})
                                         
                                         if session != None and instance % 2000 == 0:
-                                    
+                                            
                                             with torch.no_grad():
                                                 images, _ = util.compare_teacher_student(original, sampler_original, student, sampler_student, steps=[64, 32, 16, 8,  4, 2, 1], prompt=992)
                                                 images = wandb.Image(_, caption="left: Teacher, right: Student")
@@ -218,14 +218,14 @@ def self_distillation_CIN(student, sampler_student, original, sampler_original, 
                                     current_fid = fid
                                     print("steps decresed:", ddim_steps_student)    
 
-                            # if session != None:
-                            #     with torch.no_grad():
-                            #         if generation > 0 and generation % intermediate_generation_compare == 0 and session !=None:
-                            #             img, grid = util.compare_latents(predictions_temp)
-                            #             images = wandb.Image(grid, caption="left: Teacher, right: Student")
-                            #             wandb.log({"Inter_Comp": images})
-                            #             del img, grid, predictions_temp, x_T_student_decode, x_T_teacher_decode, student_target, teacher_target
-                            #             torch.cuda.empty_cache()
+                            if session != None:
+                                with torch.no_grad():
+                                    if session != None and generation % 200 == 0 and generation > 0:
+                                        img, grid = util.compare_latents(predictions_temp)
+                                        images = wandb.Image(grid, caption="left: Teacher, right: Student")
+                                        wandb.log({"Inter_Comp": images})
+                                        del img, grid, predictions_temp, x_T_student_decode, x_T_teacher_decode, student_target, teacher_target
+                                        torch.cuda.empty_cache()
                             
                             all_losses.extend(losses)
                             averaged_losses.append(sum(losses) / len(losses))
@@ -367,7 +367,7 @@ def self_distillation_CELEB(student, sampler_student, original, sampler_original
                                                 
                                                 losses.append(loss.item())
                                             
-                                        if session != None and instance % 2000 == 0 and generation > 0:
+                                        if session != None and generation % 200 == 0 and generation > 0:
                                                 
                                             x_T_teacher_decode = sampler_student.model.decode_first_stage(pred_x0_teacher)
                                             teacher_target = torch.clamp((x_T_teacher_decode+1.0)/2.0, min=0.0, max=1.0)
@@ -375,8 +375,7 @@ def self_distillation_CELEB(student, sampler_student, original, sampler_original
                                             student_target  = torch.clamp((x_T_student_decode +1.0)/2.0, min=0.0, max=1.0)
                                             predictions_temp.append(teacher_target)
                                             predictions_temp.append(student_target)
-                                            session.log({"intermediate_loss":loss.item()})
-                                        
+                                            
                                     
 
                                         if session != None and instance % 10000 == 0 and generation > 0:
@@ -418,14 +417,14 @@ def self_distillation_CELEB(student, sampler_student, original, sampler_original
                                     current_fid = fid
                                     print("steps decresed:", ddim_steps_student)    
 
-                            # if session != None:
-                            #     with torch.no_grad():
-                            #         if generation > 0 and generation % intermediate_generation_compare == 0 and session !=None:
-                            #             img, grid = util.compare_latents(predictions_temp)
-                            #             images = wandb.Image(grid, caption="left: Teacher, right: Student")
-                            #             wandb.log({"Inter_Comp": images})
-                            #             del img, grid, predictions_temp, x_T_student_decode, x_T_teacher_decode, student_target, teacher_target
-                            #             torch.cuda.empty_cache()
+                            if session != None:
+                                with torch.no_grad():
+                                    if session != None and generation % 200 == 0 and generation > 0:
+                                        img, grid = util.compare_latents(predictions_temp)
+                                        images = wandb.Image(grid, caption="left: Teacher, right: Student")
+                                        wandb.log({"Inter_Comp": images})
+                                        del img, grid, predictions_temp, x_T_student_decode, x_T_teacher_decode, student_target, teacher_target
+                                        torch.cuda.empty_cache()
                             
                             all_losses.extend(losses)
                             averaged_losses.append(sum(losses) / len(losses))
