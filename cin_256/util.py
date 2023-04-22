@@ -148,6 +148,8 @@ def compare_teacher_student(teacher, sampler_teacher, student, sampler_student, 
 
 @torch.no_grad()
 def compare_teacher_student_celeb(teacher, sampler_teacher, student, sampler_student, steps=[10], total_steps=64):
+    print("comapring teacher and student")
+    print("same state dict:", teacher.state_dict() == student.state_dict())
     scale = 3.0
     ddim_eta = 0.0
     images = []
@@ -157,7 +159,7 @@ def compare_teacher_student_celeb(teacher, sampler_teacher, student, sampler_stu
             for sampling_steps in steps:
                 sampler_teacher.make_schedule(ddim_num_steps=sampling_steps, ddim_eta=0.0, verbose=False)
                 sampler_student.make_schedule(ddim_num_steps=sampling_steps, ddim_eta=0.0, verbose=False)
-                
+
                 intermediate_step = None if sampling_steps != 1 else 0
                 teacher_samples_ddim, _, x_T_copy, pred_x0, a_t= sampler_teacher.sample(S=sampling_steps,
                                                     conditioning=None,
@@ -167,11 +169,12 @@ def compare_teacher_student_celeb(teacher, sampler_teacher, student, sampler_stu
                                                     verbose=False,
                                                     unconditional_guidance_scale=scale,
                                                     unconditional_conditioning=None, 
+                                                    keep_intermediates=False,
                                                     eta=ddim_eta,
                                                     intermediate_step=intermediate_step,
                                                     total_steps=sampling_steps,
                                                     steps_per_sampling=sampling_steps)
-
+                
                 x_samples_ddim = teacher.decode_first_stage(pred_x0)
                 x_samples_ddim = torch.clamp((x_samples_ddim+1.0)/2.0, min=0.0, max=1.0)
                 images.append(x_samples_ddim)
@@ -185,6 +188,7 @@ def compare_teacher_student_celeb(teacher, sampler_teacher, student, sampler_stu
                                                         unconditional_guidance_scale=scale,
                                                         unconditional_conditioning=None, 
                                                         eta=ddim_eta,
+                                                        keep_intermediates=False,
                                                         intermediate_step=intermediate_step,
                                                         total_steps=sampling_steps,
                                                         steps_per_sampling=sampling_steps)
@@ -192,7 +196,7 @@ def compare_teacher_student_celeb(teacher, sampler_teacher, student, sampler_stu
                     x_samples_ddim = student.decode_first_stage(pred_x0_student)
                     x_samples_ddim = torch.clamp((x_samples_ddim+1.0)/2.0, min=0.0, max=1.0)
                     images.append(x_samples_ddim)
-
+    print("same pred_x0's?", pred_x0 == pred_x0_student)
     grid = torch.stack(images, 0)
     grid = rearrange(grid, 'n b c h w -> (n b) c h w')
     grid = make_grid(grid, nrow=2)
