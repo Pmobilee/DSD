@@ -416,7 +416,7 @@ def self_distillation_CELEB(student, sampler_student, original, sampler_original
 
                             if session != None:
                                 with torch.no_grad():
-                                    if session != None and generation % 50 == 0:
+                                    if session != None and generation % 5 == 0:
                                         img, grid = util.compare_latents(predictions_temp)
                                         images = wandb.Image(grid, caption="left: Teacher, right: Student")
                                         wandb.log({"Inter_Comp": images})
