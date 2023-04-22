@@ -34,7 +34,7 @@ scaler = GradScaler()
 
 def self_distillation_CIN(student, sampler_student, original, sampler_original, optimizer, scheduler,
             session=None, steps=20, generations=200, early_stop=True, run_name="test", decrease_steps=False,
-            step_scheduler="deterministic", type="home"):
+            step_scheduler="deterministic", type="snellius"):
     """
     Distill a model into itself. This is done by having a (teacher) model distill knowledge into itself. Copies of the original model and sampler 
     are passed in to compare the original untrained version with the distilled model at scheduled intervals.
