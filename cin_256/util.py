@@ -175,28 +175,29 @@ def compare_teacher_student_celeb(teacher, sampler_teacher, student, sampler_stu
                                                     total_steps=sampling_steps,
                                                     steps_per_sampling=sampling_steps)
                 
-                x_samples_ddim = teacher.decode_first_stage(pred_x0)
+                x_samples_ddim = teacher.decode_first_stage(teacher_samples_ddim)
                 x_samples_ddim = torch.clamp((x_samples_ddim+1.0)/2.0, min=0.0, max=1.0)
                 images.append(x_samples_ddim)
-                with student.ema_scope():
-                    student_samples_ddim, _, x_T_delete, pred_x0_student, a_t = sampler_student.sample(S=sampling_steps,
-                                                        conditioning=None,
-                                                        batch_size=1,
-                                                        x_T= x_T_copy,
-                                                        shape=[3, 64, 64],
-                                                        verbose=False,
-                                                        unconditional_guidance_scale=scale,
-                                                        unconditional_conditioning=None, 
-                                                        eta=ddim_eta,
-                                                        keep_intermediates=False,
-                                                        intermediate_step=intermediate_step,
-                                                        total_steps=sampling_steps,
-                                                        steps_per_sampling=sampling_steps)
+            with student.ema_scope():
+                student_samples_ddim, _, x_T_delete, pred_x0_student, a_t = sampler_student.sample(S=sampling_steps,
+                                                    conditioning=None,
+                                                    batch_size=1,
+                                                    x_T= x_T_copy,
+                                                    shape=[3, 64, 64],
+                                                    verbose=False,
+                                                    unconditional_guidance_scale=scale,
+                                                    unconditional_conditioning=None, 
+                                                    eta=ddim_eta,
+                                                    keep_intermediates=False,
+                                                    intermediate_step=intermediate_step,
+                                                    total_steps=sampling_steps,
+                                                    steps_per_sampling=sampling_steps)
 
-                    x_samples_ddim = student.decode_first_stage(pred_x0_student)
-                    x_samples_ddim = torch.clamp((x_samples_ddim+1.0)/2.0, min=0.0, max=1.0)
-                    images.append(x_samples_ddim)
-    print("same pred_x0's?", pred_x0 == pred_x0_student)
+                x_samples_ddim = student.decode_first_stage(student_samples_ddim)
+                x_samples_ddim = torch.clamp((x_samples_ddim+1.0)/2.0, min=0.0, max=1.0)
+                images.append(x_samples_ddim)
+    print("same sample_ddims?", teacher_samples_ddim == student_samples_ddim)
+    print("sample ddim == pred_x0?", teacher_samples_ddim == pred_x0_student)
     grid = torch.stack(images, 0)
     grid = rearrange(grid, 'n b c h w -> (n b) c h w')
     grid = make_grid(grid, nrow=2)
