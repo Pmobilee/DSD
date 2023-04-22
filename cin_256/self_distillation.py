@@ -338,23 +338,6 @@ def self_distillation_CELEB(student, sampler_student, original, sampler_original
                                         
                                     
                                         with torch.enable_grad():    
-                                            if type == "home":
-                                                # AUTOCAST:
-                                                signal = at
-                                                noise = 1 - at
-                                                log_snr = torch.log(signal / noise)
-                                                weight = max(log_snr, 1)
-                                                loss = weight * criterion(pred_x0_student, pred_x0_teacher.detach())
-                                                scaler.scale(loss).backward()
-                                                scaler.step(optimizer)
-                                                scaler.update()
-                                                # torch.nn.utils.clip_grad_norm_(sampler_student.model.parameters(), 1)
-                                                
-                                                scheduler.step()
-                                                losses.append(loss.item())
-
-                                            else:
-                                                # NO AUTOCAST:
                                                 signal = at
                                                 noise = 1 - at
                                                 log_snr = torch.log(signal / noise)
