@@ -300,7 +300,6 @@ def compare_teacher_student_celeb(teacher, sampler_teacher, student, sampler_stu
     ddim_eta = 0.0
     images = []
 
-
     with torch.no_grad():
         with teacher.ema_scope():
             for sampling_steps in steps:

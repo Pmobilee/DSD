@@ -372,7 +372,7 @@ def self_distillation_CELEB(student, sampler_student, original, sampler_original
                                         #     session.log({"fid_2":fids[5]})
                                         #     session.log({"fid_1":fids[6]})
                                         
-                                        if session != None and generation % 50 == 0:
+                                        if session != None and instance % 2000 == 0:
                                     
                                             with torch.no_grad():
                                                 images, _ = util.compare_teacher_student_celeb(original, sampler_original, student, sampler_student, steps=[64, 32, 16, 8,  4, 2, 1])
