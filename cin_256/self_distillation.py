@@ -395,12 +395,12 @@ def self_distillation_CELEB(student, sampler_student, original, sampler_original
                             if session != None:
                                 with torch.no_grad():
                                     if session != None and generation % 100 == 0:
-                                        img, grid = util.compare_latents(predictions_temp)
-                                        images = wandb.Image(grid, caption="left: Teacher, right: Student")
-                                        wandb.log({"Inter_Comp": images})
                                         images, _ = util.compare_teacher_student_celeb(original, sampler_original, student, sampler_student, steps=[64, 32, 16, 8,  4, 2, 1])
                                         images = wandb.Image(_, caption="left: Teacher, right: Student")
                                         wandb.log({"pred_x0": images})
+                                        img, grid = util.compare_latents(predictions_temp)
+                                        images = wandb.Image(grid, caption="left: Teacher, right: Student")
+                                        wandb.log({"Inter_Comp": images})
                                         sampler_student.make_schedule(ddim_num_steps=updates*2, ddim_eta=ddim_eta, verbose=False)
                                         sampler_original.make_schedule(ddim_num_steps=updates*2, ddim_eta=ddim_eta, verbose=False)
                                         del img, grid, predictions_temp, x_T_student_decode, x_T_teacher_decode, student_target, teacher_target
