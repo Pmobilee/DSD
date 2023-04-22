@@ -149,7 +149,7 @@ def compare_teacher_student(teacher, sampler_teacher, student, sampler_student, 
 @torch.no_grad()
 def compare_teacher_student_celeb(teacher, sampler_teacher, student, sampler_student, steps=[10], total_steps=64):
     print("comapring teacher and student")
-    print("same state dict:", teacher.state_dict() == student.state_dict())
+    print("same state dict:", teacher.model.state_dict()['diffusion_model.time_embed.0.weight'][0][0]  == student.model.state_dict()['diffusion_model.time_embed.0.weight'][0][0] )
     scale = 3.0
     ddim_eta = 0.0
     images = []
