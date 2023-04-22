@@ -367,7 +367,7 @@ def self_distillation_CELEB(student, sampler_student, original, sampler_original
                                                 
                                                 losses.append(loss.item())
                                             
-                                        if session != None and generation % 200 == 0 and generation > 0:
+                                        if session != None and generation % 100 == 0 and generation > 0:
                                                 
                                             x_T_teacher_decode = sampler_student.model.decode_first_stage(pred_x0_teacher)
                                             teacher_target = torch.clamp((x_T_teacher_decode+1.0)/2.0, min=0.0, max=1.0)
@@ -419,7 +419,7 @@ def self_distillation_CELEB(student, sampler_student, original, sampler_original
 
                             if session != None:
                                 with torch.no_grad():
-                                    if session != None and generation % 200 == 0 and generation > 0:
+                                    if session != None and generation % 100 == 0 and generation > 0:
                                         img, grid = util.compare_latents(predictions_temp)
                                         images = wandb.Image(grid, caption="left: Teacher, right: Student")
                                         wandb.log({"Inter_Comp": images})
