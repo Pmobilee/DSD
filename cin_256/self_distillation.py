@@ -378,15 +378,15 @@ def self_distillation_CELEB(student, sampler_student, original, sampler_original
                                             
                                     
 
-                                        if session != None and instance % 10000 == 0 and generation > 0:
-                                            fids = util.get_fid_celeb(student, sampler_student, num_imgs=100, name=run_name, instance = instance+1, steps=[64, 32, 16, 8, 4, 2, 1])
-                                            session.log({"fid_64":fids[0]})
-                                            session.log({"fid_32":fids[1]})
-                                            session.log({"fid_16":fids[2]})
-                                            session.log({"fid_8":fids[3]})
-                                            session.log({"fid_4":fids[4]})
-                                            session.log({"fid_2":fids[5]})
-                                            session.log({"fid_1":fids[6]})
+                                        # if session != None and instance % 10000 == 0 and generation > 0:
+                                        #     fids = util.get_fid_celeb(student, sampler_student, num_imgs=100, name=run_name, instance = instance+1, steps=[64, 32, 16, 8, 4, 2, 1])
+                                        #     session.log({"fid_64":fids[0]})
+                                        #     session.log({"fid_32":fids[1]})
+                                        #     session.log({"fid_16":fids[2]})
+                                        #     session.log({"fid_8":fids[3]})
+                                        #     session.log({"fid_4":fids[4]})
+                                        #     session.log({"fid_2":fids[5]})
+                                        #     session.log({"fid_1":fids[6]})
                                         
                                         if session != None and instance % 2000 == 0:
                                     
@@ -400,22 +400,22 @@ def self_distillation_CELEB(student, sampler_student, original, sampler_original
                                                 sampler_student.make_schedule(ddim_num_steps=ddim_steps_student, ddim_eta=ddim_eta, verbose=False)
                                                 sampler_original.make_schedule(ddim_num_steps=ddim_steps_student, ddim_eta=ddim_eta, verbose=False)
 
-                            if generation > 0 and generation % 20 == 0 and ddim_steps_student != 1 and step_scheduler=="FID":
-                                fid = util.get_fid(student, sampler_student, num_imgs=100, name=run_name, 
-                                            instance = instance, steps=[ddim_steps_student])
-                                if fid[0] <= current_fid[0] * 0.9 and decrease_steps==True:
-                                    print(fid[0], current_fid[0])
-                                    if ddim_steps_student in [16, 8, 4, 2, 1]:
-                                        name = "intermediate"
-                                        saving_loading.save_model(sampler_student, optimizer, scheduler, name, steps * 2, run_name)
-                                    if ddim_steps_student != 2:
-                                        ddim_steps_student -= 2
-                                        updates -= 1
-                                    else:
-                                        ddim_steps_student = 1
-                                        updates = 1    
-                                    current_fid = fid
-                                    print("steps decresed:", ddim_steps_student)    
+                            # if generation > 0 and generation % 20 == 0 and ddim_steps_student != 1 and step_scheduler=="FID":
+                            #     fid = util.get_fid(student, sampler_student, num_imgs=100, name=run_name, 
+                            #                 instance = instance, steps=[ddim_steps_student])
+                            #     if fid[0] <= current_fid[0] * 0.9 and decrease_steps==True:
+                            #         print(fid[0], current_fid[0])
+                            #         if ddim_steps_student in [16, 8, 4, 2, 1]:
+                            #             name = "intermediate"
+                            #             saving_loading.save_model(sampler_student, optimizer, scheduler, name, steps * 2, run_name)
+                            #         if ddim_steps_student != 2:
+                            #             ddim_steps_student -= 2
+                            #             updates -= 1
+                            #         else:
+                            #             ddim_steps_student = 1
+                            #             updates = 1    
+                            #         current_fid = fid
+                            #         print("steps decresed:", ddim_steps_student)    
 
                             if session != None:
                                 with torch.no_grad():
