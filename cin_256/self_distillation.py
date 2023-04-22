@@ -351,14 +351,15 @@ def self_distillation_CELEB(student, sampler_student, original, sampler_original
                                                 
                                                 losses.append(loss.item())
                                             
-                                        if session != None and generation % 50 == 0:
-                                                
-                                            x_T_teacher_decode = sampler_student.model.decode_first_stage(pred_x0_teacher)
-                                            teacher_target = torch.clamp((x_T_teacher_decode+1.0)/2.0, min=0.0, max=1.0)
-                                            x_T_student_decode = sampler_student.model.decode_first_stage(pred_x0_student.detach())
-                                            student_target  = torch.clamp((x_T_student_decode +1.0)/2.0, min=0.0, max=1.0)
-                                            predictions_temp.append(teacher_target)
-                                            predictions_temp.append(student_target)
+                                        with torch.no_grad():
+                                            if session != None and generation % 100 == 0:
+                                                    
+                                                x_T_teacher_decode = sampler_student.model.decode_first_stage(pred_x0_teacher)
+                                                teacher_target = torch.clamp((x_T_teacher_decode+1.0)/2.0, min=0.0, max=1.0)
+                                                x_T_student_decode = sampler_student.model.decode_first_stage(pred_x0_student.detach())
+                                                student_target  = torch.clamp((x_T_student_decode +1.0)/2.0, min=0.0, max=1.0)
+                                                predictions_temp.append(teacher_target)
+                                                predictions_temp.append(student_target)
                                             
                                     
 
@@ -371,15 +372,8 @@ def self_distillation_CELEB(student, sampler_student, original, sampler_original
                                         #     session.log({"fid_4":fids[4]})
                                         #     session.log({"fid_2":fids[5]})
                                         #     session.log({"fid_1":fids[6]})
-                                        
-                                        if session != None and instance % 2000 == 0:
-                                    
-                                            with torch.no_grad():
-                                                images, _ = util.compare_teacher_student_celeb(original, sampler_original, student, sampler_student, steps=[64, 32, 16, 8,  4, 2, 1])
-                                                images = wandb.Image(_, caption="left: Teacher, right: Student")
-                                                wandb.log({"pred_x0": images})
-                                                sampler_student.make_schedule(ddim_num_steps=updates*2, ddim_eta=ddim_eta, verbose=False)
-                                                sampler_original.make_schedule(ddim_num_steps=updates*2, ddim_eta=ddim_eta, verbose=False)
+
+                                                
 
                             # if generation > 0 and generation % 20 == 0 and ddim_steps_student != 1 and step_scheduler=="FID":
                             #     fid = util.get_fid(student, sampler_student, num_imgs=100, name=run_name, 
@@ -400,10 +394,15 @@ def self_distillation_CELEB(student, sampler_student, original, sampler_original
 
                             if session != None:
                                 with torch.no_grad():
-                                    if session != None and generation % 50 == 0:
+                                    if session != None and generation % 100 == 0:
                                         img, grid = util.compare_latents(predictions_temp)
                                         images = wandb.Image(grid, caption="left: Teacher, right: Student")
                                         wandb.log({"Inter_Comp": images})
+                                        images, _ = util.compare_teacher_student_celeb(original, sampler_original, student, sampler_student, steps=[64, 32, 16, 8,  4, 2, 1])
+                                        images = wandb.Image(_, caption="left: Teacher, right: Student")
+                                        wandb.log({"pred_x0": images})
+                                        sampler_student.make_schedule(ddim_num_steps=updates*2, ddim_eta=ddim_eta, verbose=False)
+                                        sampler_original.make_schedule(ddim_num_steps=updates*2, ddim_eta=ddim_eta, verbose=False)
                                         del img, grid, predictions_temp, x_T_student_decode, x_T_teacher_decode, student_target, teacher_target
                                         torch.cuda.empty_cache()
                             
