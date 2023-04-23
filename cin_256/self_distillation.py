@@ -55,7 +55,11 @@ def self_distillation_CIN(student, sampler_student, original, sampler_original, 
     if step_scheduler == "iterative":
         halvings = math.floor(math.log(32)/math.log(2)) + 1
         updates_per_halving = int(gradient_updates / halvings)
-    intermediate_generation_compare = int(gradient_updates * 0.8 / 10)
+    elif step_scheduler == "naive":
+        halvings = 1
+        updates_per_halving = gradient_updates
+    
+    
     if step_scheduler == "FID":
         if os.path.exists(f"{cwd}/saved_images/FID/{run_name}"):
             print("FID folder exists")
@@ -64,8 +68,6 @@ def self_distillation_CIN(student, sampler_student, original, sampler_original, 
     with torch.no_grad():
         with student.ema_scope():              
               
-                
-                
                 if step_scheduler =="FID":
                     current_fid = util.get_fid(student, sampler_student, num_imgs=100, name=run_name, instance = 0, steps=[ddim_steps_student])
                 
@@ -139,34 +141,34 @@ def self_distillation_CIN(student, sampler_student, original, sampler_original, 
                                         
                                     
                                         with torch.enable_grad():    
-                                            if type == "home":
-                                                # AUTOCAST:
-                                                signal = at
-                                                noise = 1 - at
-                                                log_snr = torch.log(signal / noise)
-                                                weight = max(log_snr, 1)
-                                                loss = weight * criterion(pred_x0_student, pred_x0_teacher.detach())
-                                                scaler.scale(loss).backward()
-                                                scaler.step(optimizer)
-                                                scaler.update()
-                                                # torch.nn.utils.clip_grad_norm_(sampler_student.model.parameters(), 1)
-                                                
-                                                scheduler.step()
-                                                losses.append(loss.item())
+                                            
+                                            # # AUTOCAST:
+                                            # signal = at
+                                            # noise = 1 - at
+                                            # log_snr = torch.log(signal / noise)
+                                            # weight = max(log_snr, 1)
+                                            # loss = weight * criterion(pred_x0_student, pred_x0_teacher.detach())
+                                            # scaler.scale(loss).backward()
+                                            # scaler.step(optimizer)
+                                            # scaler.update()
+                                            # # torch.nn.utils.clip_grad_norm_(sampler_student.model.parameters(), 1)
+                                            
+                                            # scheduler.step()
+                                            # losses.append(loss.item())
 
-                                            else:
-                                                # NO AUTOCAST:
-                                                signal = at
-                                                noise = 1 - at
-                                                log_snr = torch.log(signal / noise)
-                                                weight = max(log_snr, 1)
-                                                loss = weight * criterion(pred_x0_student, pred_x0_teacher.detach())
-                                                loss.backward()
-                                                optimizer.step()
-                                                scheduler.step()
-                                                # torch.nn.utils.clip_grad_norm_(sampler_student.model.parameters(), 1)
-                                                
-                                                losses.append(loss.item())
+                                            
+                                            # NO AUTOCAST:
+                                            signal = at
+                                            noise = 1 - at
+                                            log_snr = torch.log(signal / noise)
+                                            weight = max(log_snr, 1)
+                                            loss = weight * criterion(pred_x0_student, pred_x0_teacher.detach())
+                                            loss.backward()
+                                            optimizer.step()
+                                            scheduler.step()
+                                            # torch.nn.utils.clip_grad_norm_(sampler_student.model.parameters(), 1)
+                                            
+                                            losses.append(loss.item())
                                             
                                         if session != None and generation % 200 == 0 and generation > 0:
                                                 
@@ -217,7 +219,7 @@ def self_distillation_CIN(student, sampler_student, original, sampler_original, 
                                         ddim_steps_student = 1
                                         updates = 1    
                                     current_fid = fid
-                                    print("steps decresed:", ddim_steps_student)    
+                                    print("steps decreased:", ddim_steps_student)    
 
                             if session != None:
                                 with torch.no_grad():
@@ -233,7 +235,10 @@ def self_distillation_CIN(student, sampler_student, original, sampler_original, 
                             if session != None:
                                 session.log({"generation_loss":averaged_losses[-1]})
                             tepoch.set_postfix(epoch_loss=averaged_losses[-1])
-                           
+
+                if step_scheduler == "naive":
+                    util.save_model(sampler_student, optimizer, scheduler, name=step_scheduler, steps=updates, run_name=run_name)
+
                                                                            
 def self_distillation_CELEB(student, sampler_student, original, sampler_original, optimizer, scheduler,
         session=None, steps=20, generations=200, early_stop=True, run_name="test", decrease_steps=False,
@@ -257,6 +262,10 @@ def self_distillation_CELEB(student, sampler_student, original, sampler_original
     if step_scheduler == "iterative":
         halvings = math.floor(math.log(32)/math.log(2)) + 1
         updates_per_halving = int(gradient_updates / halvings)
+    elif step_scheduler == "naive":
+        halvings = 1
+        updates_per_halving = gradient_updates
+
     intermediate_generation_compare = int(gradient_updates * 0.8 / 10)
     if step_scheduler == "FID":
         if os.path.exists(f"{cwd}/saved_images/FID/{run_name}"):
@@ -411,3 +420,6 @@ def self_distillation_CELEB(student, sampler_student, original, sampler_original
                             if session != None:
                                 session.log({"generation_loss":averaged_losses[-1]})
                             tepoch.set_postfix(epoch_loss=averaged_losses[-1])
+
+                if step_scheduler == "naive":
+                    util.save_model(sampler_student, optimizer, scheduler, name=step_scheduler, steps=updates, run_name=run_name)

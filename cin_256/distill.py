@@ -48,7 +48,26 @@ if __name__ == '__main__':
                     original_model_path=model_path, lr=args.learning_rate, start_trained=False, cas=args.cas, compare=args.compare, use_wandb=args.wandb)
         
     elif args.task == "DSDN":
-        print("Not implemented yet")
+        if args.name is None:
+            args.name = f"{args.model}_DSDN_{args.steps}_{args.learning_rate}_{args.updates}"
+
+        teacher, sampler_teacher = util.create_models(config_path, model_path, student=False)
+        if args.compare:
+            original, sampler_original = util.create_models(config_path, model_path, student=False)
+
+        step_scheduler = "naive"
+        decrease_steps = True
+        optimizer, scheduler = util.get_optimizer(sampler_teacher, iterations=args.updates, lr=args.learning_rate)
+        wandb_session = util.wandb_log(name=args.name, lr=args.learning_rate, model=teacher, tags=["DSDN"], 
+                notes=f"Direct Naive Self-Distillation from {args.steps} steps with {args.updates} weight updates",  project="Self-Distillation")
+        wandb.run.log_code(".")
+        
+        if args.model == "cin":
+            self_distillation.self_distillation_CIN(teacher, sampler_teacher, original, sampler_original, optimizer, scheduler, session=wandb_session, 
+                        steps=args.steps, generations=args.updates, run_name=args.name, decrease_steps=decrease_steps, step_scheduler=step_scheduler)
+        elif args.model == "celeb":
+            self_distillation.self_distillation_CELEB(teacher, sampler_teacher, original, sampler_original, optimizer, scheduler, session=wandb_session, 
+                        steps=args.steps, generations=args.updates, run_name=args.name, decrease_steps=decrease_steps, step_scheduler=step_scheduler)
 
     elif args.task == "DSDI":
 
