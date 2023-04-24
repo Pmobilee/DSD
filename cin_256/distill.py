@@ -91,6 +91,52 @@ if __name__ == '__main__':
         elif args.model == "celeb":
             self_distillation.self_distillation_CELEB(teacher, sampler_teacher, original, sampler_original, optimizer, scheduler, session=wandb_session, 
                         steps=args.steps, generations=args.updates, run_name=args.name, decrease_steps=decrease_steps, step_scheduler=step_scheduler)
+            
+    elif args.task == "DSDGL":
+
+        if args.name is None:
+            args.name = f"{args.model}_DSDGL_{args.steps}_{args.learning_rate}_{args.updates}"
+
+        teacher, sampler_teacher = util.create_models(config_path, model_path, student=False)
+        if args.compare:
+            original, sampler_original = util.create_models(config_path, model_path, student=False)
+
+        step_scheduler = "gradual_linear"
+        decrease_steps = True
+        optimizer, scheduler = util.get_optimizer(sampler_teacher, iterations=args.updates, lr=args.learning_rate)
+        wandb_session = util.wandb_log(name=args.name, lr=args.learning_rate, model=teacher, tags=["DSDGL"], 
+                notes=f"Direct Gradual Linear Self-Distillation from {args.steps} steps with {args.updates} weight updates",  project="Self-Distillation")
+        wandb.run.log_code(".")
+        
+        if args.model == "cin":
+            self_distillation.self_distillation_CIN(teacher, sampler_teacher, original, sampler_original, optimizer, scheduler, session=wandb_session, 
+                        steps=args.steps, generations=args.updates, run_name=args.name, decrease_steps=decrease_steps, step_scheduler=step_scheduler)
+        elif args.model == "celeb":
+            self_distillation.self_distillation_CELEB(teacher, sampler_teacher, original, sampler_original, optimizer, scheduler, session=wandb_session, 
+                        steps=args.steps, generations=args.updates, run_name=args.name, decrease_steps=decrease_steps, step_scheduler=step_scheduler)
+
+    elif args.task == "DSDGEXP":
+
+        if args.name is None:
+            args.name = f"{args.model}_DSDGEXP_{args.steps}_{args.learning_rate}_{args.updates}"
+
+        teacher, sampler_teacher = util.create_models(config_path, model_path, student=False)
+        if args.compare:
+            original, sampler_original = util.create_models(config_path, model_path, student=False)
+
+        step_scheduler = "gradual_linear"
+        decrease_steps = True
+        optimizer, scheduler = util.get_optimizer(sampler_teacher, iterations=args.updates, lr=args.learning_rate)
+        wandb_session = util.wandb_log(name=args.name, lr=args.learning_rate, model=teacher, tags=["DSDGEXP"], 
+                notes=f"Direct Gradual Exp Self-Distillation from {args.steps} steps with {args.updates} weight updates",  project="Self-Distillation")
+        wandb.run.log_code(".")
+        
+        if args.model == "cin":
+            self_distillation.self_distillation_CIN(teacher, sampler_teacher, original, sampler_original, optimizer, scheduler, session=wandb_session, 
+                        steps=args.steps, generations=args.updates, run_name=args.name, decrease_steps=decrease_steps, step_scheduler=step_scheduler)
+        elif args.model == "celeb":
+            self_distillation.self_distillation_CELEB(teacher, sampler_teacher, original, sampler_original, optimizer, scheduler, session=wandb_session, 
+                        steps=args.steps, generations=args.updates, run_name=args.name, decrease_steps=decrease_steps, step_scheduler=step_scheduler)
 
     elif args.task == "SI":
 
