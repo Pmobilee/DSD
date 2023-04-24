@@ -54,11 +54,24 @@ def self_distillation_CIN(student, sampler_student, original, sampler_original, 
     sampler_student.make_schedule(ddim_num_steps=ddim_steps_student, ddim_eta=ddim_eta, verbose=False)
     sampler_original.make_schedule(ddim_num_steps=ddim_steps_student, ddim_eta=ddim_eta, verbose=False)
     if step_scheduler == "iterative":
-        halvings = math.floor(math.log(32)/math.log(2)) + 1
+        halvings = math.floor(math.log(64)/math.log(2))
         updates_per_halving = int(gradient_updates / halvings)
+        step_sizes = []
+        for i in range(halvings):
+            step_sizes.append(int((steps) / (2**i)))
+        update_list = []
+        for i in step_sizes:
+            update_list.append(int(updates_per_halving / int(i/ 2)))
     elif step_scheduler == "naive":
-        halvings = 1
-        updates_per_halving = gradient_updates
+        step_sizes=[ddim_steps_student]
+        update_list=[gradient_updates]
+    elif step_scheduler == "gradual_linear":
+        step_sizes = np.arange(steps, 0, -2)
+        update_list = (1/len(np.append(step_sizes[1:], 1)) * gradient_updates / np.append(step_sizes[1:], 1)).astype(int)
+    elif step_scheduler == "gradual_exp":
+        step_sizes = np.arange(64, 0, -2)
+        update_list = (np.exp(1 / np.append(step_sizes[1:],1)) / np.sum(np.exp(1 / np.append(step_sizes[1:],1))) * gradient_updates).astype(int)
+         
     
     
     if step_scheduler == "FID":
@@ -72,16 +85,15 @@ def self_distillation_CIN(student, sampler_student, original, sampler_original, 
                 if step_scheduler =="FID":
                     current_fid = util.get_fid(student, sampler_student, num_imgs=100, name=run_name, instance = 0, steps=[ddim_steps_student])
                 
-                updates = ddim_steps_student
 
-                for i in range(halvings):
+                for i, step in enumerate(step_sizes):
                     if instance != 0:
                         util.save_model(sampler_student, optimizer, scheduler, name=step_scheduler, steps=updates, run_name=run_name)
-                    updates = int(updates / TEACHER_STEPS)
-                    generations = updates_per_halving // updates
+                    updates = int(step / 2)
+                    generations = update_list[i]
                     print("Distilling to:", updates)
-                    sampler_student.make_schedule(ddim_num_steps=updates*2, ddim_eta=ddim_eta, verbose=False)
-                    sampler_original.make_schedule(ddim_num_steps=updates*2, ddim_eta=ddim_eta, verbose=False)
+                    sampler_student.make_schedule(ddim_num_steps=step, ddim_eta=ddim_eta, verbose=False)
+                    sampler_original.make_schedule(ddim_num_steps=step, ddim_eta=ddim_eta, verbose=False)
                     sc = student.get_learned_conditioning({student.cond_stage_key: torch.tensor(1*[1000]).to(student.device)})
                     
                     
@@ -120,7 +132,7 @@ def self_distillation_CIN(student, sampler_student, original, sampler_original, 
                                                                                 keep_intermediates=False,
                                                                                 intermediate_step = steps*2,
                                                                                 steps_per_sampling = 1,
-                                                                                total_steps = ddim_steps_student)
+                                                                                total_steps = step)
                                         
 
                                         with torch.no_grad():
@@ -137,7 +149,7 @@ def self_distillation_CIN(student, sampler_student, original, sampler_original, 
                                                                             keep_intermediates=False,
                                                                             intermediate_step = steps*2+1,
                                                                             steps_per_sampling = 1,
-                                                                            total_steps = ddim_steps_student)     
+                                                                            total_steps = step)     
                                         
                                         
                                     
@@ -202,8 +214,8 @@ def self_distillation_CIN(student, sampler_student, original, sampler_original, 
                                                 # images, _ = util.compare_teacher_student_with_schedule(original, sampler_original, student, sampler_student, steps=[64, 32, 16, 8,  4, 2, 1], prompt=992)
                                                 # images = wandb.Image(_, caption="left: Teacher, right: Student")
                                                 # wandb.log({"schedule": images})
-                                                sampler_student.make_schedule(ddim_num_steps=updates*2, ddim_eta=ddim_eta, verbose=False)
-                                                sampler_original.make_schedule(ddim_num_steps=updates*2, ddim_eta=ddim_eta, verbose=False)
+                                                sampler_student.make_schedule(ddim_num_steps=step, ddim_eta=ddim_eta, verbose=False)
+                                                sampler_original.make_schedule(ddim_num_steps=step, ddim_eta=ddim_eta, verbose=False)
 
                             if generation > 0 and generation % 20 == 0 and ddim_steps_student != 1 and step_scheduler=="FID":
                                 fid = util.get_fid(student, sampler_student, num_imgs=100, name=run_name, 
@@ -261,11 +273,24 @@ def self_distillation_CELEB(student, sampler_student, original, sampler_original
     all_losses = []
 
     if step_scheduler == "iterative":
-        halvings = math.floor(math.log(32)/math.log(2)) + 1
+        halvings = math.floor(math.log(64)/math.log(2))
         updates_per_halving = int(gradient_updates / halvings)
+        step_sizes = []
+        for i in range(halvings):
+            step_sizes.append(int((steps) / (2**i)))
+        update_list = []
+        for i in step_sizes:
+            update_list.append(int(updates_per_halving / int(i/ 2)))
     elif step_scheduler == "naive":
-        halvings = 1
-        updates_per_halving = gradient_updates
+        step_sizes=[ddim_steps_student]
+        update_list=[gradient_updates]
+    elif step_scheduler == "gradual_linear":
+        step_sizes = np.arange(steps, 0, -2)
+        update_list = (1/len(np.append(step_sizes[1:], 1)) * gradient_updates / np.append(step_sizes[1:], 1)).astype(int)
+    elif step_scheduler == "gradual_exp":
+        step_sizes = np.arange(64, 0, -2)
+        update_list = (np.exp(1 / np.append(step_sizes[1:],1)) / np.sum(np.exp(1 / np.append(step_sizes[1:],1))) * gradient_updates).astype(int)
+         
 
     intermediate_generation_compare = int(gradient_updates * 0.8 / 10)
     if step_scheduler == "FID":
@@ -285,15 +310,15 @@ def self_distillation_CELEB(student, sampler_student, original, sampler_original
                 
                 updates = ddim_steps_student
 
-                for i in range(halvings):
+                for i, step in enumerate(step_sizes):
                     if instance != 0:
                         util.save_model(sampler_student, optimizer, scheduler, name=step_scheduler, steps=updates, run_name=run_name)
-                    updates = int(updates / TEACHER_STEPS)
-                    generations = updates_per_halving // updates
+                    updates = int(step / 2)
+                    generations = update_list[i]
                     print("Distilling to:", updates)
-                    sampler_student.make_schedule(ddim_num_steps=updates*2, ddim_eta=ddim_eta, verbose=False)
-                    sampler_original.make_schedule(ddim_num_steps=updates*2, ddim_eta=ddim_eta, verbose=False)
-                    
+                    sampler_student.make_schedule(ddim_num_steps=step, ddim_eta=ddim_eta, verbose=False)
+                    sampler_original.make_schedule(ddim_num_steps=step, ddim_eta=ddim_eta, verbose=False)
+               
                     with tqdm.tqdm(range(generations)) as tepoch:
 
                         for j in tepoch:
@@ -328,7 +353,7 @@ def self_distillation_CELEB(student, sampler_student, original, sampler_original
                                                                                 keep_intermediates=False,
                                                                                 intermediate_step = steps*2,
                                                                                 steps_per_sampling = 1,
-                                                                                total_steps = ddim_steps_student)
+                                                                                total_steps = step)
                                         
 
                                         with torch.no_grad():
@@ -345,7 +370,7 @@ def self_distillation_CELEB(student, sampler_student, original, sampler_original
                                                                             keep_intermediates=False,
                                                                             intermediate_step = steps*2+1,
                                                                             steps_per_sampling = 1,
-                                                                            total_steps = ddim_steps_student)     
+                                                                            total_steps = step)     
                                         
                                         
                                     
@@ -412,8 +437,8 @@ def self_distillation_CELEB(student, sampler_student, original, sampler_original
                                         img, grid = util.compare_latents(predictions_temp)
                                         images = wandb.Image(grid, caption="left: Teacher, right: Student")
                                         wandb.log({"Inter_Comp": images})
-                                        sampler_student.make_schedule(ddim_num_steps=updates*2, ddim_eta=ddim_eta, verbose=False)
-                                        sampler_original.make_schedule(ddim_num_steps=updates*2, ddim_eta=ddim_eta, verbose=False)
+                                        sampler_student.make_schedule(ddim_num_steps=step, ddim_eta=ddim_eta, verbose=False)
+                                        sampler_original.make_schedule(ddim_num_steps=step, ddim_eta=ddim_eta, verbose=False)
                                         del img, grid, predictions_temp, x_T_student_decode, x_T_teacher_decode, student_target, teacher_target
                                         torch.cuda.empty_cache()
                             
