@@ -87,7 +87,7 @@ def self_distillation_CIN(student, sampler_student, original, sampler_original, 
                 
 
                 for i, step in enumerate(step_sizes):
-                    if instance != 0:
+                    if instance != 0 and "gradual" not in step_scheduler:
                         util.save_model(sampler_student, optimizer, scheduler, name=step_scheduler, steps=updates, run_name=run_name)
                     updates = int(step / 2)
                     generations = update_list[i]
@@ -249,7 +249,7 @@ def self_distillation_CIN(student, sampler_student, original, sampler_original, 
                                 session.log({"generation_loss":averaged_losses[-1]})
                             tepoch.set_postfix(epoch_loss=averaged_losses[-1])
 
-                if step_scheduler == "naive":
+                if step_scheduler == "naive" or "gradual" in step_scheduler:
                     util.save_model(sampler_student, optimizer, scheduler, name=step_scheduler, steps=updates, run_name=run_name)
 
                                                                            
@@ -311,7 +311,7 @@ def self_distillation_CELEB(student, sampler_student, original, sampler_original
                 updates = ddim_steps_student
 
                 for i, step in enumerate(step_sizes):
-                    if instance != 0:
+                    if instance != 0 and "gradual" not in step_scheduler:
                         util.save_model(sampler_student, optimizer, scheduler, name=step_scheduler, steps=updates, run_name=run_name)
                     updates = int(step / 2)
                     generations = update_list[i]
@@ -448,5 +448,5 @@ def self_distillation_CELEB(student, sampler_student, original, sampler_original
                                 session.log({"generation_loss":averaged_losses[-1]})
                             tepoch.set_postfix(epoch_loss=averaged_losses[-1])
 
-                if step_scheduler == "naive":
+                if step_scheduler == "naive" or "gradual" in step_scheduler:
                     util.save_model(sampler_student, optimizer, scheduler, name=step_scheduler, steps=updates, run_name=run_name)

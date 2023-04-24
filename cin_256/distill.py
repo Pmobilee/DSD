@@ -124,7 +124,7 @@ if __name__ == '__main__':
         if args.compare:
             original, sampler_original = util.create_models(config_path, model_path, student=False)
 
-        step_scheduler = "gradual_linear"
+        step_scheduler = "gradual_exp"
         decrease_steps = True
         optimizer, scheduler = util.get_optimizer(sampler_teacher, iterations=args.updates, lr=args.learning_rate)
         wandb_session = util.wandb_log(name=args.name, lr=args.learning_rate, model=teacher, tags=["DSDGEXP"], 
