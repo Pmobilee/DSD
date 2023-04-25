@@ -70,10 +70,10 @@ def self_distillation_CIN(student, sampler_student, original, sampler_original, 
         update_list = (1/len(np.append(step_sizes[1:], 1)) * gradient_updates / np.append(step_sizes[1:], 1)).astype(int)
     elif step_scheduler == "gradual_exp":
         step_sizes = np.arange(64, 0, -2)
-        update_list = (np.exp(1 / np.append(step_sizes[1:],1)) / np.sum(np.exp(1 / np.append(step_sizes[1:],1))) * gradient_updates).astype(int)
-         
+        update_list = np.exp(1 / np.append(step_sizes[1:],1)) / np.sum(np.exp(1 / np.append(step_sizes[1:],1)))
+        update_list = (update_list * gradient_updates /  np.append(step_sizes[1:],1)).astype(int)
     sampler_student.make_schedule(ddim_num_steps=ddim_steps_student, ddim_eta=ddim_eta, verbose=False)
-    sampler_original.make_schedule(ddim_num_steps=ddim_steps_student, ddim_eta=ddim_eta, verbose=False)
+    sampler_original.make_schedule(ddim_num_steps=ddim_steps_student, ddim_eta=ddim_eta, verbose=False) # test
     
     if step_scheduler == "FID":
         if os.path.exists(f"{cwd}/saved_images/FID/{run_name}"):

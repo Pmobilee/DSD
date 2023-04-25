@@ -6,6 +6,6 @@ cin_256/wandb/
 *.pyc
 *.pack
 *.pt
-*.p
+*.pyc
 *.wandb
 *.png
