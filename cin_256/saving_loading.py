@@ -106,7 +106,7 @@ def get_model(config_path, model_path):
     model = load_model_from_config(config, model_path)
     return model
 
-def save_images(model, sampler, num_imgs, name, steps, verbose=False, celeb=False, total_steps=64):
+def save_images(model, sampler, num_imgs, name, steps, verbose=False, celeb=False, total_steps=64, x_0=False):
     """
     Params: model, sampler, num_imgs, name, steps, verbose=False. Task: saves generated images to the specified folder name
     """
@@ -125,14 +125,14 @@ def save_images(model, sampler, num_imgs, name, steps, verbose=False, celeb=Fals
             print(f"Folder {step} contains {items_present} images, generating {num_imgs-items_present} more images")
         if items_present >= num_imgs:
             if verbose:
-                print("Folder already contains 50000 images, skipping")
+                print(f"Folder already contains {num_imgs} images, skipping")
             continue
         num_imgs = num_imgs - items_present
         for i in tqdm.tqdm(range(num_imgs)):
             if celeb==False:
-                image, _, class_prompt, _ = generate.generate_images(model, sampler, steps=step)
+                image, _, class_prompt, _ = generate.generate_images(model, sampler, steps=step, x_0=x_0)
             else:
-                image, _, class_prompt, _ = generate.generate_images_celeb(model, sampler, steps=step)
+                image, _, class_prompt, _ = generate.generate_images_celeb(model, sampler, steps=step,x_0=x_0)
             image.save(new_path + str(class_prompt.item()) + "_" + str(i) + ".png")
 
 @torch.no_grad()

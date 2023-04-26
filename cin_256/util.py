@@ -287,7 +287,7 @@ def compare_teacher_student_celeb(teacher, sampler_teacher, student, sampler_stu
     return Image.fromarray(grid.astype(np.uint8)), grid.astype(np.uint8)
 
 
-def get_fid(model, sampler, num_imgs, name,instance, steps =[4, 2, 1]):
+def get_fid(model, sampler, num_imgs, name,instance, steps =[4, 2, 1], x_0=False):
     """
     Calculates the FID score for a given model and sampler. Potentially useful for monitoring training, or comparing distillation
     methods.
@@ -297,10 +297,10 @@ def get_fid(model, sampler, num_imgs, name,instance, steps =[4, 2, 1]):
         os.makedirs(f"{cwd}/saved_images/FID/{name}/{instance}")
     with torch.no_grad():
         run_name = f"FID/{name}/{instance}/"
-        save_images(model, sampler, num_imgs, run_name, steps, verbose=False)
+        save_images(model, sampler, num_imgs, run_name, steps, verbose=False, x_0=x_0)
         for step in steps:
             fid = fid_score.calculate_fid_given_paths([f"{cwd}/val_saved/real_fid_both.npz", 
-            f"{cwd}/saved_images/FID/{name}/{instance}/{step}"], batch_size = num_imgs, device='cuda', dims=2048)
+            f"{cwd}/saved_images/FID/{name}/{instance}/{step}"], batch_size = 32, device='cuda', dims=2048)
             fid_list.append(fid)
     return fid_list
 
@@ -317,6 +317,6 @@ def get_fid_celeb(model, sampler, num_imgs, name,instance, steps =[4, 2, 1]):
         save_images(model, sampler, num_imgs, run_name, steps, verbose=False, celeb=True)
         for step in steps:
             fid = fid_score.calculate_fid_given_paths([f"{cwd}/val_saved/real_fid_both.npz", 
-            f"{cwd}/saved_images/FID/{name}/{instance}/{step}"], batch_size = num_imgs, device='cuda', dims=2048)
+            f"{cwd}/saved_images/FID/{name}/{instance}/{step}"], batch_size = 32, device='cuda', dims=2048)
             fid_list.append(fid)
     return fid_list
