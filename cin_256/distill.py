@@ -44,9 +44,19 @@ if __name__ == '__main__':
         if args.name is None:
             args.name = f"{args.model}_TSD_{args.steps}_{args.learning_rate}_{args.updates}"
         
-        distillation.distill(ddim_steps=args.steps, generations=args.updates, run_name=args.name, config=config_path, 
-                    original_model_path=model_path, lr=args.learning_rate, start_trained=False, cas=args.cas, compare=args.compare, use_wandb=args.wandb)
+
+        teacher, sampler_teacher = util.create_models(config_path, model_path, student=False)
+        if args.compare:
+            original, sampler_original = util.create_models(config_path, model_path, student=False)
         
+        if args.model == "cin":
+            distillation.distill(ddim_steps=args.steps, generations=args.updates, run_name=args.name, config=config_path, 
+                    original_model_path=model_path, lr=args.learning_rate, start_trained=False, cas=args.cas, compare=args.compare, use_wandb=args.wandb)
+        else:
+            distillation.distill_celeb(ddim_steps=args.steps, generations=args.updates, run_name=args.name, config=config_path, 
+                    original_model_path=model_path, lr=args.learning_rate, start_trained=False, cas=args.cas, compare=args.compare, use_wandb=args.wandb)
+
+
     elif args.task == "DSDN":
         if args.name is None:
             args.name = f"{args.model}_DSDN_{args.steps}_{args.learning_rate}_{args.updates}"
