@@ -538,28 +538,78 @@ def distill(ddim_steps, generations, run_name, config, original_model_path, lr, 
         del teacher, sampler_teacher, student, sampler_student, optimizer, scheduler
         torch.cuda.empty_cache()
 
-def distill_celeb(ddim_steps, generations, run_name, config, original_model_path, lr, tags):
-    for index, step in enumerate(ddim_steps):
+def distill_celeb(ddim_steps, generations, run_name, config, original_model_path, lr, start_trained=False, cas=False, compare=True, use_wandb=True):
+    """
+    Distill a model into a smaller model. This is done by training a student model to match the teacher model with identical initialization.
+    This is not direct self-distillation as the teacher model does not distill into itself, but rather into a student model.
+    """
+    halvings = math.floor(math.log(ddim_steps)/math.log(2)) + 1
+    updates_per_half = int(generations / halvings)
+
+    ddim_step_list = []
+    for i in range(halvings):
+        ddim_step_list.append(2**i)
+    ddim_step_list.reverse()
+    print(f"Performing TSD for steps: {ddim_step_list}")
+
+    for index, step in enumerate(ddim_step_list):
         steps = int(step / 2)
-        model_generations = generations // steps
-        if index == 0:
-            config_path=config
+        model_generations = updates_per_half // steps
+        config_path=config
+        if index == 0 and start_trained != True:
             model_path=original_model_path
             teacher, sampler_teacher, student, sampler_student = saving_loading.create_models(config_path, model_path, student=True)
+            print("Loading New Student and teacher:", step)
         else:
-            model_path = f"{cwd}/data/trained_models/{run_name}/{ddim_steps[index]}/student_lr8_scheduled.pt"
+            model_path = f"{cwd}/data/trained_models/{run_name}/{step}/{run_name}.pt"
+            print("Loading New Student and teacher:", step)
             teacher, sampler_teacher, optimizer, scheduler = saving_loading.load_trained(model_path, config_path)
             student = copy.deepcopy(teacher)
             sampler_student = DDIMSampler(student)
-        notes = f"""This is a serious attempt to distill the {step} step original teacher into a {steps} step student, trained on {model_generations * ddim_steps[index]} instances"""
-        wandb_session = util.wandb_log(name=run_name, lr=lr, model=student, tags=tags, notes=notes)
-        wandb.run.log_code(".")
-        optimizer, scheduler = saving_loading.get_optimizer(sampler_student, iterations=model_generations * steps, lr=lr)
-        teacher_train_student_celeb(teacher, sampler_teacher, student, sampler_student, optimizer, scheduler, steps=step, generations=model_generations, early_stop=False, session=wandb_session, run_name=run_name)
-        saving_loading.save_model(sampler_student, optimizer, scheduler, name="lr8_scheduled", steps=steps, run_name = run_name)
-        images, grid = util.compare_teacher_student_celeb(teacher, sampler_teacher, student, sampler_student, steps=[1, 2, 4, 8, 16, 32, 64, 128])
-        images = wandb.Image(grid, caption="left: Teacher, right: Student")
-        wandb.log({"Comparison": images})
-        wandb.finish()
+        
+        if index == 0 and wandb:
+            wandb_session = util.wandb_log(name=run_name, lr=lr, model=student, tags=["TSD"], 
+            notes=f"Teacher-Student Distillation from {steps} steps with {generations} weight updates",  project="Self-Distillation")
+            wandb_session.log_code(".")
+    
+
+        optimizer, scheduler = saving_loading.get_optimizer(sampler_student, iterations=generations, lr=lr)
+        teacher_train_student_celeb(teacher, sampler_teacher, student, sampler_student, optimizer, scheduler, steps=step, generations=model_generations, 
+                              early_stop=False, session=wandb_session, run_name=run_name)
+        
+        saving_loading.save_model(sampler_student, optimizer, scheduler, name="TSD", steps=steps, run_name=run_name)
+        if compare and use_wandb:
+            images, grid = util.compare_teacher_student_celeb(teacher, sampler_teacher, student, sampler_student, steps=[1, 2, 4, 8, 16, 32, 64])
+            images = wandb.Image(grid, caption="left: Teacher, right: Student")
+            wandb.log({"Distill Comparison": images})
+            wandb.finish()
         del teacher, sampler_teacher, student, sampler_student, optimizer, scheduler
         torch.cuda.empty_cache()
+
+
+
+# def distill_celeb(ddim_steps, generations, run_name, config, original_model_path, lr, tags):
+#     for index, step in enumerate(ddim_steps):
+#         steps = int(step / 2)
+#         model_generations = generations // steps
+#         if index == 0:
+#             config_path=config
+#             model_path=original_model_path
+#             teacher, sampler_teacher, student, sampler_student = saving_loading.create_models(config_path, model_path, student=True)
+#         else:
+#             model_path = f"{cwd}/data/trained_models/{run_name}/{ddim_steps[index]}/student_lr8_scheduled.pt"
+#             teacher, sampler_teacher, optimizer, scheduler = saving_loading.load_trained(model_path, config_path)
+#             student = copy.deepcopy(teacher)
+#             sampler_student = DDIMSampler(student)
+#         notes = f"""This is a serious attempt to distill the {step} step original teacher into a {steps} step student, trained on {model_generations * ddim_steps[index]} instances"""
+#         wandb_session = util.wandb_log(name=run_name, lr=lr, model=student, tags=tags, notes=notes)
+#         wandb.run.log_code(".")
+#         optimizer, scheduler = saving_loading.get_optimizer(sampler_student, iterations=model_generations * steps, lr=lr)
+#         teacher_train_student_celeb(teacher, sampler_teacher, student, sampler_student, optimizer, scheduler, steps=step, generations=model_generations, early_stop=False, session=wandb_session, run_name=run_name)
+#         saving_loading.save_model(sampler_student, optimizer, scheduler, name="lr8_scheduled", steps=steps, run_name = run_name)
+#         images, grid = util.compare_teacher_student_celeb(teacher, sampler_teacher, student, sampler_student, steps=[1, 2, 4, 8, 16, 32, 64, 128])
+#         images = wandb.Image(grid, caption="left: Teacher, right: Student")
+#         wandb.log({"Comparison": images})
+#         wandb.finish()
+#         del teacher, sampler_teacher, student, sampler_student, optimizer, scheduler
+#         torch.cuda.empty_cache()
