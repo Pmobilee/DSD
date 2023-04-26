@@ -27,6 +27,10 @@ import generate
 # Receiving base current working directory
 cwd = os.getcwd()
 
+from torch.cuda.amp import GradScaler, autocast
+
+scaler = GradScaler()
+
 """
 This module is property of the Vrije Universiteit Amsterdam, department of Beta Science. It contains in part code
 snippets obtained from Rombach et al., https://github.com/CompVis/latent-diffusion. No rights may be attributed.
@@ -259,7 +263,9 @@ def teacher_train_student(teacher, sampler_teacher, student, sampler_student, op
                         
                         samples_ddim_teacher = None
                         predictions_temp = []
-                        for steps in range(updates):          
+                        for steps in range(updates):      
+
+                                with autocast():    
                                     instance += 1
 
                                     samples_ddim_teacher, teacher_intermediate, x_T, pred_x0_teacher, a_t_teacher = sampler_teacher.sample(S=TEACHER_STEPS,
@@ -304,19 +310,39 @@ def teacher_train_student(teacher, sampler_teacher, student, sampler_student, op
                                                                             steps_per_sampling = STUDENT_STEPS,
                                                                             total_steps = ddim_steps_student)
                                             
-                                
-                                            signal = at
-                                            noise = 1 - at
-                                            log_snr = torch.log(signal / noise)
-                                            weight = max(log_snr, 1)
-                                            loss = weight * criterion(pred_x0_student, pred_x0_teacher)
-                                            loss.backward()
-                                            torch.nn.utils.clip_grad_norm_(sampler_student.model.parameters(), 1)
-                                            optimizer.step()
-                                            scheduler.step()
-                                            # if cas:
-                                            #     scheduler.step()
-                                            losses.append(loss.item())
+
+
+                                            with autocast():    
+                                                # AUTOCAST:
+                                                signal = at
+                                                noise = 1 - at
+                                                log_snr = torch.log(signal / noise)
+                                                weight = max(log_snr, 1)
+                                                loss = weight * criterion(pred_x0_student, pred_x0_teacher.detach())
+                                                scaler.scale(loss).backward()
+                                                scaler.step(optimizer)
+                                                scaler.update()
+                                                # torch.nn.utils.clip_grad_norm_(sampler_student.model.parameters(), 1)
+                                                
+                                                scheduler.step()
+                                                losses.append(loss.item())
+
+
+
+
+                                            # # NO AUTOCAST:
+                                            # signal = at
+                                            # noise = 1 - at
+                                            # log_snr = torch.log(signal / noise)
+                                            # weight = max(log_snr, 1)
+                                            # loss = weight * criterion(pred_x0_student, pred_x0_teacher)
+                                            # loss.backward()
+                                            # torch.nn.utils.clip_grad_norm_(sampler_student.model.parameters(), 1)
+                                            # optimizer.step()
+                                            # scheduler.step()
+                                            # # if cas:
+                                            # #     scheduler.step()
+                                            # losses.append(loss.item())
                                             
                                             
                                     if session != None and generation % 200 == 0 and generation > 0:
@@ -397,7 +423,7 @@ def teacher_train_student_celeb(teacher, sampler_teacher, student, sampler_stude
 
                         for steps in range(updates):          
                                     instance += 1
-                                    samples_ddim_teacher, teacher_intermediate, x_T, pred_x0_teacher, a_t_teacher = sampler_teacher.sample(S=TEACHER_STEPS,
+                                    samples_ddim, _, _, pred_x0_teacher, _ = sampler_teacher.sample(S=TEACHER_STEPS,
                                                                     conditioning=None,
                                                                     batch_size=1,
                                                                     shape=[3, 64, 64],
@@ -421,7 +447,7 @@ def teacher_train_student_celeb(teacher, sampler_teacher, student, sampler_stude
                                     with torch.enable_grad():
                                         with student.ema_scope():
                                             optimizer.zero_grad()
-                                            samples, pred_x0_student, st, at= sampler_student.sample_student(S=STUDENT_STEPS,
+                                            samples_ddim, pred_x0_student, _, at= sampler_student.sample_student(S=STUDENT_STEPS,
                                                                             conditioning=None,
                                                                             batch_size=1,
                                                                             shape=[3, 64, 64],
