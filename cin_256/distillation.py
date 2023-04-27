@@ -238,18 +238,17 @@ def teacher_train_student(teacher, sampler_teacher, student, sampler_student, op
 
     all_losses = []
     ets = []
+    sampler_teacher.make_schedule(ddim_num_steps=ddim_steps_teacher, ddim_eta=ddim_eta, verbose=False)
+    sampler_student.make_schedule(ddim_num_steps=ddim_steps_student, ddim_eta=ddim_eta, verbose=False)
     with torch.no_grad():
         with teacher.ema_scope():
                 
-                sampler_teacher.make_schedule(ddim_num_steps=ddim_steps_teacher, ddim_eta=ddim_eta, verbose=False)
-                sampler_student.make_schedule(ddim_num_steps=ddim_steps_student, ddim_eta=ddim_eta, verbose=False)
+                
                 # for class_prompt in tqdm.tqdm(torch.randint(0, NUM_CLASSES, (generations,))):
                 uc = teacher.get_learned_conditioning(
                             {teacher.cond_stage_key: torch.tensor(1*[1000]).to(teacher.device)}
                             )
-                sc = teacher.get_learned_conditioning(
-                            {student.cond_stage_key: torch.tensor(1*[1000]).to(student.device)}
-                            )
+                
                 with tqdm.tqdm(torch.randint(0, NUM_CLASSES, (generations,))) as tepoch:
                     for i, class_prompt in enumerate(tepoch):
                         
@@ -284,15 +283,11 @@ def teacher_train_student(teacher, sampler_teacher, student, sampler_student, op
                                                                     steps_per_sampling = TEACHER_STEPS,
                                                                     total_steps = ddim_steps_teacher)      
                                     
-                                    
-
-                                  
-                                    
 
                                     with torch.enable_grad():
                                         with student.ema_scope():
+                                            sc = student.get_learned_conditioning({student.cond_stage_key: torch.tensor(1*[1000]).to(student.device)})
                                             c_student = teacher.get_learned_conditioning({teacher.cond_stage_key: xc.to(teacher.device)})
-                                            
                                             optimizer.zero_grad()
                                             samples, pred_x0_student, st, at = sampler_student.sample_student(S=STUDENT_STEPS,
                                                                             conditioning=c_student,
@@ -405,12 +400,13 @@ def teacher_train_student_celeb(teacher, sampler_teacher, student, sampler_stude
     instance = 0
     generation = 0
     all_losses = []
+    sampler_teacher.make_schedule(ddim_num_steps=ddim_steps_teacher, ddim_eta=ddim_eta, verbose=False)
+    sampler_student.make_schedule(ddim_num_steps=ddim_steps_student, ddim_eta=ddim_eta, verbose=False)
 
     with torch.no_grad():
         with teacher.ema_scope():
                 
-                sampler_teacher.make_schedule(ddim_num_steps=ddim_steps_teacher, ddim_eta=ddim_eta, verbose=False)
-                sampler_student.make_schedule(ddim_num_steps=ddim_steps_student, ddim_eta=ddim_eta, verbose=False)
+                
 
                 with tqdm.tqdm(torch.randint(0, 1000, (generations,))) as tepoch:
                 
