@@ -354,13 +354,13 @@ def teacher_train_student(teacher, sampler_teacher, student, sampler_student, op
                                         predictions_temp.append(student_target)
                             
 
-                                    if session != None and instance % 2000 == 0:
+                                    if session != None and instance % 5000 == 0:
                                         with torch.no_grad():
-                                            images, _ = util.compare_teacher_student(teacher, sampler_teacher, student, sampler_student, steps=[64, 32, 16, 8,  4, 2, 1], prompt=992)
+                                            images, _ = util.compare_teacher_student(teacher, sampler_teacher, student, sampler_student, steps=[1, 2, 4, 8, 16, 32, 64], prompt=992)
                                             images = wandb.Image(_, caption="left: Teacher, right: Student")
                                             wandb.log({"pred_x0": images}) 
                                             sampler_student.make_schedule(ddim_num_steps=ddim_steps_student, ddim_eta=ddim_eta, verbose=False)
-                                            sampler_teacher.make_schedule(ddim_num_steps=ddim_steps_student, ddim_eta=ddim_eta, verbose=False)
+                                            sampler_teacher.make_schedule(ddim_num_steps=ddim_steps_teacher, ddim_eta=ddim_eta, verbose=False)
 
                         if session != None:
                             with torch.no_grad():
@@ -423,7 +423,7 @@ def teacher_train_student_celeb(teacher, sampler_teacher, student, sampler_stude
 
                         for steps in range(updates):          
                                     instance += 1
-                                    samples_ddim, _, _, pred_x0_teacher, _ = sampler_teacher.sample(S=TEACHER_STEPS,
+                                    samples_ddim_teacher, teacher_intermediate, x_T, pred_x0_teacher, a_t_teacher = sampler_teacher.sample(S=TEACHER_STEPS,
                                                                     conditioning=None,
                                                                     batch_size=1,
                                                                     shape=[3, 64, 64],
@@ -447,12 +447,12 @@ def teacher_train_student_celeb(teacher, sampler_teacher, student, sampler_stude
                                     with torch.enable_grad():
                                         with student.ema_scope():
                                             optimizer.zero_grad()
-                                            samples_ddim, pred_x0_student, _, at= sampler_student.sample_student(S=STUDENT_STEPS,
+                                            samples, pred_x0_student, st, at = sampler_student.sample_student(S=STUDENT_STEPS,
                                                                             conditioning=None,
                                                                             batch_size=1,
                                                                             shape=[3, 64, 64],
                                                                             verbose=False,
-                                                                            x_T=samples_ddim_teacher,
+                                                                            x_T=x_T,
                                                                             unconditional_guidance_scale=scale,
                                                                             unconditional_conditioning=None, 
                                                                             quantize_x0=False,
@@ -490,13 +490,13 @@ def teacher_train_student_celeb(teacher, sampler_teacher, student, sampler_stude
                                                 predictions_temp.append(student_target)
                                             session.log({"intermediate_loss":loss.item()})
 
-                                        if session != None and instance % 2000 == 0:
+                                        if session != None and instance % 5000 == 0:
                                             with torch.no_grad():
-                                                images, _ = util.compare_teacher_student(teacher, sampler_teacher, student, sampler_student, steps=[64, 32, 16, 8,  4, 2, 1], prompt=992)
+                                                images, _ = util.compare_teacher_student(teacher, sampler_teacher, student, sampler_student, steps=[1, 2, 4, 8, 16, 32, 64])
                                                 images = wandb.Image(_, caption="left: Teacher, right: Student")
                                                 wandb.log({"pred_x0": images})
                                                 sampler_student.make_schedule(ddim_num_steps=ddim_steps_student, ddim_eta=ddim_eta, verbose=False)
-                                                sampler_teacher.make_schedule(ddim_num_steps=ddim_steps_student, ddim_eta=ddim_eta, verbose=False)
+                                                sampler_teacher.make_schedule(ddim_num_steps=ddim_steps_teacher, ddim_eta=ddim_eta, verbose=False)
                                         
                         
                         if session != None:

@@ -78,7 +78,6 @@ def compare_teacher_student(teacher, sampler_teacher, student, sampler_student, 
     scale = 3.0
     ddim_eta = 0.0
     images = []
-    
     with torch.no_grad():
         # with teacher.ema_scope():
             for sampling_steps in steps:
@@ -105,10 +104,10 @@ def compare_teacher_student(teacher, sampler_teacher, student, sampler_student, 
                                                     unconditional_guidance_scale=scale,
                                                     unconditional_conditioning=uc, 
                                                     eta=ddim_eta,
-                                                    intermediate_step=intermediate_step ,
+                                                    intermediate_step=0 ,
                                                     total_steps=sampling_steps,
                                                     steps_per_sampling=sampling_steps)
-
+    
                 # x_samples_ddim = teacher.decode_first_stage(_["pred_x0"][-1)
                 x_samples_ddim = teacher.decode_first_stage(pred_x0_teacher)
                 x_samples_ddim = torch.clamp((x_samples_ddim+1.0)/2.0, min=0.0, max=1.0)
@@ -126,7 +125,7 @@ def compare_teacher_student(teacher, sampler_teacher, student, sampler_student, 
                                                     unconditional_guidance_scale=scale,
                                                     unconditional_conditioning=sc, 
                                                     eta=ddim_eta,
-                                                    intermediate_step=intermediate_step,
+                                                    intermediate_step=0,
                                                     total_steps=sampling_steps,
                                                     steps_per_sampling=sampling_steps)
 
@@ -249,7 +248,7 @@ def compare_teacher_student_celeb(teacher, sampler_teacher, student, sampler_stu
                                            
                                                  
                                                         eta=ddim_eta,
-                                                        intermediate_step=None,
+                                                        intermediate_step=0,
                                                         total_steps=sampling_steps,
                                                         steps_per_sampling=sampling_steps)
                 
@@ -268,7 +267,7 @@ def compare_teacher_student_celeb(teacher, sampler_teacher, student, sampler_stu
                                          
                                                         eta=ddim_eta,
                                                        
-                                                        intermediate_step=None,
+                                                        intermediate_step=0,
                                                         total_steps=sampling_steps,
                                                         steps_per_sampling=sampling_steps)
 

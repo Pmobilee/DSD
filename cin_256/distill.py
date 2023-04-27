@@ -45,9 +45,9 @@ if __name__ == '__main__':
             args.name = f"{args.model}_TSD_{args.steps}_{args.learning_rate}_{args.updates}"
         
 
-        teacher, sampler_teacher = util.create_models(config_path, model_path, student=False)
-        if args.compare:
-            original, sampler_original = util.create_models(config_path, model_path, student=False)
+        # teacher, sampler_teacher = util.create_models(config_path, model_path, student=False)
+        # if args.compare:
+        #     original, sampler_original = util.create_models(config_path, model_path, student=False)
         
         if args.model == "cin":
             distillation.distill(ddim_steps=args.steps, generations=args.updates, run_name=args.name, config=config_path, 
