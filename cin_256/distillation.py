@@ -421,7 +421,7 @@ def teacher_train_student_celeb(teacher, sampler_teacher, student, sampler_stude
                         generation += 1
                         losses = []        
                         samples_ddim_teacher = None
-
+                        predictions_temp = []
                         for steps in range(updates):          
                                     instance += 1
                                     samples_ddim_teacher, teacher_intermediate, x_T, pred_x0_teacher, a_t_teacher = sampler_teacher.sample(S=TEACHER_STEPS,
