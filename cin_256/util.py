@@ -104,7 +104,7 @@ def compare_teacher_student(teacher, sampler_teacher, student, sampler_student, 
                                                     unconditional_guidance_scale=scale,
                                                     unconditional_conditioning=uc, 
                                                     eta=ddim_eta,
-                                                    intermediate_step=0 ,
+                                                    intermediate_step=intermediate_step ,
                                                     total_steps=sampling_steps,
                                                     steps_per_sampling=sampling_steps)
     
@@ -125,7 +125,7 @@ def compare_teacher_student(teacher, sampler_teacher, student, sampler_student, 
                                                     unconditional_guidance_scale=scale,
                                                     unconditional_conditioning=sc, 
                                                     eta=ddim_eta,
-                                                    intermediate_step=0,
+                                                    intermediate_step=intermediate_step,
                                                     total_steps=sampling_steps,
                                                     steps_per_sampling=sampling_steps)
 
@@ -248,7 +248,7 @@ def compare_teacher_student_celeb(teacher, sampler_teacher, student, sampler_stu
                                            
                                                  
                                                         eta=ddim_eta,
-                                                        intermediate_step=0,
+                                                        intermediate_step=intermediate_step,
                                                         total_steps=sampling_steps,
                                                         steps_per_sampling=sampling_steps)
                 
@@ -267,7 +267,7 @@ def compare_teacher_student_celeb(teacher, sampler_teacher, student, sampler_stu
                                          
                                                         eta=ddim_eta,
                                                        
-                                                        intermediate_step=0,
+                                                        intermediate_step=intermediate_step,
                                                         total_steps=sampling_steps,
                                                         steps_per_sampling=sampling_steps)
 
