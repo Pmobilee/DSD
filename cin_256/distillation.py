@@ -544,7 +544,7 @@ def distill(ddim_steps, generations, run_name, config, original_model_path, lr, 
             student = copy.deepcopy(teacher)
             sampler_student = DDIMSampler(student)
         
-        if index == 0 and wandb:
+        if index == 0 and use_wandb:
             wandb_session = util.wandb_log(name=run_name, lr=lr, model=student, tags=["TSD"], 
             notes=f"Teacher-Student Distillation from {steps} steps with {generations} weight updates",  project="Self-Distillation")
             wandb_session.log_code(".")
@@ -559,9 +559,11 @@ def distill(ddim_steps, generations, run_name, config, original_model_path, lr, 
             images, grid = util.compare_teacher_student(teacher, sampler_teacher, student, sampler_student, steps=[1, 2, 4, 8, 16, 32, 64])
             images = wandb.Image(grid, caption="left: Teacher, right: Student")
             wandb.log({"Comparison": images})
-            wandb.finish()
+        
         del teacher, sampler_teacher, student, sampler_student, optimizer, scheduler
         torch.cuda.empty_cache()
+    if use_wandb:
+        wandb.finish()
 
 def distill_celeb(ddim_steps, generations, run_name, config, original_model_path, lr, start_trained=False, cas=False, compare=True, use_wandb=True):
     """
@@ -592,7 +594,7 @@ def distill_celeb(ddim_steps, generations, run_name, config, original_model_path
             student = copy.deepcopy(teacher)
             sampler_student = DDIMSampler(student)
         
-        if index == 0 and wandb:
+        if index == 0 and use_wandb:
             wandb_session = util.wandb_log(name=run_name, lr=lr, model=student, tags=["TSD"], 
             notes=f"Teacher-Student Distillation from {steps} steps with {generations} weight updates",  project="Self-Distillation")
             wandb_session.log_code(".")
@@ -607,9 +609,11 @@ def distill_celeb(ddim_steps, generations, run_name, config, original_model_path
             images, grid = util.compare_teacher_student_celeb(teacher, sampler_teacher, student, sampler_student, steps=[1, 2, 4, 8, 16, 32, 64])
             images = wandb.Image(grid, caption="left: Teacher, right: Student")
             wandb.log({"Distill Comparison": images})
-            wandb.finish()
+
         del teacher, sampler_teacher, student, sampler_student, optimizer, scheduler
         torch.cuda.empty_cache()
+    if use_wandb:
+        wandb.finish()
 
 
 
