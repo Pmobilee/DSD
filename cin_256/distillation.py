@@ -414,8 +414,9 @@ def teacher_train_student_celeb(teacher, sampler_teacher, student, sampler_stude
                 sampler_teacher.make_schedule(ddim_num_steps=ddim_steps_teacher, ddim_eta=ddim_eta, verbose=False)
                 sampler_student.make_schedule(ddim_num_steps=ddim_steps_student, ddim_eta=ddim_eta, verbose=False)
 
-                with tqdm.tqdm(generations) as tepoch:
-                    for i in range(tepoch):
+                with tqdm.tqdm(torch.randint(0, 1000, (generations,))) as tepoch:
+                
+                    for i, _ in enumerate(tepoch):
                         
                         generation += 1
                         losses = []        
