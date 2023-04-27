@@ -487,7 +487,7 @@ def teacher_train_student_celeb(teacher, sampler_teacher, student, sampler_stude
                                                 student_target  = torch.clamp((x_T_student_decode +1.0)/2.0, min=0.0, max=1.0)
                                                 predictions_temp.append(teacher_target)
                                                 predictions_temp.append(student_target)
-                                            session.log({"intermediate_loss":loss.item()})
+                                            # session.log({"intermediate_loss":loss.item()})
 
                                         if session != None and instance % 5000 == 0:
                                             with torch.no_grad():
