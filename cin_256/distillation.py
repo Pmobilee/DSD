@@ -502,7 +502,7 @@ def teacher_train_student_celeb(teacher, sampler_teacher, student, sampler_stude
                         
                         if session != None:
                             with torch.no_grad():
-                                if generation > 0 and generation % 200 and session !=None:
+                                if generation > 0 and generation % 200 == 0 and session !=None:
                                     img, grid = util.compare_latents(predictions_temp)
                                     images = wandb.Image(grid, caption="left: Teacher, right: Student")
                                     wandb.log({"Inter_Comp": images})
