@@ -312,37 +312,35 @@ def teacher_train_student(teacher, sampler_teacher, student, sampler_student, op
                                             
 
 
-                                            with autocast():    
-                                                # AUTOCAST:
-                                                signal = at
-                                                noise = 1 - at
-                                                log_snr = torch.log(signal / noise)
-                                                weight = max(log_snr, 1)
-                                                loss = weight * criterion(pred_x0_student, pred_x0_teacher.detach())
-                                                scaler.scale(loss).backward()
-                                                scaler.step(optimizer)
-                                                scaler.update()
-                                                # torch.nn.utils.clip_grad_norm_(sampler_student.model.parameters(), 1)
+                                            # with autocast():    
+                                            #     # AUTOCAST:
+                                            #     signal = at
+                                            #     noise = 1 - at
+                                            #     log_snr = torch.log(signal / noise)
+                                            #     weight = max(log_snr, 1)
+                                            #     loss = weight * criterion(pred_x0_student, pred_x0_teacher.detach())
+                                            #     scaler.scale(loss).backward()
+                                            #     scaler.step(optimizer)
+                                            #     scaler.update()
+                                            #     # torch.nn.utils.clip_grad_norm_(sampler_student.model.parameters(), 1)
                                                 
-                                                scheduler.step()
-                                                losses.append(loss.item())
+                                            #     scheduler.step()
+                                            #     losses.append(loss.item())
 
 
 
 
-                                            # # NO AUTOCAST:
-                                            # signal = at
-                                            # noise = 1 - at
-                                            # log_snr = torch.log(signal / noise)
-                                            # weight = max(log_snr, 1)
-                                            # loss = weight * criterion(pred_x0_student, pred_x0_teacher)
-                                            # loss.backward()
-                                            # torch.nn.utils.clip_grad_norm_(sampler_student.model.parameters(), 1)
-                                            # optimizer.step()
-                                            # scheduler.step()
-                                            # # if cas:
-                                            # #     scheduler.step()
-                                            # losses.append(loss.item())
+                                            # NO AUTOCAST:
+                                            signal = at
+                                            noise = 1 - at
+                                            log_snr = torch.log(signal / noise)
+                                            weight = max(log_snr, 1)
+                                            loss = weight * criterion(pred_x0_student, pred_x0_teacher)
+                                            loss.backward()
+                                            torch.nn.utils.clip_grad_norm_(sampler_student.model.parameters(), 1)
+                                            optimizer.step()
+                                            scheduler.step()    
+                                            losses.append(loss.item())
                                             
                                             
                                     if session != None and generation % 200 == 0 and generation > 0:
@@ -540,7 +538,7 @@ def distill(ddim_steps, generations, run_name, config, original_model_path, lr, 
             teacher, sampler_teacher, student, sampler_student = saving_loading.create_models(config_path, model_path, student=True)
             print("Loading New Student and teacher:", step)
         else:
-            model_path = f"{cwd}/data/trained_models/{run_name}/{step}/{run_name}.pt"
+            model_path = f"{cwd}/data/trained_models/TSD/{run_name}/{step}.pt"
             print("Loading New Student and teacher:", step)
             teacher, sampler_teacher, optimizer, scheduler = saving_loading.load_trained(model_path, config_path)
             student = copy.deepcopy(teacher)
@@ -588,7 +586,7 @@ def distill_celeb(ddim_steps, generations, run_name, config, original_model_path
             teacher, sampler_teacher, student, sampler_student = saving_loading.create_models(config_path, model_path, student=True)
             print("Loading New Student and teacher:", step)
         else:
-            model_path = f"{cwd}/data/trained_models/{run_name}/{step}/{run_name}.pt"
+            model_path = f"{cwd}/data/trained_models/TSD/{run_name}/{step}.pt"
             print("Loading New Student and teacher:", step)
             teacher, sampler_teacher, optimizer, scheduler = saving_loading.load_trained(model_path, config_path)
             student = copy.deepcopy(teacher)
