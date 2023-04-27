@@ -407,7 +407,7 @@ def teacher_train_student_celeb(teacher, sampler_teacher, student, sampler_stude
     all_losses = []
 
     with torch.no_grad():
-        with student.ema_scope():
+        with teacher.ema_scope():
                 
                 sampler_teacher.make_schedule(ddim_num_steps=ddim_steps_teacher, ddim_eta=ddim_eta, verbose=False)
                 sampler_student.make_schedule(ddim_num_steps=ddim_steps_student, ddim_eta=ddim_eta, verbose=False)
