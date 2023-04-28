@@ -9,3 +9,4 @@ cin_256/wandb/
 *.pyc
 *.wandb
 *.png
+*.pyc
