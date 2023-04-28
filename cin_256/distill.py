@@ -149,7 +149,30 @@ if __name__ == '__main__':
                         steps=args.steps, generations=args.updates, run_name=args.name, decrease_steps=decrease_steps, step_scheduler=step_scheduler)
 
     elif args.task == "SI":
+        import torch
+        from omegaconf import OmegaConf
+        from ldm.models.diffusion.ddim import DDIMSampler
+        # config_path=f"{cwd}/models/configs/cin256-v2-custom.yaml"
+        # config = OmegaConf.load(config_path)  
+    
+        start_path = f"{cwd}/data/trained_models/final_versions/{args.model}/"
+        for train_type in os.listdir(start_path):
+            print(train_type)
+            model_path = f"{start_path}{train_type}"
+            model_name = f"{os.listdir(model_path)[0]}"
+            model_path = f"{model_path}/{model_name}"
 
-        
-        teacher, sampler_teacher = util.create_models(config_path, model_path, student=False)
-        util.save_images(teacher, sampler_teacher, 30000, "original_scheduler", [64, 32, 16, 8, 4, 2, 1], verbose=True)
+            config = OmegaConf.load(config_path)  
+            ckpt = torch.load(model_path)
+            model = saving_loading.instantiate_from_config(config.model)
+            model.load_state_dict(ckpt["model"], strict=False)
+            model.eval()
+            model.cuda()
+            sampler = DDIMSampler(model)
+            
+
+
+            # model, sampler, optimizer, scheduler = util.load_trained(config_path, model_path)
+            util.save_images(model, sampler, 5000, train_type, [2,4,8,16], verbose=True)
+            del model, sampler, ckpt#, optimizer, scheduler
+            torch.cuda.empty_cache()
