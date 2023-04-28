@@ -18,7 +18,7 @@ parser.add_argument('--steps', '-s', type=int, default= 64, help='DDIM steps to 
 parser.add_argument('--updates', '-u', type=int, default= 100000, help='Number of total weight updates')
 parser.add_argument('--learning_rate', '-lr', default= 0.000000002, type=float, help='Learning Rate')
 parser.add_argument('--cas', '-c', type=bool, default= False, help='Include Cosine Annealing Scheduler for learning rate')
-parser.add_argument('--name', '-n', type=str, help='Name to give the run')
+parser.add_argument('--name', '-n', type=str, help='Name to give the run, or type of run to save')
 parser.add_argument('--save', '-sv', type=bool, default= True, help='Save intermediate models')
 parser.add_argument('--compare', type=bool, default= True, help='Compare to original model')
 parser.add_argument('--wandb', '-w', type=bool, default=True, help='Weights and Biases upload')
@@ -158,6 +158,9 @@ if __name__ == '__main__':
             print("Doing 100k, did you mean to do this? Change -u for a specific amount of generated images")
         start_path = f"{cwd}/data/trained_models/final_versions/{args.model}/"
         for train_type in os.listdir(start_path):
+            if args.name != None:
+                if args.name != train_type:
+                    continue
             print(train_type)
             model_path = f"{start_path}{train_type}"
             model_name = f"{os.listdir(model_path)[0]}"
