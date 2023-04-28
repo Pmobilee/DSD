@@ -98,50 +98,50 @@ def _extract_into_tensor(arr, timesteps, broadcast_shape):
         res = res[..., None]
     return res + torch.zeros(broadcast_shape, device=timesteps.device)
 
-# @torch.no_grad()
-# def sample_step(model, diffusion, step, model_kwargs, timesteps, samples):
+@torch.no_grad()
+def sample_step(model, diffusion, step, model_kwargs, timesteps, samples):
  
-#     t = torch.tensor([timesteps[step]] * samples.shape[0], device="cuda")
-#     out = diffusion.p_mean_variance(model,samples,t,clip_denoised=False,denoised_fn=None,
-#         model_kwargs=model_kwargs)
-#     eps = diffusion._predict_eps_from_xstart(samples, t, out["pred_xstart"])
-#     alpha_bar = _extract_into_tensor(diffusion.alphas_cumprod, t, samples.shape)
-#     alpha_bar_prev = _extract_into_tensor(diffusion.alphas_cumprod_prev, t, samples.shape)
-#     sigma = (0.0 * torch.sqrt((1 - alpha_bar_prev) / (1 - alpha_bar)) * torch.sqrt(1 - alpha_bar / alpha_bar_prev))
-#     noise = torch.randn_like(samples)
-#     mean_pred = (
-#         out["pred_xstart"] * torch.sqrt(alpha_bar_prev)
-#         + torch.sqrt(1 - alpha_bar_prev - sigma ** 2) * eps
-#     )
-#     nonzero_mask = (
-#         (t != 0).float().view(-1, *([1] * (len(samples.shape) - 1)))
-#     )  # no noise when t == 0
-#     samples = mean_pred + nonzero_mask * sigma * noise
-#     pred_xstart = out["pred_xstart"]
-#     return samples, pred_xstart
+    t = torch.tensor([timesteps[step]] * samples.shape[0], device="cuda")
+    out = diffusion.p_mean_variance(model,samples,t,clip_denoised=False,denoised_fn=None,
+        model_kwargs=model_kwargs)
+    eps = diffusion._predict_eps_from_xstart(samples, t, out["pred_xstart"])
+    alpha_bar = _extract_into_tensor(diffusion.alphas_cumprod, t, samples.shape)
+    alpha_bar_prev = _extract_into_tensor(diffusion.alphas_cumprod_prev, t, samples.shape)
+    sigma = (0.0 * torch.sqrt((1 - alpha_bar_prev) / (1 - alpha_bar)) * torch.sqrt(1 - alpha_bar / alpha_bar_prev))
+    noise = torch.randn_like(samples)
+    mean_pred = (
+        out["pred_xstart"] * torch.sqrt(alpha_bar_prev)
+        + torch.sqrt(1 - alpha_bar_prev - sigma ** 2) * eps
+    )
+    nonzero_mask = (
+        (t != 0).float().view(-1, *([1] * (len(samples.shape) - 1)))
+    )  # no noise when t == 0
+    samples = mean_pred + nonzero_mask * sigma * noise
+    pred_xstart = out["pred_xstart"]
+    return samples, pred_xstart
 
-# @torch.enable_grad()
-# def sample_step_grad(model, diffusion, step, model_kwargs, timesteps, samples):
+@torch.enable_grad()
+def sample_step_grad(model, diffusion, step, model_kwargs, timesteps, samples):
 
-#     t = torch.tensor([timesteps[step]] * samples.shape[0], device="cuda")
+    t = torch.tensor([timesteps[step]] * samples.shape[0], device="cuda")
     
-#     out = diffusion.p_mean_variance_grad(model,samples,t,clip_denoised=False,denoised_fn=None,
-#         model_kwargs=model_kwargs)
-#     eps = diffusion._predict_eps_from_xstart(samples, t, out["pred_xstart"])
-#     alpha_bar = _extract_into_tensor(diffusion.alphas_cumprod, t, samples.shape)
-#     alpha_bar_prev = _extract_into_tensor(diffusion.alphas_cumprod_prev, t, samples.shape)
-#     sigma = (0.0 * torch.sqrt((1 - alpha_bar_prev) / (1 - alpha_bar)) * torch.sqrt(1 - alpha_bar / alpha_bar_prev))
-#     noise = torch.randn_like(samples)
-#     mean_pred = (
-#         out["pred_xstart"] * torch.sqrt(alpha_bar_prev)
-#         + torch.sqrt(1 - alpha_bar_prev - sigma ** 2) * eps
-#     )
-#     nonzero_mask = (
-#         (t != 0).float().view(-1, *([1] * (len(samples.shape) - 1)))
-#     )  # no noise when t == 0
-#     samples = mean_pred + nonzero_mask * sigma * noise
-#     pred_xstart = out["pred_xstart"]
-#     return samples, pred_xstart
+    out = diffusion.p_mean_variance_grad(model,samples,t,clip_denoised=False,denoised_fn=None,
+        model_kwargs=model_kwargs)
+    eps = diffusion._predict_eps_from_xstart(samples, t, out["pred_xstart"])
+    alpha_bar = _extract_into_tensor(diffusion.alphas_cumprod, t, samples.shape)
+    alpha_bar_prev = _extract_into_tensor(diffusion.alphas_cumprod_prev, t, samples.shape)
+    sigma = (0.0 * torch.sqrt((1 - alpha_bar_prev) / (1 - alpha_bar)) * torch.sqrt(1 - alpha_bar / alpha_bar_prev))
+    noise = torch.randn_like(samples)
+    mean_pred = (
+        out["pred_xstart"] * torch.sqrt(alpha_bar_prev)
+        + torch.sqrt(1 - alpha_bar_prev - sigma ** 2) * eps
+    )
+    nonzero_mask = (
+        (t != 0).float().view(-1, *([1] * (len(samples.shape) - 1)))
+    )  # no noise when t == 0
+    samples = mean_pred + nonzero_mask * sigma * noise
+    pred_xstart = out["pred_xstart"]
+    return samples, pred_xstart
 
 
 

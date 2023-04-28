@@ -237,7 +237,7 @@ class DiT(nn.Module):
         t: (N,) tensor of diffusion timesteps
         y: (N,) tensor of class labels
         """
-        print("t:", t, end=" ")
+        # print("t:", t, end=" ")
         x = self.x_embedder(x) + self.pos_embed  # (N, T, D), where T = H * W / patch_size ** 2
         t = self.t_embedder(t)                   # (N, D)
         y = self.y_embedder(y, self.training)    # (N, D)
@@ -249,7 +249,7 @@ class DiT(nn.Module):
         x = self.unpatchify(x)                   # (N, out_channels, H, W)
         return x
 
-    def forward_with_cfg(self, x, t, y, cfg_scale, timesteps):
+    def forward_with_cfg(self, x, timesteps, y, cfg_scale):
         """
         Forward pass of DiT, but also batches the unconditional forward pass for classifier-free guidance.
         """
@@ -261,8 +261,8 @@ class DiT(nn.Module):
         # For exact reproducibility reasons, we apply classifier-free guidance on only
         # three channels by default. The standard approach to cfg applies it to all channels.
         # This can be done by uncommenting the following line and commenting-out the line following that.
-        # eps, rest = model_out[:, :self.in_channels], model_out[:, self.in_channels:]
-        eps, rest = model_out[:, :3], model_out[:, 3:]
+        eps, rest = model_out[:, :self.in_channels], model_out[:, self.in_channels:]
+        # eps, rest = model_out[:, :3], model_out[:, 3:]
         cond_eps, uncond_eps = torch.split(eps, len(eps) // 2, dim=0)
         half_eps = uncond_eps + cfg_scale * (cond_eps - uncond_eps)
         eps = torch.cat([half_eps, half_eps], dim=0)
@@ -281,8 +281,8 @@ class DiT(nn.Module):
         # For exact reproducibility reasons, we apply classifier-free guidance on only
         # three channels by default. The standard approach to cfg applies it to all channels.
         # This can be done by uncommenting the following line and commenting-out the line following that.
-        # eps, rest = model_out[:, :self.in_channels], model_out[:, self.in_channels:]
-        eps, rest = model_out[:, :3], model_out[:, 3:]
+        eps, rest = model_out[:, :self.in_channels], model_out[:, self.in_channels:]
+        # eps, rest = model_out[:, :3], model_out[:, 3:]
         cond_eps, uncond_eps = torch.split(eps, len(eps) // 2, dim=0)
         half_eps = uncond_eps + cfg_scale * (cond_eps - uncond_eps)
         eps = torch.cat([half_eps, half_eps], dim=0)
