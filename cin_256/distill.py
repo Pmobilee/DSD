@@ -154,7 +154,8 @@ if __name__ == '__main__':
         from ldm.models.diffusion.ddim import DDIMSampler
         # config_path=f"{cwd}/models/configs/cin256-v2-custom.yaml"
         # config = OmegaConf.load(config_path)  
-    
+        if args.updates == 100000:
+            print("Doing 100k, did you mean to do this? Change -u for a specific amount of generated images")
         start_path = f"{cwd}/data/trained_models/final_versions/{args.model}/"
         for train_type in os.listdir(start_path):
             print(train_type)
@@ -173,6 +174,6 @@ if __name__ == '__main__':
 
 
             # model, sampler, optimizer, scheduler = util.load_trained(config_path, model_path)
-            util.save_images(model, sampler, 5000, train_type, [2,4,8,16], verbose=True)
+            util.save_images(model, sampler, args.updates, train_type, [2,4,8,16], verbose=True)
             del model, sampler, ckpt#, optimizer, scheduler
             torch.cuda.empty_cache()
