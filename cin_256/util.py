@@ -157,8 +157,8 @@ def compare_teacher_student_x0(teacher, sampler_teacher, student, sampler_studen
     with torch.no_grad():
         # with teacher.ema_scope():
             for sampling_steps in steps:
-                sampler_teacher.make_schedule(ddim_num_steps=sampling_steps, ddim_eta=0.0, verbose=False)
-                sampler_student.make_schedule(ddim_num_steps=sampling_steps, ddim_eta=0.0, verbose=False)
+                sampler_teacher.make_schedule(ddim_num_steps=total_steps, ddim_eta=0.0, verbose=False)
+                sampler_student.make_schedule(ddim_num_steps=total_steps, ddim_eta=0.0, verbose=False)
                 
                 if prompt == None:
                     class_image = torch.randint(0, 999, (1,))

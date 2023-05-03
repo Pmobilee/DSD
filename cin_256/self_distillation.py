@@ -64,7 +64,7 @@ def self_distillation_CIN(student, sampler_student, original, sampler_original, 
             update_list.append(int(updates_per_halving / int(i/ 2)))
     elif step_scheduler == "naive":
         step_sizes=[ddim_steps_student]
-        update_list=[gradient_updates]
+        update_list=[gradient_updates // int(ddim_steps_student / 2)]
     elif step_scheduler == "gradual_linear":
         step_sizes = np.arange(steps, 0, -2)
         update_list = (1/len(np.append(step_sizes[1:], 1)) * gradient_updates / np.append(step_sizes[1:], 1)).astype(int)
@@ -72,8 +72,7 @@ def self_distillation_CIN(student, sampler_student, original, sampler_original, 
         step_sizes = np.arange(64, 0, -2)
         update_list = np.exp(1 / np.append(step_sizes[1:],1)) / np.sum(np.exp(1 / np.append(step_sizes[1:],1)))
         update_list = (update_list * gradient_updates /  np.append(step_sizes[1:],1)).astype(int)
-    sampler_student.make_schedule(ddim_num_steps=ddim_steps_student, ddim_eta=ddim_eta, verbose=False)
-    sampler_original.make_schedule(ddim_num_steps=ddim_steps_student, ddim_eta=ddim_eta, verbose=False) # test
+
     
     if step_scheduler == "FID":
         if os.path.exists(f"{cwd}/saved_images/FID/{run_name}"):
@@ -108,7 +107,7 @@ def self_distillation_CIN(student, sampler_student, original, sampler_original, 
                             predictions_temp = []
                             for steps in range(updates):  
 
-                                    # with autocast():
+                                    with autocast():
 
                                         with torch.enable_grad():
                                             
@@ -176,10 +175,11 @@ def self_distillation_CIN(student, sampler_student, original, sampler_original, 
                                             log_snr = torch.log(signal / noise)
                                             weight = max(log_snr, 1)
                                             loss = weight * criterion(pred_x0_student, pred_x0_teacher.detach())
+                                            # loss = criterion(pred_x0_student, pred_x0_teacher.detach())
                                             loss.backward()
                                             optimizer.step()
                                             scheduler.step()
-                                            # torch.nn.utils.clip_grad_norm_(sampler_student.model.parameters(), 1)
+                                            torch.nn.utils.clip_grad_norm_(sampler_student.model.parameters(), 1)
                                             
                                             losses.append(loss.item())
                                             
@@ -283,14 +283,14 @@ def self_distillation_CELEB(student, sampler_student, original, sampler_original
             update_list.append(int(updates_per_halving / int(i/ 2)))
     elif step_scheduler == "naive":
         step_sizes=[ddim_steps_student]
-        update_list=[gradient_updates]
+        update_list=[gradient_updates // int(ddim_steps_student / 2)]
     elif step_scheduler == "gradual_linear":
         step_sizes = np.arange(steps, 0, -2)
         update_list = (1/len(np.append(step_sizes[1:], 1)) * gradient_updates / np.append(step_sizes[1:], 1)).astype(int)
     elif step_scheduler == "gradual_exp":
         step_sizes = np.arange(64, 0, -2)
-        update_list = (np.exp(1 / np.append(step_sizes[1:],1)) / np.sum(np.exp(1 / np.append(step_sizes[1:],1))) * gradient_updates).astype(int)
-         
+        update_list = np.exp(1 / np.append(step_sizes[1:],1)) / np.sum(np.exp(1 / np.append(step_sizes[1:],1)))
+        update_list = (update_list * gradient_updates /  np.append(step_sizes[1:],1)).astype(int)
 
     intermediate_generation_compare = int(gradient_updates * 0.8 / 10)
     if step_scheduler == "FID":
