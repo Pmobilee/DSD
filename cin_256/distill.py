@@ -175,6 +175,9 @@ if __name__ == '__main__':
             sampler = DDIMSampler(model)
             
             # model, sampler, optimizer, scheduler = util.load_trained(config_path, model_path)
-            util.save_images(model, sampler, args.updates, train_type, [2, 4,8,16], verbose=True)
+            if args.model == "cin":
+              util.save_images(model, sampler, args.updates, train_type, [2,4,8,16], verbose=True)
+            else:
+              saving_loading.save_images(model, sampler, args.updates, train_type, [2,4,8,16], verbose=True, celeb=True)
             del model, sampler, ckpt#, optimizer, scheduler
             torch.cuda.empty_cache()
