@@ -56,7 +56,9 @@ def get_optimizer(sampler, iterations, lr=0.000000003):
     going from a learning rate of 1e-8 to 0 over the course of the specified iterations
     """
     lr = lr
-    optimizer = torch.optim.Adam(sampler.model.parameters(), lr=lr, betas=(0.9, 0.99), weight_decay=0.001)
+    # optimizer = torch.optim.Adam(sampler.model.parameters(), lr=lr, betas=(0.9, 0.98), weight_decay=0.0005)
+    optimizer = torch.optim.Adam(sampler.model.parameters(), lr=lr)#, weight_decay=0.0005)
+    # optimizer = torch.optim.Adam(sampler.model.parameters(), lr=lr, betas=(0.9, 0.999), eps=1e-08, weight_decay=0)
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=iterations,eta_min=lr *0.1, last_epoch=-1, verbose=False)
     return optimizer, scheduler
 
@@ -68,7 +70,7 @@ def wandb_log(name, lr, model, tags, notes, project="diffusion-thesis"):
     session = wandb.init(
     project=project, 
     name=name, 
-    config={"learning_rate": lr, "architecture": "Diffusion Model","dataset": "CIFAR-1000"}, tags=tags, notes=notes)
+    config={"learning_rate": lr, "architecture": "Diffusion Model","dataset": "Imagenet-1000"}, tags=tags, notes=notes)
     # session.watch(model, log="all", log_freq=1000)
     return session
 
@@ -113,7 +115,8 @@ def save_images(model, sampler, num_imgs, name, steps, verbose=False, celeb=Fals
     """
     Params: model, sampler, num_imgs, name, steps, verbose=False. Task: saves generated images to the specified folder name
     """
-    basic_path = f"{cwd}/saved_images/"
+    model_type = "celeb" if celeb else "cin"
+    basic_path = f"{cwd}/saved_images/{model_type}/"
     imgs_per_batch = num_imgs
     if not os.path.exists(basic_path + name + "/"):
         os.mkdir(basic_path + name + "/")

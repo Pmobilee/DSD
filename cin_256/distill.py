@@ -12,7 +12,7 @@ cwd = os.getcwd()
 parser = argparse.ArgumentParser(description='Direct Self-Distillation')
 
 
-parser.add_argument('--task', '-t', type=str, default= "DSDI", help='Task to perform', choices=['TSD', "DSDN", "DSDI", "DSDGL", "DSDGEXP", "SI", "CD", "DFD", "FID"])
+parser.add_argument('--task', '-t', type=str, default= "DSDI", help='Task to perform', choices=['TSD', "DSDN", "DSDI", "DSDGL", "DSDGEXP", "SI", "SI_orig", "CD", "DFD", "FID"])
 parser.add_argument('--model', '-m', type=str, default= "cin", help='Model type', choices=['cin', 'celeb'])
 parser.add_argument('--steps', '-s', type=int, default= 64, help='DDIM steps to distill from')
 parser.add_argument('--updates', '-u', type=int, default= 100000, help='Number of total weight updates')
@@ -22,6 +22,7 @@ parser.add_argument('--name', '-n', type=str, help='Name to give the run, or typ
 parser.add_argument('--save', '-sv', type=bool, default= True, help='Save intermediate models')
 parser.add_argument('--compare', type=bool, default= True, help='Compare to original model')
 parser.add_argument('--wandb', '-w', type=bool, default=True, help='Weights and Biases upload')
+parser.add_argument('--cuda', '-cu', type=str, default="True", help='Cuda on/off')
 
 
 if __name__ == '__main__':
@@ -29,13 +30,21 @@ if __name__ == '__main__':
     os.environ['WANDB_NOTEBOOK_NAME'] = "Cin_256_custom.ipynb"
     args = parser.parse_args()
 
+    if "False" in args.cuda:
+        # os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
+        device = 'cpu'
+        print("Running on CPU")
+    else:
+        device = 'cuda'
     # Instatiate selected model
     if args.model == "cin":
         config_path=f"{cwd}/models/configs/cin256-v2-custom.yaml"
         model_path=f"{cwd}/models/cin256_original.ckpt"
+        npz = f"{cwd}/val_saved/real_fid_both.npz"
     elif args.model == "celeb":
         config_path=f"{cwd}/models/configs/celebahq-ldm-vq-4.yaml"
         model_path=f"{cwd}/models/CelebA.ckpt"
+        npz = f"{cwd}/val_saved/celeb.npz"
 
 
     # Start Task
@@ -149,6 +158,7 @@ if __name__ == '__main__':
                         steps=args.steps, generations=args.updates, run_name=args.name, decrease_steps=decrease_steps, step_scheduler=step_scheduler)
 
     elif args.task == "SI":
+        
         import torch
         from omegaconf import OmegaConf
         from ldm.models.diffusion.ddim import DDIMSampler
@@ -167,17 +177,74 @@ if __name__ == '__main__':
             model_path = f"{model_path}/{model_name}"
 
             config = OmegaConf.load(config_path)  
-            ckpt = torch.load(model_path)
+            if device == "cuda":
+                ckpt = torch.load(model_path)
+            else:
+                ckpt = torch.load(model_path, map_location=torch.device("cpu"))
             model = saving_loading.instantiate_from_config(config.model)
+            model.to(device)
+            if device == "cuda":
+                model.cuda()
+            else:
+                model.cpu()
+                model.to(torch.device("cpu"))
             model.load_state_dict(ckpt["model"], strict=False)
             model.eval()
-            model.cuda()
             sampler = DDIMSampler(model)
-            
             # model, sampler, optimizer, scheduler = util.load_trained(config_path, model_path)
             if args.model == "cin":
-              util.save_images(model, sampler, args.updates, train_type, [2,4,8,16], verbose=True)
+              util.save_images(model, sampler, args.updates, train_type, [4,8], verbose=True)
             else:
-              saving_loading.save_images(model, sampler, args.updates, train_type, [2,4,8,16], verbose=True, celeb=True)
+              saving_loading.save_images(model, sampler, args.updates, train_type, [4,8], verbose=True, celeb=True)
             del model, sampler, ckpt#, optimizer, scheduler
             torch.cuda.empty_cache()
+
+    elif args.task == "SI_orig":
+        import torch
+        from omegaconf import OmegaConf
+        from ldm.models.diffusion.ddim import DDIMSampler
+        # config_path=f"{cwd}/models/configs/cin256-v2-custom.yaml"
+        # config = OmegaConf.load(config_path)  
+        if args.updates == 100000:
+            print("Doing 100k, did you mean to do this? Change -u for a specific amount of generated images")
+         
+        # model, sampler, optimizer, scheduler = util.load_trained(config_path, model_path)
+        if args.model == "cin":
+            config_path=f"{cwd}/models/configs/cin256-v2-custom.yaml"
+            model_path=f"{cwd}/models/cin256_original.ckpt"
+            original, sampler_original = util.create_models(config_path, model_path, student=False)
+            original.eval()
+            original
+            if device == "cuda":
+                original.cuda()
+            else:
+                original.cpu()
+            util.save_images(original, sampler_original, args.updates,"cin_original", [2,4,8,16],verbose=True)
+        else:
+            config_path=f"{cwd}/models/configs/celebahq-ldm-vq-4.yaml"
+            model_path=f"{cwd}/models/CelebA.ckpt"
+            original, sampler_original = util.create_models(config_path, model_path, student=False)
+            util.save_images(original, sampler_original, args.updates,"celeb_original", [2,4,8,16], verbose=True)
+        del original, sampler_original
+        torch.cuda.empty_cache()
+
+    elif args.task == "FID":
+        from pytorch_fid import fid_score
+        os.environ["KMP_DUPLICATE_LIB_OK"]="TRUE"
+        if args.name == "all":
+            print("Grabbing FID for all models")
+            for model in ["DSDGL", "DSDN", "TSD", "DSDI", "DSDGEXP"]:
+                for step in [2, 4, 8, 16]:
+                    try:
+                        fid = fid_score.calculate_fid_given_paths([npz, f"C:\Diffusion_Thesis\cin_256\saved_images\{args.model}\{model}\\{step}"],batch_size=64,device="cuda", dims=2048 )
+                        print(f"FID score for {args.model} {model} at step {step}: ", fid)
+                    except:
+                        print("Step", step, "not found for", model, args.name)
+        else:
+            for step in [2, 4, 8, 16]:
+                try:
+                    print("Grabbing FID for ", args.name)
+                    fid = fid_score.calculate_fid_given_paths([npz, f"C:\Diffusion_Thesis\cin_256\saved_images\{args.model}\{args.name}\\{step}"],batch_size=64,device="cuda", dims=2048 )
+                    print(f"FID score for {args.model} {args.name} at step {step}: ", fid)
+                except:
+                    print("Step", step, "not found for", args.model, args.name)

@@ -329,11 +329,11 @@ def teacher_train_student(teacher, sampler_teacher, student, sampler_student, op
 
 
                                             # NO AUTOCAST:
-                                            signal = at
-                                            noise = 1 - at
-                                            log_snr = torch.log(signal / noise)
-                                            weight = max(log_snr, 1)
-                                            loss = weight * criterion(pred_x0_student, pred_x0_teacher)
+                                            # signal = at
+                                            # noise = 1 - at
+                                            # log_snr = torch.log(signal / noise)
+                                            # weight = max(log_snr, 1)
+                                            loss = criterion(pred_x0_student, pred_x0_teacher)
                                             loss.backward()
                                             torch.nn.utils.clip_grad_norm_(sampler_student.model.parameters(), 1)
                                             optimizer.step()
@@ -406,7 +406,7 @@ def teacher_train_student_celeb(teacher, sampler_teacher, student, sampler_stude
     sampler_teacher.make_schedule(ddim_num_steps=ddim_steps_teacher, ddim_eta=ddim_eta, verbose=False)
     sampler_student.make_schedule(ddim_num_steps=ddim_steps_teacher, ddim_eta=ddim_eta, verbose=False)
 
-    with torch.no_grad():
+    with torch.no_grad() and autocast():
         with teacher.ema_scope():
                 
                 
@@ -420,82 +420,84 @@ def teacher_train_student_celeb(teacher, sampler_teacher, student, sampler_stude
                         samples_ddim_teacher = None
                         predictions_temp = []
                         for steps in range(updates):          
-                                    instance += 1
-                                    samples_ddim_teacher, teacher_intermediate, x_T, pred_x0_teacher, a_t_teacher = sampler_teacher.sample(S=TEACHER_STEPS,
-                                                                    conditioning=None,
-                                                                    batch_size=1,
-                                                                    shape=[3, 64, 64],
-                                                                    verbose=False,
-                                                                    x_T=samples_ddim_teacher,
-                                                                    unconditional_guidance_scale=scale,
-                                                                    unconditional_conditioning=None, 
-                                                                    eta=ddim_eta,
-                                                                  
-                                                                    keep_intermediates=False,
-                                                                    quantize_x0=False,
-                                                                    intermediate_step = steps*2,
-                                                                    steps_per_sampling = TEACHER_STEPS,
-                                                                    total_steps = ddim_steps_teacher)     
+
+                            
+                            instance += 1
+                            samples_ddim_teacher, teacher_intermediate, x_T, pred_x0_teacher, a_t_teacher = sampler_teacher.sample(S=TEACHER_STEPS,
+                                                            conditioning=None,
+                                                            batch_size=1,
+                                                            shape=[3, 64, 64],
+                                                            verbose=False,
+                                                            x_T=samples_ddim_teacher,
+                                                            unconditional_guidance_scale=scale,
+                                                            unconditional_conditioning=None, 
+                                                            eta=ddim_eta,
+                                                            
+                                                            keep_intermediates=False,
+                                                            quantize_x0=False,
+                                                            intermediate_step = steps*2,
+                                                            steps_per_sampling = TEACHER_STEPS,
+                                                            total_steps = ddim_steps_teacher)     
                                     
                                     
 
                                   
                                     
 
-                                    with torch.enable_grad():
-                                        with student.ema_scope():
-                                            optimizer.zero_grad()
-                                            samples, pred_x0_student, st, at = sampler_student.sample_student(S=STUDENT_STEPS,
-                                                                            conditioning=None,
-                                                                            batch_size=1,
-                                                                            shape=[3, 64, 64],
-                                                                            verbose=False,
-                                                                            x_T=x_T,
-                                                                            unconditional_guidance_scale=scale,
-                                                                            unconditional_conditioning=None, 
-                                                                            quantize_x0=False,
-                                                                    
-                                                                            eta=ddim_eta,
-                                                                            keep_intermediates=False,
-                                                                            intermediate_step = steps*2,
-                                                                            steps_per_sampling = STUDENT_STEPS,
-                                                                            total_steps = ddim_steps_teacher)
-                                            
-                                
-                                            signal = at
-                                            noise = 1 - at
-                                            log_snr = torch.log(signal / noise)
-                                            weight = max(log_snr, 1)
-                                            loss = weight * criterion(pred_x0_student, pred_x0_teacher)
-            
+                            with torch.enable_grad() and autocast():
+                                with student.ema_scope():
+                                    optimizer.zero_grad()
+                                    samples, pred_x0_student, st, at = sampler_student.sample_student(S=STUDENT_STEPS,
+                                                                    conditioning=None,
+                                                                    batch_size=1,
+                                                                    shape=[3, 64, 64],
+                                                                    verbose=False,
+                                                                    x_T=x_T,
+                                                                    unconditional_guidance_scale=scale,
+                                                                    unconditional_conditioning=None, 
+                                                                    quantize_x0=False,
+                                                            
+                                                                    eta=ddim_eta,
+                                                                    keep_intermediates=False,
+                                                                    intermediate_step = steps*2,
+                                                                    steps_per_sampling = STUDENT_STEPS,
+                                                                    total_steps = ddim_steps_teacher)
                                     
-                                            loss.backward()
-                                            
-                                            
-                                            torch.nn.utils.clip_grad_norm_(sampler_student.model.parameters(), 1)
-                                            
-                                            optimizer.step()
-                                            scheduler.step()
-                                            losses.append(loss.item())
-                                            
-                                        if session != None:
-                                            if generation > 0 and generation % 200 == 0:
-                                                x_T_teacher_decode = sampler_teacher.model.decode_first_stage(pred_x0_teacher.detach())
-                                                teacher_target = torch.clamp((x_T_teacher_decode+1.0)/2.0, min=0.0, max=1.0)
-                                                x_T_student_decode = sampler_student.model.decode_first_stage(pred_x0_student.detach())
-                                                student_target  = torch.clamp((x_T_student_decode +1.0)/2.0, min=0.0, max=1.0)
-                                                predictions_temp.append(teacher_target)
-                                                predictions_temp.append(student_target)
-                                            # session.log({"intermediate_loss":loss.item()})
+                        
+                                    # signal = at
+                                    # noise = 1 - at
+                                    # log_snr = torch.log(signal / noise)
+                                    # weight = max(log_snr, 1)
+                                    loss = criterion(pred_x0_student, pred_x0_teacher.detach())
+    
+                            
+                                    loss.backward()
+                                    
+                                    
+                                    torch.nn.utils.clip_grad_norm_(sampler_student.model.parameters(), 1)
+                                    
+                                    optimizer.step()
+                                    scheduler.step()
+                                    losses.append(loss.item())
+                                    
+                            if session != None:
+                                if generation > 0 and generation % 200 == 0:
+                                    x_T_teacher_decode = sampler_teacher.model.decode_first_stage(pred_x0_teacher.detach())
+                                    teacher_target = torch.clamp((x_T_teacher_decode+1.0)/2.0, min=0.0, max=1.0)
+                                    x_T_student_decode = sampler_student.model.decode_first_stage(pred_x0_student.detach())
+                                    student_target  = torch.clamp((x_T_student_decode +1.0)/2.0, min=0.0, max=1.0)
+                                    predictions_temp.append(teacher_target)
+                                    predictions_temp.append(student_target)
+                                # session.log({"intermediate_loss":loss.item()})
 
-                                        if session != None and instance % 5000 == 0:
-                                            with torch.no_grad():
-                                                images, _ = util.compare_teacher_student_celeb(teacher, sampler_teacher, student, sampler_student, steps=[1, 2, 4, 8, 16, 32, 64])
-                                                images = wandb.Image(_, caption="left: Teacher, right: Student")
-                                                wandb.log({"pred_x0": images})
-                                                sampler_student.make_schedule(ddim_num_steps=ddim_steps_teacher, ddim_eta=ddim_eta, verbose=False)
-                                                sampler_teacher.make_schedule(ddim_num_steps=ddim_steps_teacher, ddim_eta=ddim_eta, verbose=False)
-                                        
+                            if session != None and instance % 100 == 0:
+                                with torch.no_grad():
+                                    images, _ = util.compare_teacher_student_celeb(teacher, sampler_teacher, student, sampler_student, steps=[1, 2, 4, 8, 16, 32, 64])
+                                    images = wandb.Image(_, caption="left: Teacher, right: Student")
+                                    wandb.log({"pred_x0": images})
+                                    sampler_student.make_schedule(ddim_num_steps=ddim_steps_teacher, ddim_eta=ddim_eta, verbose=False)
+                                    sampler_teacher.make_schedule(ddim_num_steps=ddim_steps_teacher, ddim_eta=ddim_eta, verbose=False)
+                            
                         
                         if session != None:
                             with torch.no_grad():
