@@ -223,7 +223,10 @@ def ablation(sampler, steps=8, shape=(2, 2), celeb=False, prompt_list=None, nois
 
     return new_image, noise_list, prompt_list
 
-def create_horizontal_grid(*images, celeb=False, steps=None):
+
+import matplotlib.pyplot as plt
+
+def create_horizontal_grid(*images, celeb=False, steps=None, x_labels=None, font_size=20):
     # Set the size of the output images
     cwd = os.getcwd()
     image_width, image_height = images[0].size
@@ -234,8 +237,11 @@ def create_horizontal_grid(*images, celeb=False, steps=None):
     # Calculate the total width of the output image
     total_width = (image_width + spacing) * len(images) - spacing
 
+    # Calculate the total height of the output image
+    total_height = image_height + spacing + 40  # Additional space for x-axis names
+
     # Create a new blank image with the calculated size
-    new_image = Image.new('RGBA', (total_width, image_height), (0, 0, 0, 0))
+    new_image = Image.new('RGBA', (total_width, total_height), (0, 0, 0, 0))
 
     # Create a new ImageDraw object to draw on the new image
     draw = ImageDraw.Draw(new_image)
@@ -245,7 +251,15 @@ def create_horizontal_grid(*images, celeb=False, steps=None):
         # Calculate the x position of the current image
         x = i * (image_width + spacing)
         # Draw the image onto the new image at the calculated position
-        new_image.paste(image, (0, x))
+        new_image.paste(image, (x, 0))
+
+        # Add x-axis name if provided
+        if x_labels is not None and i < len(x_labels):
+            x_label = x_labels[i]
+            text_width, text_height = draw.textsize(x_label)
+            text_x = x + (image_width - text_width) // 2
+            text_y = image_height + spacing
+            draw.text((text_x, text_y), x_label, fill='black', font=ImageFont.truetype('arial.ttf', font_size))
 
     # Create the directory if it doesn't exist
     directory = f'{cwd}/grids/hor_{"celeb" if celeb else "cin"}'
@@ -265,6 +279,59 @@ def create_horizontal_grid(*images, celeb=False, steps=None):
     new_image.save(f'{directory}/{filename}')
     # Return the new image
     return new_image
+
+
+# def create_horizontal_grid(*images, celeb=False, steps=None, x_labels=None):
+#     # Set the size of the output images
+#     cwd = os.getcwd()
+#     image_width, image_height = images[0].size
+#     print(len(images))
+#     # Set the spacing between images
+#     spacing = 10
+
+#     # Calculate the total width of the output image
+#     total_width = (image_width + spacing) * len(images) - spacing
+
+#     # Create a new blank image with the calculated size
+#     new_image = Image.new('RGBA', (total_width, image_height), (0, 0, 0, 0))
+
+#     # Create a new ImageDraw object to draw on the new image
+#     draw = ImageDraw.Draw(new_image)
+
+#     # Loop through the images and draw each one onto the new image
+#     for i, image in enumerate(images):
+#         # Calculate the x position of the current image
+#         x = i * (image_width + spacing)
+        
+
+#         if x_labels is not None and i < len(x_labels):
+#             x_label = x_labels[i]
+#             text_width, text_height = draw.textsize(x_label)
+#             text_x = x + (image_width - text_width) // 2
+#             text_y = image_height + spacing
+#             draw.text((text_x, text_y), x_label, fill='black')
+
+#         # Draw the image onto the new image at the calculated position
+#         new_image.paste(image, (0, x))
+
+#     # Create the directory if it doesn't exist
+#     directory = f'{cwd}/grids/hor_{"celeb" if celeb else "cin"}'
+#     if not os.path.exists(directory):
+#         os.makedirs(directory)
+
+#     # Check if a file with the same name already exists, and modify the filename accordingly
+#     if os.path.exists(f'{directory}/{steps}.png'):
+#         i = 1
+#         while os.path.exists(f'{directory}/{steps}_{i}.png'):
+#             i += 1
+#         filename = f'{steps}_{i}.png'
+#     else:
+#         filename = f'{steps}.png'
+
+#     # Save the new image with the modified filename
+#     new_image.save(f'{directory}/{filename}')
+#     # Return the new image
+#     return new_image
 
 def create_vertical_grid(*images, celeb=False, steps=None):
     # Set the size of the output images

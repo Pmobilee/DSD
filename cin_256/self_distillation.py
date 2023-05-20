@@ -48,7 +48,7 @@ def self_distillation_CIN(student, sampler_student, original, sampler_original, 
     optimizer=optimizer
 
     averaged_losses = []
-    criterion = nn.MSELoss()
+    criterion = nn.MSELoss()    
     instance = 0
     generation = 0
     all_losses = []
@@ -62,17 +62,24 @@ def self_distillation_CIN(student, sampler_student, original, sampler_original, 
             step_sizes.append(int((steps) / (2**i)))
         update_list = []
         for i in step_sizes:
-            update_list.append(int(updates_per_halving / int(i/ 2)))
+            update_list.append(int(updates_per_halving / int(i/ 2))) # /2 because of 2 steps per update
     elif step_scheduler == "naive":
         step_sizes=[ddim_steps_student]
-        update_list=[gradient_updates // int(ddim_steps_student / 2)]
+        update_list=[gradient_updates // int(ddim_steps_student / 2)] # /2 because of 2 steps per update
     elif step_scheduler == "gradual_linear":
         step_sizes = np.arange(steps, 0, -2)
-        update_list = (1/len(np.append(step_sizes[1:], 1)) * gradient_updates / np.append(step_sizes[1:], 1)).astype(int)
+        update_list = ((1/len(np.append(step_sizes[1:], 1)) * gradient_updates / np.append(step_sizes[1:], 1))).astype(int) * 2 # *2 because of 2 steps per update
+    
+    # TEMPORARY VERSIOn, to test if focus on higher steps is better
     elif step_scheduler == "gradual_exp":
         step_sizes = np.arange(64, 0, -2)
-        update_list = np.exp(1 / np.append(step_sizes[1:],1)) / np.sum(np.exp(1 / np.append(step_sizes[1:],1)))
-        update_list = (update_list * gradient_updates /  np.append(step_sizes[1:],1)).astype(int)
+        update_list = np.exp((1 / np.append(step_sizes[1:],1))[::-1]) / np.sum(np.exp((1 / np.append(step_sizes[1:],1))[::-1]))
+        update_list = (update_list * gradient_updates /  np.append(step_sizes[1:],1)).astype(int) * 2 # *2 because of 2 steps per update
+    
+    # elif step_scheduler == "gradual_exp":
+    #     step_sizes = np.arange(64, 0, -2)
+    #     update_list = np.exp(1 / np.append(step_sizes[1:],1)) / np.sum(np.exp(1 / np.append(step_sizes[1:],1)))
+    #     update_list = ((update_list * 2) * gradient_updates /  np.append(step_sizes[1:],1)).astype(int)
 
     
     if step_scheduler == "FID":

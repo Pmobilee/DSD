@@ -12,7 +12,7 @@ cwd = os.getcwd()
 parser = argparse.ArgumentParser(description='Direct Self-Distillation')
 
 
-parser.add_argument('--task', '-t', type=str, default= "DSDI", help='Task to perform', choices=['TSD', "DSDN", "DSDI", "DSDGL", "DSDGEXP", "SI", "SI_orig", "CD", "DFD", "FID"])
+parser.add_argument('--task', '-t', type=str, default= "DSDI", help='Task to perform', choices=['TSD', "DSDN", "DSDI", "DSDGL", "DSDGEXP", "SI", "SI_orig", "CD", "DFD", "FID", "NPZ", "NPZ_single"])
 parser.add_argument('--model', '-m', type=str, default= "cin", help='Model type', choices=['cin', 'celeb'])
 parser.add_argument('--steps', '-s', type=int, default= 64, help='DDIM steps to distill from')
 parser.add_argument('--updates', '-u', type=int, default= 100000, help='Number of total weight updates')
@@ -45,6 +45,9 @@ if __name__ == '__main__':
         config_path=f"{cwd}/models/configs/celebahq-ldm-vq-4.yaml"
         model_path=f"{cwd}/models/CelebA.ckpt"
         npz = f"{cwd}/val_saved/celeb.npz"
+        # npz = f"C:\Diffusion_Thesis\cin_256\celeba_hq_256"
+        # npz = f"C:\Diffusion_Thesis\cin_256\celeb_64.npz"
+
 
 
     # Start Task
@@ -228,23 +231,109 @@ if __name__ == '__main__':
         del original, sampler_original
         torch.cuda.empty_cache()
 
+    # elif args.task == "FID":
+    #     from pytorch_fid import fid_score
+    #     os.environ["KMP_DUPLICATE_LIB_OK"]="TRUE"
+    #     if args.name == "all":
+    #         print("Grabbing FID for all models")
+    #         for model in ["DSDGL", "DSDN", "TSD", "DSDI", "DSDGEXP"]:
+    #             for step in [2, 4, 8, 16]:
+    #                 try:
+    #                     fid = fid_score.calculate_fid_given_paths([npz, f"C:\Diffusion_Thesis\cin_256\saved_images\{args.model}\{model}\\{step}"],batch_size=64,device="cuda", dims=2048 )
+    #                     print(f"FID score for {args.model} {model} at step {step}: ", fid)
+    #                 except:
+    #                     print("Step", step, "not found for", model, args.name)
+    #     else:
+    #         for step in [2, 4, 8, 16]:
+    #             try:
+    #                 print("Grabbing FID for ", args.name)
+    #                 fid = fid_score.calculate_fid_given_paths([npz, f"C:\Diffusion_Thesis\cin_256\saved_images\{args.model}\{args.name}\\{step}"],batch_size=64,device="cuda", dims=2048 )
+    #                 print(f"FID score for {args.model} {args.name} at step {step}: ", fid)
+    #             except:
+    #                 print("Step", step, "not found for", args.model, args.name)
+
     elif args.task == "FID":
-        from pytorch_fid import fid_score
+        import pandas as pd
+        import os
+        import torch_fidelity
         os.environ["KMP_DUPLICATE_LIB_OK"]="TRUE"
-        if args.name == "all":
-            print("Grabbing FID for all models")
-            for model in ["DSDGL", "DSDN", "TSD", "DSDI", "DSDGEXP"]:
-                for step in [2, 4, 8, 16]:
+        filename = 'metrics.csv'
+  
+        if not os.path.isfile(filename):
+            df = pd.DataFrame({
+                "model": [],
+                "type" : [],
+                "step": [],
+                "fid": [],
+                "isc": [],
+                "kid": []
+            })
+            df.to_csv(filename, index=False)
+        df = pd.read_csv(filename)
+        cin_target = r"C:\imagenet\val"
+        celeb_target = r"C:\Diffusion_Thesis\cin_256\celeba_hq_256"
+        # cin_target = r"C:\imagenet\DIFFERENCE\fill"
+        # celeb_target = r"C:\imagenet\DIFFERENCE\fill"
+        for model in ["cin", "celeb"]:  
+            target = cin_target if model == "cin" else celeb_target 
+            basic_path_source = f"{cwd}/saved_images/{model}/"
+            model_names = [name for name in os.listdir(basic_path_source)]
+         
+            for model_name in model_names:
+                model_path_source = basic_path_source + f"{model_name}/"
+                steps = [step for step in os.listdir(model_path_source)]
+                for step in steps:
+                    current_path_source = model_path_source + f"{step}/"
+                    if  df.loc[(df['model'] == model) & (df['step'] == step) & (df['type'] == model_name)].empty:
+                        try:
+                            metrics = torch_fidelity.calculate_metrics(gpu=0, fid=True, isc=True, kid=True, input1=current_path_source, input2=target)
+                            metrics_df = pd.DataFrame({
+                            "model" : [model],
+                            "type": [model_name],
+                            "step": [step],
+                            "fid": [metrics["frechet_inception_distance"]],
+                            "isc" :[metrics["inception_score_mean"]],
+                            "kid": [metrics["kernel_inception_distance_mean"]]})                            
+                            df = pd.concat([df, metrics_df])
+                            df.to_csv(filename, index=False)
+                        except Exception as e:
+                            print("Failed to create metrics for:", current_path_source)
+                            print(e)
+                    else:
+                        print("Already have metrics for:", current_path_source)
+    
+
+
+
+    elif args.task == "NPZ": 
+        os.environ["KMP_DUPLICATE_LIB_OK"]="TRUE"
+        for model in ["cin", "celeb"]:   
+            basic_path_source = f"{cwd}/saved_images/{model}/"
+            basic_path_target = f"{cwd}/NPZ/{model}"
+            model_names = [name for name in os.listdir(basic_path_source)]
+ 
+            for model_name in model_names:
+                model_path_source = basic_path_source + f"{model_name}/"
+                model_path_target = basic_path_target + f"_{model_name}"
+                
+                steps = [step for step in os.listdir(model_path_source)]
+                for step in steps:
+                    current_path_source = model_path_source + f"{step}/"
+                    current_path_target = model_path_target + f"_{step}"
                     try:
-                        fid = fid_score.calculate_fid_given_paths([npz, f"C:\Diffusion_Thesis\cin_256\saved_images\{args.model}\{model}\\{step}"],batch_size=64,device="cuda", dims=2048 )
-                        print(f"FID score for {args.model} {model} at step {step}: ", fid)
-                    except:
-                        print("Step", step, "not found for", model, args.name)
-        else:
-            for step in [2, 4, 8, 16]:
-                try:
-                    print("Grabbing FID for ", args.name)
-                    fid = fid_score.calculate_fid_given_paths([npz, f"C:\Diffusion_Thesis\cin_256\saved_images\{args.model}\{args.name}\\{step}"],batch_size=64,device="cuda", dims=2048 )
-                    print(f"FID score for {args.model} {args.name} at step {step}: ", fid)
-                except:
-                    print("Step", step, "not found for", args.model, args.name)
+                        util.generate_npz(current_path_source, current_path_target)
+                   
+                    except Exception as e:
+                        print("Failed to generate npz for ", current_path_source)
+                        print(e)
+
+    elif args.task == "NPZ_single":
+        
+        os.environ["KMP_DUPLICATE_LIB_OK"]="TRUE"
+        current_path_source = "C:\Diffusion_Thesis\cin_256\saved_images\cin\cin_original\\64"
+        current_path_target = "C:\Diffusion_Thesis\cin_256\\NPZ\cin_cin_original_64"
+        util.generate_npz(current_path_source, current_path_target)
+
+
+
+# fidelity --gpu 0 --fid --input1 C:\Diffusion_Thesis\cin_256\saved_images\cin\cin_original\32 --input2 C:\imagenet\test2

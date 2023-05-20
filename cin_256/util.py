@@ -292,8 +292,8 @@ def get_fid(model, sampler, num_imgs, name,instance, steps =[4, 2, 1], x_0=False
     methods.
     """
     fid_list = []
-    if not os.path.exists(f"{cwd}/saved_images/FID/{name}/{instance}"):
-        os.makedirs(f"{cwd}/saved_images/FID/{name}/{instance}")
+    if not os.path.exists(f"{cwd}/saved_images/cin/FID/{name}/{instance}"):
+        os.makedirs(f"{cwd}/saved_images/cin/FID/{name}/{instance}")
     with torch.no_grad():
         run_name = f"FID/{name}/{instance}/"
         save_images(model, sampler, num_imgs, run_name, steps, verbose=False, x_0=x_0)
@@ -319,3 +319,8 @@ def get_fid_celeb(model, sampler, num_imgs, name,instance, steps =[4, 2, 1]):
             f"{cwd}/saved_images/celeb/FID/{name}/{instance}/{step}"], batch_size = 32, device='cuda', dims=2048)
             fid_list.append(fid)
     return fid_list
+
+def generate_npz(source, destination, batch_size=64, device="cuda", dims=2048):
+    paths = [source, destination]
+    from pytorch_fid import fid_score
+    fid_score.save_fid_stats(paths, batch_size=batch_size, device=device, dims=dims)
