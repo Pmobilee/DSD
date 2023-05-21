@@ -48,7 +48,7 @@ def self_distillation_CIN(student, sampler_student, original, sampler_original, 
     # optimizer=optimizer
     lr = 0.001
     optimizer = torch.optim.Adam(student.parameters(), lr=lr, betas=(0.8, 0.9), eps=1e-08, weight_decay=0.00005)
-    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=5000,eta_min=lr *0.1, last_epoch=-1, amsgrad=True, verbose=False)
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=5000,eta_min=lr *0.1, last_epoch=-1, verbose=False)
 
     averaged_losses = []
     criterion = nn.MSELoss()    
