@@ -56,8 +56,8 @@ def get_optimizer(sampler, iterations, lr=0.000000003):
     going from a learning rate of 1e-8 to 0 over the course of the specified iterations
     """
     lr = lr
-    # optimizer = torch.optim.Adam(sampler.model.parameters(), lr=lr, betas=(0.9, 0.98), weight_decay=0.0005)
-    optimizer = torch.optim.Adam(sampler.model.parameters(), lr=lr)#, weight_decay=0.0005)
+    optimizer = torch.optim.Adam(sampler.model.parameters(), lr=lr, betas=(0.99, 0.999), weight_decay=0.0005)
+    # optimizer = torch.optim.Adam(sampler.model.parameters(), lr=lr)#, weight_decay=0.0005)
     # optimizer = torch.optim.Adam(sampler.model.parameters(), lr=lr, betas=(0.9, 0.999), eps=1e-08, weight_decay=0)
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=iterations,eta_min=lr *0.1, last_epoch=-1, verbose=False)
     return optimizer, scheduler

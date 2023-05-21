@@ -107,6 +107,7 @@ def self_distillation_CIN(student, sampler_student, original, sampler_original, 
                     with tqdm.tqdm(torch.randint(0, NUM_CLASSES, (generations,))) as tepoch:
 
                         for i, class_prompt in enumerate(tepoch):
+                            # scale = np.random.uniform(1.0, 4.0)
                             generation += 1
                             losses = []        
                             xc = torch.tensor([class_prompt])
@@ -137,7 +138,7 @@ def self_distillation_CIN(student, sampler_student, original, sampler_original, 
                                                                                     keep_intermediates=False,
                                                                                     intermediate_step = steps*2,
                                                                                     steps_per_sampling = 1,
-                                                                                    total_steps = step)
+                                                                                    total_steps = 64)
                                                 # decode_student = student.differentiable_decode_first_stage(pred_x0_student)
                                                 # # # # # decode_student = student.differentiable_decode_first_stage(samples_ddim)
                                                 # reconstruct_student = torch.clamp((decode_student+1.0)/2.0, min=0.0, max=1.0)
@@ -159,7 +160,7 @@ def self_distillation_CIN(student, sampler_student, original, sampler_original, 
                                                                                 keep_intermediates=False,
                                                                                 intermediate_step = steps*2+1,
                                                                                 steps_per_sampling = 1,
-                                                                                total_steps = step)     
+                                                                                total_steps = 64)     
 
                                                     # decode_teacher = student.decode_first_stage(pred_x0_teacher)
                                                     # # # # decode_teacher = student.differentiable_decode_first_stage(samples_ddim)
@@ -170,15 +171,15 @@ def self_distillation_CIN(student, sampler_student, original, sampler_original, 
                                             
                                             
                                                 # # AUTOCAST:
-                                                # signal = at
-                                                # noise = 1 - at
-                                                # log_snr = torch.log(signal / noise)
-                                                # weight = max(log_snr, 1)
-                                                # loss = weight * criterion(pred_x0_student, pred_x0_teacher.detach())
-                                                # scaler.scale(loss).backward()
-                                                # scaler.step(optimizer)
-                                                # scaler.update()
-                                                # # torch.nn.utils.clip_grad_norm_(sampler_student.model.parameters(), 1)
+                                                signal = at
+                                                noise = 1 - at
+                                                log_snr = torch.log(signal / noise)
+                                                weight = max(log_snr, 1)
+                                                loss = weight * criterion(pred_x0_student, pred_x0_teacher.detach())
+                                                scaler.scale(loss).backward()
+                                                scaler.step(optimizer)
+                                                scaler.update()
+                                                torch.nn.utils.clip_grad_norm_(sampler_student.model.parameters(), 1)
                                                 
                                                 # scheduler.step()
                                                 # losses.append(loss.item())
@@ -194,7 +195,7 @@ def self_distillation_CIN(student, sampler_student, original, sampler_original, 
                                                 # # weight = max(torch.exp(log_snr), 1)
                                                 # # print(weight)
                                                 
-                                                loss = criterion(pred_x0_student, pred_x0_teacher.detach())
+                                                # loss = criterion(pred_x0_student, pred_x0_teacher.detach())
                                                 # loss = criterion(pred_x0_student, pred_x0_teacher.detach())
                                                 # loss = weight * criterion(samples_ddim_student, samples_ddim_teacher.detach())
                                                 # loss = criterion(decode_student, decode_teacher.detach())
@@ -202,11 +203,11 @@ def self_distillation_CIN(student, sampler_student, original, sampler_original, 
                                                 # loss = criterion(reconstruct_student, reconstruct_teacher.detach())
                                                 
                                                 
-                                                loss.backward()
-                                                optimizer.step()
-                                                scheduler.step()
-                                                # print(scheduler.get_last_lr())
-                                                torch.nn.utils.clip_grad_norm_(sampler_student.model.parameters(), 1)
+                                                # loss.backward()
+                                                # optimizer.step()
+                                                # scheduler.step()
+                                                # # print(scheduler.get_last_lr())
+                                                # torch.nn.utils.clip_grad_norm_(sampler_student.model.parameters(), 1)
                                                 
                                                 losses.append(loss.item())
 
@@ -216,47 +217,49 @@ def self_distillation_CIN(student, sampler_student, original, sampler_original, 
                                             
                                         
                                         
-                                        if session != None and generation % 200 == 0 and generation > 0:
-                                                
-                                            x_T_teacher_decode = sampler_student.model.decode_first_stage(pred_x0_teacher)
-                                            teacher_target = torch.clamp((x_T_teacher_decode+1.0)/2.0, min=0.0, max=1.0)
-                                            x_T_student_decode = sampler_student.model.decode_first_stage(pred_x0_student.detach())
-                                            student_target  = torch.clamp((x_T_student_decode +1.0)/2.0, min=0.0, max=1.0)
-                                            predictions_temp.append(teacher_target)
-                                            predictions_temp.append(student_target)
-                                            
-                                        
-                                    
+                                                if session != None and generation % 200 == 0 and generation > 0:
+                                                        
+                                                    x_T_teacher_decode = sampler_student.model.decode_first_stage(pred_x0_teacher)
+                                                    teacher_target = torch.clamp((x_T_teacher_decode+1.0)/2.0, min=0.0, max=1.0)
+                                                    x_T_student_decode = sampler_student.model.decode_first_stage(pred_x0_student.detach())
+                                                    student_target  = torch.clamp((x_T_student_decode +1.0)/2.0, min=0.0, max=1.0)
+                                                    predictions_temp.append(teacher_target)
+                                                    predictions_temp.append(student_target)
 
-                                        # if session != None and instance % 10000 == 0 and generation > 0:
-                                        #     fids = util.get_fid(student, sampler_student, num_imgs=100, name=run_name, instance = instance+1, steps=[64, 32, 16, 8, 4, 2, 1])
-                                        #     session.log({"fid_64":fids[0]})
-                                        #     session.log({"fid_32":fids[1]})
-                                        #     session.log({"fid_16":fids[2]})
-                                        #     session.log({"fid_8":fids[3]})
-                                        #     session.log({"fid_4":fids[4]})
-                                        #     session.log({"fid_2":fids[5]})
-                                        #     session.log({"fid_1":fids[6]})
-                                        
-                                        if session != None and instance % 1000 == 0:
-                        
-                                            with torch.no_grad():
-                                                images, _ = util.compare_teacher_student_x0(original, sampler_original, student, sampler_student, steps=[16, 8,  4, 2, 1], prompt=992)
-                                                images = wandb.Image(_, caption="left: Teacher, right: Student")
-                                                wandb.log({"pred_x0": images})
-                                                # images, _ = util.compare_teacher_student_with_schedule(original, sampler_original, student, sampler_student, steps=[64, 32, 16, 8,  4, 2, 1], prompt=992)
-                                                # images = wandb.Image(_, caption="left: Teacher, right: Student")
-                                                # wandb.log({"schedule": images})
-                                                sampler_student.make_schedule(ddim_num_steps=ddim_steps_student, ddim_eta=ddim_eta, verbose=False)
-                                                sampler_original.make_schedule(ddim_num_steps=ddim_steps_student, ddim_eta=ddim_eta, verbose=False)
-                                                images, _ = util.compare_teacher_student(original, sampler_original, student, sampler_student, steps=[16, 8,  4, 2, 1], prompt=992)
-                                                images = wandb.Image(_, caption="left: Teacher, right: Student")
-                                                wandb.log({"pred": images})
-                                                # images, _ = util.compare_teacher_student_with_schedule(original, sampler_original, student, sampler_student, steps=[64, 32, 16, 8,  4, 2, 1], prompt=992)
-                                                # images = wandb.Image(_, caption="left: Teacher, right: Student")
-                                                # wandb.log({"schedule": images})
-                                                sampler_student.make_schedule(ddim_num_steps=ddim_steps_student, ddim_eta=ddim_eta, verbose=False)
-                                                sampler_original.make_schedule(ddim_num_steps=ddim_steps_student, ddim_eta=ddim_eta, verbose=False)
+                                                
+                                                    
+                                                
+                                            
+
+                                                # if session != None and instance % 10000 == 0 and generation > 0:
+                                                #     fids = util.get_fid(student, sampler_student, num_imgs=100, name=run_name, instance = instance+1, steps=[64, 32, 16, 8, 4, 2, 1])
+                                                #     session.log({"fid_64":fids[0]})
+                                                #     session.log({"fid_32":fids[1]})
+                                                #     session.log({"fid_16":fids[2]})
+                                                #     session.log({"fid_8":fids[3]})
+                                                #     session.log({"fid_4":fids[4]})
+                                                #     session.log({"fid_2":fids[5]})
+                                                #     session.log({"fid_1":fids[6]})
+                                                
+                                                if session != None and instance % 500 == 0:
+                                
+                                                    with torch.no_grad():
+                                                        images, _ = util.compare_teacher_student_x0(original, sampler_original, student, sampler_student, steps=[16, 8,  4, 2, 1], prompt=992)
+                                                        images = wandb.Image(_, caption="left: Teacher, right: Student")
+                                                        wandb.log({"pred_x0": images})
+                                                        # images, _ = util.compare_teacher_student_with_schedule(original, sampler_original, student, sampler_student, steps=[64, 32, 16, 8,  4, 2, 1], prompt=992)
+                                                        # images = wandb.Image(_, caption="left: Teacher, right: Student")
+                                                        # wandb.log({"schedule": images})
+                                                        sampler_student.make_schedule(ddim_num_steps=ddim_steps_student, ddim_eta=ddim_eta, verbose=False)
+                                                        sampler_original.make_schedule(ddim_num_steps=ddim_steps_student, ddim_eta=ddim_eta, verbose=False)
+                                                        images, _ = util.compare_teacher_student(original, sampler_original, student, sampler_student, steps=[16, 8,  4, 2, 1], prompt=992)
+                                                        images = wandb.Image(_, caption="left: Teacher, right: Student")
+                                                        wandb.log({"pred": images})
+                                                        # images, _ = util.compare_teacher_student_with_schedule(original, sampler_original, student, sampler_student, steps=[64, 32, 16, 8,  4, 2, 1], prompt=992)
+                                                        # images = wandb.Image(_, caption="left: Teacher, right: Student")
+                                                        # wandb.log({"schedule": images})
+                                                        sampler_student.make_schedule(ddim_num_steps=ddim_steps_student, ddim_eta=ddim_eta, verbose=False)
+                                                        sampler_original.make_schedule(ddim_num_steps=ddim_steps_student, ddim_eta=ddim_eta, verbose=False)
 
                             if generation > 0 and generation % 20 == 0 and ddim_steps_student != 1 and step_scheduler=="FID":
                                 fid = util.get_fid(student, sampler_student, num_imgs=100, name=run_name, 
@@ -282,6 +285,9 @@ def self_distillation_CIN(student, sampler_student, original, sampler_original, 
                                         images = wandb.Image(grid, caption="left: Teacher, right: Student")
                                         wandb.log({"Inter_Comp": images})
                                         del img, grid, predictions_temp, x_T_student_decode, x_T_teacher_decode, student_target, teacher_target
+                                        if step_scheduler == "naive" or "gradual" in step_scheduler:
+                                            temp_name = instance
+                                            util.save_model(sampler_student, optimizer, scheduler, name=step_scheduler, steps=temp_name, run_name=run_name)
                                         torch.cuda.empty_cache()
                             
                             all_losses.extend(losses)
