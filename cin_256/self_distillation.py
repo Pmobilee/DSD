@@ -117,9 +117,9 @@ def self_distillation_CIN(student, sampler_student, original, sampler_original, 
                             sc = student.get_learned_conditioning({student.cond_stage_key: torch.tensor(1*[1000]).to(student.device)})
                             for steps in range(updates):  
                                     
-                                        with autocast() and torch.enable_grad():
+                                        # with autocast() and torch.enable_grad():
 
-                                            # with torch.enable_grad():
+                                        with torch.enable_grad():
                                                 optimizer.zero_grad()
                                                 instance += 1
                                             
@@ -171,15 +171,15 @@ def self_distillation_CIN(student, sampler_student, original, sampler_original, 
                                             
                                             
                                                 # # AUTOCAST:
-                                                signal = at
-                                                noise = 1 - at
-                                                log_snr = torch.log(signal / noise)
-                                                weight = max(log_snr, 1)
-                                                loss = weight * criterion(pred_x0_student, pred_x0_teacher.detach())
-                                                scaler.scale(loss).backward()
-                                                scaler.step(optimizer)
-                                                scaler.update()
-                                                torch.nn.utils.clip_grad_norm_(sampler_student.model.parameters(), 1)
+                                                # signal = at
+                                                # noise = 1 - at
+                                                # log_snr = torch.log(signal / noise)
+                                                # weight = max(log_snr, 1)
+                                                # loss = weight * criterion(pred_x0_student, pred_x0_teacher.detach())
+                                                # scaler.scale(loss).backward()
+                                                # scaler.step(optimizer)
+                                                # scaler.update()
+                                                # torch.nn.utils.clip_grad_norm_(sampler_student.model.parameters(), 1)
                                                 
                                                 # scheduler.step()
                                                 # losses.append(loss.item())
@@ -187,15 +187,15 @@ def self_distillation_CIN(student, sampler_student, original, sampler_original, 
                                                 
                                                 # NO AUTOCAST:
                                                 
-                                                # signal = at ** 2
-                                                # noise = 1 - signal
-                                                # log_snr = torch.log(signal / noise)
-                                                # # weight = max(log_snr, 1)
+                                                signal = at ** 2
+                                                noise = 1 - signal
+                                                log_snr = torch.log(signal / noise)
+                                                weight = max(log_snr, 1)
                                                 # weight = torch.exp(log_snr)
-                                                # # weight = max(torch.exp(log_snr), 1)
+                                                # weight = max(torch.exp(log_snr), 1)
                                                 # # print(weight)
                                                 
-                                                # loss = criterion(pred_x0_student, pred_x0_teacher.detach())
+                                                loss = weight * criterion(pred_x0_student, pred_x0_teacher.detach())
                                                 # loss = criterion(pred_x0_student, pred_x0_teacher.detach())
                                                 # loss = weight * criterion(samples_ddim_student, samples_ddim_teacher.detach())
                                                 # loss = criterion(decode_student, decode_teacher.detach())
