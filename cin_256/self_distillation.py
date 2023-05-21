@@ -107,7 +107,7 @@ def self_distillation_CIN(student, sampler_student, original, sampler_original, 
                     with tqdm.tqdm(torch.randint(0, NUM_CLASSES, (generations,))) as tepoch:
 
                         for i, class_prompt in enumerate(tepoch):
-                            # scale = np.random.uniform(1.0, 4.0)
+                            scale = np.random.uniform(1.0, 4.0)
                             generation += 1
                             losses = []        
                             xc = torch.tensor([class_prompt])
