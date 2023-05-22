@@ -47,7 +47,7 @@ def self_distillation_CIN(student, sampler_student, original, sampler_original, 
     scale = 3.0
     # optimizer=optimizer
     lr = 0.001
-    optimizer = torch.optim.Adam(student.parameters(), lr=lr)#, betas=(0.9, 0.8), eps=1e-08, amsgrad=True)#, weight_decay=0.00005)
+    optimizer = torch.optim.Adam(student.parameters(), lr=lr, betas=(0.9, 0.8), eps=1e-08, amsgrad=True)#, weight_decay=0.00005)
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=5000,eta_min=lr *0.1, last_epoch=-1, verbose=False)
 
     averaged_losses = []
@@ -123,7 +123,7 @@ def self_distillation_CIN(student, sampler_student, original, sampler_original, 
                                         # with autocast() and torch.enable_grad():
 
                                         with torch.enable_grad():
-                                                optimizer.zero_grad()
+                                                
                                                 instance += 1
                                             
                                                 
@@ -187,7 +187,7 @@ def self_distillation_CIN(student, sampler_student, original, sampler_original, 
                                                 # scheduler.step()
                                                 # losses.append(loss.item())
 
-                                                
+                                                optimizer.zero_grad()
                                                 # NO AUTOCAST:
                                                 
                                                 signal = at ** 2
@@ -207,8 +207,8 @@ def self_distillation_CIN(student, sampler_student, original, sampler_original, 
                                                 
                                                 
                                                 # loss.backward()
-                                                # optimizer.step()
-                                                # scheduler.step()
+                                                optimizer.step()
+                                                scheduler.step()
                                                 # # print(scheduler.get_last_lr())
                                                 torch.nn.utils.clip_grad_norm_(sampler_student.model.parameters(), 1)
                                                 
