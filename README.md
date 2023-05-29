@@ -6,8 +6,12 @@ This repository contains a novel approach to distillation of Diffusion Models, a
 
 ## Conditional Diffusion Model: ImageNet (256x256)
 
-![Celeb](https://github.com/Pmobilee/DSD/blob/main/readme/Cin.png?raw=true)
+![Cin256](https://github.com/Pmobilee/DSD/blob/main/readme/Cin256.png?raw=true)
 
 ## Unconditional Diffusion Model: CelebA-HQ (256x256)
 
 ![Celeb](https://github.com/Pmobilee/DSD/blob/main/readme/Celeb.png?raw=true)
+
+## Allocation of weight updates per denoising step-size
+
+![Updates](https://github.com/Pmobilee/DSD/blob/main/readme/Updates.png?raw=true)
