@@ -2,8 +2,8 @@
 
 ## About
 
-IMPORTANT:
-* This repository contains code from [Meta lab's DiT](https://google.nl)
+> IMPORTANT:
+> * This repository contains code from [Meta lab's DiT](https://github.com/facebookresearch/DiT), it also uses code from [CompVis's latent diffusion](https://github.com/CompVis/latent-diffusion) for interacting with the pretrained models from the same source.
 
 This repository contains a novel approach to distillation of Diffusion Models, as detailed in the (currently unpublished) thesis/paper titled "A Self-help guide for Diffusion Models". This method tries to improve upon previous distillation approaches by distilling a model into itself, without the need for any separately initialised teacher model.
 
