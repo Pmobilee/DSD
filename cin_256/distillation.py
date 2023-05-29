@@ -329,11 +329,11 @@ def teacher_train_student(teacher, sampler_teacher, student, sampler_student, op
 
 
                                             # NO AUTOCAST:
-                                            # signal = at
-                                            # noise = 1 - at
-                                            # log_snr = torch.log(signal / noise)
-                                            # weight = max(log_snr, 1)
-                                            loss = criterion(pred_x0_student, pred_x0_teacher)
+                                            signal = at
+                                            noise = 1 - at
+                                            log_snr = torch.log(signal / noise)
+                                            weight = max(log_snr, 1)
+                                            loss = weight * criterion(pred_x0_student, pred_x0_teacher)
                                             loss.backward()
                                             torch.nn.utils.clip_grad_norm_(sampler_student.model.parameters(), 1)
                                             optimizer.step()
@@ -464,18 +464,13 @@ def teacher_train_student_celeb(teacher, sampler_teacher, student, sampler_stude
                                                                     total_steps = ddim_steps_teacher)
                                     
                         
-                                    # signal = at
-                                    # noise = 1 - at
-                                    # log_snr = torch.log(signal / noise)
-                                    # weight = max(log_snr, 1)
-                                    loss = criterion(pred_x0_student, pred_x0_teacher.detach())
-    
-                            
+                                    signal = at
+                                    noise = 1 - at
+                                    log_snr = torch.log(signal / noise)
+                                    weight = max(log_snr, 1)
+                                    loss = weight * criterion(pred_x0_student, pred_x0_teacher.detach())
                                     loss.backward()
-                                    
-                                    
                                     torch.nn.utils.clip_grad_norm_(sampler_student.model.parameters(), 1)
-                                    
                                     optimizer.step()
                                     scheduler.step()
                                     losses.append(loss.item())
@@ -615,31 +610,3 @@ def distill_celeb(ddim_steps, generations, run_name, config, original_model_path
         torch.cuda.empty_cache()
     if use_wandb:
         wandb.finish()
-
-
-
-# def distill_celeb(ddim_steps, generations, run_name, config, original_model_path, lr, tags):
-#     for index, step in enumerate(ddim_steps):
-#         steps = int(step / 2)
-#         model_generations = generations // steps
-#         if index == 0:
-#             config_path=config
-#             model_path=original_model_path
-#             teacher, sampler_teacher, student, sampler_student = saving_loading.create_models(config_path, model_path, student=True)
-#         else:
-#             model_path = f"{cwd}/data/trained_models/{run_name}/{ddim_steps[index]}/student_lr8_scheduled.pt"
-#             teacher, sampler_teacher, optimizer, scheduler = saving_loading.load_trained(model_path, config_path)
-#             student = copy.deepcopy(teacher)
-#             sampler_student = DDIMSampler(student)
-#         notes = f"""This is a serious attempt to distill the {step} step original teacher into a {steps} step student, trained on {model_generations * ddim_steps[index]} instances"""
-#         wandb_session = util.wandb_log(name=run_name, lr=lr, model=student, tags=tags, notes=notes)
-#         wandb.run.log_code(".")
-#         optimizer, scheduler = saving_loading.get_optimizer(sampler_student, iterations=model_generations * steps, lr=lr)
-#         teacher_train_student_celeb(teacher, sampler_teacher, student, sampler_student, optimizer, scheduler, steps=step, generations=model_generations, early_stop=False, session=wandb_session, run_name=run_name)
-#         saving_loading.save_model(sampler_student, optimizer, scheduler, name="lr8_scheduled", steps=steps, run_name = run_name)
-#         images, grid = util.compare_teacher_student_celeb(teacher, sampler_teacher, student, sampler_student, steps=[1, 2, 4, 8, 16, 32, 64, 128])
-#         images = wandb.Image(grid, caption="left: Teacher, right: Student")
-#         wandb.log({"Comparison": images})
-#         wandb.finish()
-#         del teacher, sampler_teacher, student, sampler_student, optimizer, scheduler
-#         torch.cuda.empty_cache()

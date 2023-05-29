@@ -231,27 +231,6 @@ if __name__ == '__main__':
         del original, sampler_original
         torch.cuda.empty_cache()
 
-    # elif args.task == "FID":
-    #     from pytorch_fid import fid_score
-    #     os.environ["KMP_DUPLICATE_LIB_OK"]="TRUE"
-    #     if args.name == "all":
-    #         print("Grabbing FID for all models")
-    #         for model in ["DSDGL", "DSDN", "TSD", "DSDI", "DSDGEXP"]:
-    #             for step in [2, 4, 8, 16]:
-    #                 try:
-    #                     fid = fid_score.calculate_fid_given_paths([npz, f"C:\Diffusion_Thesis\cin_256\saved_images\{args.model}\{model}\\{step}"],batch_size=64,device="cuda", dims=2048 )
-    #                     print(f"FID score for {args.model} {model} at step {step}: ", fid)
-    #                 except:
-    #                     print("Step", step, "not found for", model, args.name)
-    #     else:
-    #         for step in [2, 4, 8, 16]:
-    #             try:
-    #                 print("Grabbing FID for ", args.name)
-    #                 fid = fid_score.calculate_fid_given_paths([npz, f"C:\Diffusion_Thesis\cin_256\saved_images\{args.model}\{args.name}\\{step}"],batch_size=64,device="cuda", dims=2048 )
-    #                 print(f"FID score for {args.model} {args.name} at step {step}: ", fid)
-    #             except:
-    #                 print("Step", step, "not found for", args.model, args.name)
-
     elif args.task == "FID":
         import pandas as pd
         import os

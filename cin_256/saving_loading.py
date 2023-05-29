@@ -188,6 +188,10 @@ def return_intermediates_for_student(model, sampler, steps=20, eta=0.0, scale=3.
 
 @torch.no_grad()
 def return_intermediates_for_student_celeb(model, sampler, steps=20, eta=0.0, scale=3.0):
+    """
+    Params: model, sampler, steps=20, eta=0.0, scale=3.0. Task: returns intermediate samples from the provided model and accompanying sampler.
+    Has not been updated to work with the newest version of the code, as self-distillation does not require teacher intermediates.
+    """
     NUM_CLASSES = 1000
     ddim_steps = steps
     ddim_eta = eta

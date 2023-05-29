@@ -24,6 +24,7 @@ from self_distillation import *
 from distillation import *
 from saving_loading import *
 from util import *
+import matplotlib.pyplot as plt
 
 
 
@@ -49,39 +50,30 @@ def generate_images(model, sampler, num_imgs=1, steps=20, eta=0.0, scale=3.0, x_
         class_prompt = torch.randint(0, NUM_CLASSES, (num_imgs,))
 
     with torch.no_grad():
-        with model.ema_scope():
-                uc = model.get_learned_conditioning(
-                        {model.cond_stage_key: torch.tensor(num_imgs*[1000]).to(model.device)}
-                        )
-                
-                
-                
-                
-                xc = torch.tensor(num_imgs*[class_prompt])
-                c = model.get_learned_conditioning({model.cond_stage_key: xc.to(model.device)})
-                
-                samples_ddim, _, x_T_copy, pred_x0, a_t = sampler.sample(S=steps,
-                                                conditioning=c,
-                                                batch_size=1,
-                                                shape=[3, 64, 64],
-                                                verbose=False,
-                                                x_T=x_T,
-                                             
-                                                unconditional_guidance_scale=scale,
-                                                unconditional_conditioning=uc, 
-                                                eta=eta,
-                                                keep_intermediates=keep_intermediates,
-                                                intermediate_step=intermediate_step,
-                                                total_steps=total_steps,
-                                                steps_per_sampling=steps)
+        # with model.ema_scope(): # uncomment for EMA, unimportant for now as this function is only used for evaluation
+            uc = model.get_learned_conditioning(
+                    {model.cond_stage_key: torch.tensor(num_imgs*[1000]).to(model.device)})
+            xc = torch.tensor(num_imgs*[class_prompt])
+            c = model.get_learned_conditioning({model.cond_stage_key: xc.to(model.device)})
+            
+            _, _, x_T_copy, pred_x0, _ = sampler.sample(S=steps,
+                                            conditioning=c,
+                                            batch_size=1,
+                                            shape=[3, 64, 64],
+                                            verbose=False,
+                                            x_T=x_T,  
+                                            unconditional_guidance_scale=scale,
+                                            unconditional_conditioning=uc, 
+                                            eta=eta,
+                                            keep_intermediates=keep_intermediates,
+                                            intermediate_step=intermediate_step,
+                                            total_steps=total_steps,
+                                            steps_per_sampling=steps)
           
                                     
     # display as grid
     x_samples_ddim = model.decode_first_stage(pred_x0)
-    x_samples_ddim = torch.clamp((x_samples_ddim+1.0)/2.0, 
-                                min=0.0, max=1.0)
-
-
+    x_samples_ddim = torch.clamp((x_samples_ddim+1.0)/2.0, min=0.0, max=1.0)
     grid = rearrange(x_samples_ddim, 'b c h w -> (b) c h w')
     grid = make_grid(grid, nrow=1)
 
@@ -89,7 +81,7 @@ def generate_images(model, sampler, num_imgs=1, steps=20, eta=0.0, scale=3.0, x_
     grid = 255. * rearrange(grid, 'c h w -> h w c').cpu().numpy()
     image = Image.fromarray(grid.astype(np.uint8))
 
-    return image, x_T_copy, class_prompt, _["x_inter"]
+    return image, x_T_copy, class_prompt, pred_x0
 
 @torch.no_grad()
 def generate_images_celeb(model, sampler, num_imgs=1, steps=20, total_steps=64, eta=0.0, scale=3.0, x_T=None, class_prompt=None, keep_intermediates=False, x_0=False):
@@ -108,33 +100,28 @@ def generate_images_celeb(model, sampler, num_imgs=1, steps=20, total_steps=64, 
         intermediate_step = None
     if class_prompt == None:
         class_prompt = torch.randint(0, NUM_CLASSES, (num_imgs,))
-    #intermediate_step = None if sampling_steps != 1 else 0
+    
     with torch.no_grad():
-        # with model.ema_scope():
-         
-                
-                
-                samples_ddim, _, x_T_copy, pred_x0, a_t = sampler.sample(S=steps,
-                                               
-                                                batch_size=1,
-                                                shape=[3, 64, 64],
-                                                verbose=False,
-                                                x_T=x_T,
-                                             
-                                                unconditional_guidance_scale=scale,
-                                                eta=eta,
-                                                keep_intermediates=keep_intermediates,
-                                                intermediate_step=intermediate_step,
-                                                total_steps=total_steps,
-                                                steps_per_sampling=steps)
+        # with model.ema_scope(): # uncomment for EMA, unimportant for now as this function is only used for evaluation
+
+            samples_ddim, _, x_T_copy, pred_x0, a_t = sampler.sample(S=steps,
+                                            
+                                            batch_size=1,
+                                            shape=[3, 64, 64],
+                                            verbose=False,
+                                            x_T=x_T,
+                                            
+                                            unconditional_guidance_scale=scale,
+                                            eta=eta,
+                                            keep_intermediates=keep_intermediates,
+                                            intermediate_step=intermediate_step,
+                                            total_steps=total_steps,
+                                            steps_per_sampling=steps)
           
                                     
     # display as grid
     x_samples_ddim = model.decode_first_stage(pred_x0)
-    x_samples_ddim = torch.clamp((x_samples_ddim+1.0)/2.0, 
-                                min=0.0, max=1.0)
-
-
+    x_samples_ddim = torch.clamp((x_samples_ddim+1.0)/2.0, min=0.0, max=1.0)
     grid = rearrange(x_samples_ddim, 'b c h w -> (b) c h w')
     grid = make_grid(grid, nrow=1)
 
@@ -148,12 +135,13 @@ def generate_images_celeb(model, sampler, num_imgs=1, steps=20, total_steps=64, 
 @torch.no_grad()
 def ablation(sampler, steps=8, shape=(2, 2), celeb=False, prompt_list=None, noise_list=None, model_type=None, prompts=None):
     """
-    Takes as input a sampler and a list of steps. For each step, it generates n images  with starting noise shared between steps and returns them in a grid.
+    Disclaimer: Written in part by ChatGPT
+    Takes as input a sampler and a list of steps. For each step, it generates n images with starting noise shared between steps and returns them in a grid.
     """
     from PIL import Image, ImageDraw
     image_list = []
     
-    
+    # Quick and dirty, but works
     if celeb:
         if noise_list == None:
             noise_list = []
@@ -223,10 +211,12 @@ def ablation(sampler, steps=8, shape=(2, 2), celeb=False, prompt_list=None, nois
 
     return new_image, noise_list, prompt_list
 
-
-import matplotlib.pyplot as plt
-
 def create_horizontal_grid(*images, celeb=False, steps=None, x_labels=None, font_size=20):
+    """
+    Disclaimer: Written in part by ChatGPT
+    Takes as input a list of images and returns them in a horizontal grid.
+    """
+
     # Set the size of the output images
     cwd = os.getcwd()
     image_width, image_height = images[0].size
@@ -280,60 +270,11 @@ def create_horizontal_grid(*images, celeb=False, steps=None, x_labels=None, font
     # Return the new image
     return new_image
 
-
-# def create_horizontal_grid(*images, celeb=False, steps=None, x_labels=None):
-#     # Set the size of the output images
-#     cwd = os.getcwd()
-#     image_width, image_height = images[0].size
-#     print(len(images))
-#     # Set the spacing between images
-#     spacing = 10
-
-#     # Calculate the total width of the output image
-#     total_width = (image_width + spacing) * len(images) - spacing
-
-#     # Create a new blank image with the calculated size
-#     new_image = Image.new('RGBA', (total_width, image_height), (0, 0, 0, 0))
-
-#     # Create a new ImageDraw object to draw on the new image
-#     draw = ImageDraw.Draw(new_image)
-
-#     # Loop through the images and draw each one onto the new image
-#     for i, image in enumerate(images):
-#         # Calculate the x position of the current image
-#         x = i * (image_width + spacing)
-        
-
-#         if x_labels is not None and i < len(x_labels):
-#             x_label = x_labels[i]
-#             text_width, text_height = draw.textsize(x_label)
-#             text_x = x + (image_width - text_width) // 2
-#             text_y = image_height + spacing
-#             draw.text((text_x, text_y), x_label, fill='black')
-
-#         # Draw the image onto the new image at the calculated position
-#         new_image.paste(image, (0, x))
-
-#     # Create the directory if it doesn't exist
-#     directory = f'{cwd}/grids/hor_{"celeb" if celeb else "cin"}'
-#     if not os.path.exists(directory):
-#         os.makedirs(directory)
-
-#     # Check if a file with the same name already exists, and modify the filename accordingly
-#     if os.path.exists(f'{directory}/{steps}.png'):
-#         i = 1
-#         while os.path.exists(f'{directory}/{steps}_{i}.png'):
-#             i += 1
-#         filename = f'{steps}_{i}.png'
-#     else:
-#         filename = f'{steps}.png'
-
-#     # Save the new image with the modified filename
-#     new_image.save(f'{directory}/{filename}')
-#     # Return the new image
-#     return new_image
-
 def create_vertical_grid(*images, celeb=False, steps=None):
+    """
+    Disclaimer: Written in part by ChatGPT
+    Takes as input a list of images and returns them in a vertical grid.
+    """
     # Set the size of the output images
     cwd = os.getcwd()
     image_width, image_height = images[0].size

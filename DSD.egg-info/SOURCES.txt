@@ -1,6 +1,0 @@
-setup.py
-DSD.egg-info/PKG-INFO
-DSD.egg-info/SOURCES.txt
-DSD.egg-info/dependency_links.txt
-DSD.egg-info/requires.txt
-DSD.egg-info/top_level.txt

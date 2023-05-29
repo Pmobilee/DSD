@@ -1,6 +1,0 @@
-Collecting omegaconf
-  Using cached omegaconf-2.3.0-py3-none-any.whl (79 kB)
-Requirement already satisfied: PyYAML>=5.1.0 in c:\users\administrator\anaconda3\envs\dsd\lib\site-packages (from omegaconf) (6.0)
-Requirement already satisfied: antlr4-python3-runtime==4.9.* in c:\users\administrator\anaconda3\envs\dsd\lib\site-packages (from omegaconf) (4.9.3)
-Installing collected packages: omegaconf
-Successfully installed omegaconf-2.3.0

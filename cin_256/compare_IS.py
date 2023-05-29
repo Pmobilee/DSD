@@ -22,8 +22,6 @@ def load_images_from_folder(folder):
     return tensor_images
 
 images = load_images_from_folder(path)
-
 inception = InceptionScore(feature=2048)
-
 inception.update(images)
 print(inception.compute())

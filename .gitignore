@@ -13,3 +13,4 @@ cin_256/wandb/
 *.pyc
 *.pyc
 *.npz
+*.psd
