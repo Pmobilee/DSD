@@ -12,3 +12,4 @@ cin_256/wandb/
 *.pyc
 *.pyc
 *.pyc
+*.npz
