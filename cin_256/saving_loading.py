@@ -49,16 +49,16 @@ def load_trained(model_path, config):
     sampler = DDIMSampler(model)
     return model, sampler, ckpt["optimizer"], ckpt["scheduler"]
 
-def get_optimizer(sampler, iterations, lr=0.000000003):
+def get_optimizer(sampler, iterations, lr=0.0000001):
     """
-    Params: sampler, iterations, lr=1e-8. Task: 
-    returns both an optimizer (Adam, lr=1e-8, eps=1e-08, decay=0.001), and a scheduler for the optimizer
-    going from a learning rate of 1e-8 to 0 over the course of the specified iterations
+    Params: sampler, iterations, lr=1e-7. Task: 
+    returns both an optimizer and a scheduler for the optimizer
+    going from a specified learning rate to 10% of that over the course of the specified iterations
     """
     lr = lr
     # optimizer = torch.optim.Adam(sampler.model.parameters(), lr=lr, betas=(0.99, 0.999), weight_decay=0.0005)
     # optimizer = torch.optim.Adam(sampler.model.parameters(), lr=lr)#, weight_decay=0.0005)
-    optimizer = torch.optim.Adam(sampler.model.parameters(), lr=lr, betas=(0.9, 0.999), eps=1e-08, weight_decay=0)
+    optimizer = torch.optim.Adam(sampler.model.parameters(), lr=lr, betas=(0.9, 0.999), eps=1e-08, weight_decay=0.0005)
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=iterations,eta_min=lr *0.1, last_epoch=-1, verbose=False)
     return optimizer, scheduler
 

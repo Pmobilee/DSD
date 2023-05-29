@@ -34,7 +34,7 @@ scaler = GradScaler()
 
 def self_distillation_CIN(student, sampler_student, original, sampler_original, optimizer, scheduler,
             session=None, steps=20, generations=200, early_stop=True, run_name="test", decrease_steps=False,
-            step_scheduler="deterministic", type="snellius"):
+            step_scheduler="deterministic"):
     """
     Distill a model into itself. This is done by having a (teacher) model distill knowledge into itself. Copies of the original model and sampler 
     are passed in to compare the original untrained version with the distilled model at scheduled intervals.
@@ -45,11 +45,6 @@ def self_distillation_CIN(student, sampler_student, original, sampler_original, 
     TEACHER_STEPS = 2
     ddim_eta = 0.0
     scale = 3.0
-    # optimizer=optimizer
-    lr = 0.001
-    optimizer = torch.optim.Adam(student.parameters(), lr=lr, betas=(0.9, 0.8), eps=1e-08, amsgrad=True)#, weight_decay=0.00005)
-    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=5000,eta_min=lr *0.1, last_epoch=-1, verbose=False)
-
     averaged_losses = []
     criterion = nn.MSELoss()    
     instance = 0

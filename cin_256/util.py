@@ -166,6 +166,7 @@ def compare_teacher_student_x0(teacher, sampler_teacher, student, sampler_studen
                     class_image = torch.tensor([prompt])
 
                 intermediate_step = None if sampling_steps != 1 else 0
+                # intermediate_step = None
              
                 uc = teacher.get_learned_conditioning({teacher.cond_stage_key: torch.tensor(1*[1000]).to(teacher.device)})
                 xc = torch.tensor([class_image])

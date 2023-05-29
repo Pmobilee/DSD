@@ -859,6 +859,7 @@ class GaussianDiffusion:
             "mse": mse,
         }
     
+    
     def ddim_sample_loop_progressive_intermediate(
         self,
         model,
@@ -872,6 +873,7 @@ class GaussianDiffusion:
         progress=False,
         eta=0.0,
         step=0,
+        student=False,
     ):
         """
         Use DDIM to sample from the model and yield intermediate samples from
@@ -889,20 +891,36 @@ class GaussianDiffusion:
             
         t = th.tensor([step] * shape[0], device=device)    
 
-        with th.no_grad():
-            out = self.ddim_sample(
-                model,
-                img,
-                t,
-                clip_denoised=clip_denoised,
-                denoised_fn=denoised_fn,
-                cond_fn=cond_fn,
-                model_kwargs=model_kwargs,
-                eta=eta,
-            )
-            
-            # img = out["pred_xstart"]
-            img = out["sample"]
+        if student:
+            with th.enable_grad():
+                out = self.ddim_sample(
+                    model,
+                    img,
+                    t,
+                    clip_denoised=clip_denoised,
+                    denoised_fn=denoised_fn,
+                    cond_fn=cond_fn,
+                    model_kwargs=model_kwargs,
+                    eta=eta,
+                )
+                
+                # img = out["pred_xstart"]
+                img = out["sample"]
+        else:
+            with th.no_grad():
+                out = self.ddim_sample(
+                    model,
+                    img,
+                    t,
+                    clip_denoised=clip_denoised,
+                    denoised_fn=denoised_fn,
+                    cond_fn=cond_fn,
+                    model_kwargs=model_kwargs,
+                    eta=eta,
+                )
+                
+                # img = out["pred_xstart"]
+                img = out["sample"]
         return img
 
 
