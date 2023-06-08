@@ -18,6 +18,6 @@ conda activate D-SD
 
 cd $Home/thesis/Diffusion_Thesis/cin_256
 export LD_LIBRARY_PATH=$HOME/anaconda3/envs/D-SD/lib
-wandb login 4baa24c4fc6c8eed782cacb721d34977149d4fcb
+wandb login 
 python distill.py -t DSDI -n cin_2e9
 
