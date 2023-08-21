@@ -71,15 +71,46 @@ def generate_images(model, sampler, num_imgs=1, steps=20, eta=0.0, scale=3.0, x_
                                             steps_per_sampling=steps)
           
                                     
+    # # display as grid
+    # x_samples_ddim = model.decode_first_stage(pred_x0)
+    # x_samples_ddim = torch.clamp((x_samples_ddim+1.0)/2.0, min=0.0, max=1.0)
+    # grid = rearrange(x_samples_ddim, 'b c h w -> (b) c h w')
+    # grid = make_grid(grid, nrow=1)
+
+    # # to image
+    # grid = 255. * rearrange(grid, 'c h w -> h w c').cpu().numpy()
+    # image = Image.fromarray(grid.astype(np.uint8))
+
     # display as grid
-    x_samples_ddim = model.decode_first_stage(pred_x0)
-    x_samples_ddim = torch.clamp((x_samples_ddim+1.0)/2.0, min=0.0, max=1.0)
-    grid = rearrange(x_samples_ddim, 'b c h w -> (b) c h w')
-    grid = make_grid(grid, nrow=1)
+    
+    
 
     # to image
-    grid = 255. * rearrange(grid, 'c h w -> h w c').cpu().numpy()
-    image = Image.fromarray(grid.astype(np.uint8))
+    
+
+    sample = ((pred_x0 + 1) * 127.5).clamp(0, 255).to(torch.uint8)
+    sample = sample.permute(0, 2, 3, 1)
+    sample = sample.contiguous()
+
+    grid = rearrange(sample, 'b c h w -> (b) c h w')
+    grid = make_grid(grid, nrow=1)
+    
+    # grid = 255. * rearrange(grid, 'c h w -> h w c').cpu().numpy()
+    # image = Image.fromarray(grid.astype(np.uint8))
+
+    # image = Image.fromarray(sample)
+
+    # Convert the tensor 'sample' to a numpy array
+    #sample_np = sample[0].cpu().numpy()  # Assuming 'sample' is a tensor with batch dimension
+    sample_np = grid.cpu().numpy()
+    # Convert the numpy array to a uint8 data type (assuming it's in the range [0, 255])
+    sample_np = np.uint8(sample_np)
+
+    # Create a PIL Image from the numpy array
+    image = Image.fromarray(sample_np)
+
+    # Display the image
+    # image.show()
 
     return image, x_T_copy, class_prompt, pred_x0
 

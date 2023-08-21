@@ -62,7 +62,7 @@ def get_optimizer(sampler, iterations, lr=0.0000001):
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=iterations,eta_min=lr *0.1, last_epoch=-1, verbose=False)
     return optimizer, scheduler
 
-def wandb_log(name, lr, model, tags, notes, project="diffusion-thesis"):
+def wandb_log(name, lr, model, tags, notes, project="cvpr_Diffusion"):
     """
     Params: wandb name, lr, model, wand tags, wandb notes. Task: returns a wandb session with CIFAR-1000 information,
     logs: Loss, Generational Loss, hardware specs, model gradients
@@ -95,7 +95,10 @@ def load_model_from_config(config, ckpt):
     try:
         sd = pl_sd["model"]
     except KeyError:
-        sd = pl_sd["state_dict"]
+        try:
+            sd = pl_sd["state_dict"]
+        except KeyError:
+            sd = pl_sd
     model = instantiate_from_config(config.model)
     m, u = model.load_state_dict(sd, strict=False)
     model.cuda()

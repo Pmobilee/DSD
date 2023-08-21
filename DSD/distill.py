@@ -23,6 +23,7 @@ parser.add_argument('--save', '-sv', type=bool, default= True, help='Save interm
 parser.add_argument('--compare', type=bool, default= True, help='Compare to original model')
 parser.add_argument('--wandb', '-w', type=bool, default=True, help='Weights and Biases upload')
 parser.add_argument('--cuda', '-cu', type=str, default="True", help='Cuda on/off')
+parser.add_argument('--pixels', '-p', type=int, default=256, help='256/64 pixel outputs')
 
 
 if __name__ == '__main__':
@@ -37,16 +38,29 @@ if __name__ == '__main__':
     else:
         device = 'cuda'
     # Instatiate selected model
-    if args.model == "cin":
-        config_path=f"{cwd}/models/configs/cin256-v2-custom.yaml"
-        model_path=f"{cwd}/models/cin256_original.ckpt"
-        npz = f"{cwd}/val_saved/real_fid_both.npz"
-    elif args.model == "celeb":
-        config_path=f"{cwd}/models/configs/celebahq-ldm-vq-4.yaml"
-        model_path=f"{cwd}/models/CelebA.ckpt"
-        npz = f"{cwd}/val_saved/celeb.npz"
-        # npz = f"C:\Diffusion_Thesis\cin_256\celeba_hq_256"
-        # npz = f"C:\Diffusion_Thesis\cin_256\celeb_64.npz"
+    if args.pixels == 256:
+        if args.model == "cin":
+            config_path=f"{cwd}/models/configs/cin256-v2-custom.yaml"
+            model_path=f"{cwd}/models/cin256_original.ckpt"
+            npz = f"{cwd}/val_saved/real_fid_both.npz"
+        elif args.model == "celeb":
+            config_path=f"{cwd}/models/configs/celebahq-ldm-vq-4.yaml"
+            model_path=f"{cwd}/models/CelebA.ckpt"
+            npz = f"{cwd}/val_saved/celeb.npz"
+            # npz = f"C:\Diffusion_Thesis\cin_256\celeba_hq_256"
+            # npz = f"C:\Diffusion_Thesis\cin_256\celeb_64.npz"
+    elif args.pixels == 64:
+        print("64 model")
+        if args.model == "cin":
+            config_path=f"{cwd}/models/configs/cin256-v2-custom.yaml"
+            model_path=f"{cwd}/models/64x64_diffusion.pt"
+            npz = f"{cwd}/val_saved/real_fid_both.npz"
+        elif args.model == "celeb":
+            config_path=f"{cwd}/models/configs/celebahq-ldm-vq-4.yaml"
+            model_path=f"{cwd}/models/CelebA.ckpt"
+            npz = f"{cwd}/val_saved/celeb.npz"
+            # npz = f"C:\Diffusion_Thesis\cin_256\celeba_hq_256"
+            # npz = f"C:\Diffusion_Thesis\cin_256\celeb_64.npz"
 
 
 
@@ -109,10 +123,10 @@ if __name__ == '__main__':
         
         if args.model == "cin":
             self_distillation.self_distillation_CIN(teacher, sampler_teacher, original, sampler_original, optimizer, scheduler, session=wandb_session, 
-                        steps=args.steps, generations=args.updates, run_name=args.name, decrease_steps=decrease_steps, step_scheduler=step_scheduler)
+                        steps=args.steps, gradient_updates=args.updates, run_name=args.name, step_scheduler=step_scheduler)
         elif args.model == "celeb":
             self_distillation.self_distillation_CELEB(teacher, sampler_teacher, original, sampler_original, optimizer, scheduler, session=wandb_session, 
-                        steps=args.steps, generations=args.updates, run_name=args.name, decrease_steps=decrease_steps, step_scheduler=step_scheduler)
+                        steps=args.steps, gradient_updates=args.updates, run_name=args.name, step_scheduler=step_scheduler)
             
     elif args.task == "DSDGL":
 
@@ -132,10 +146,10 @@ if __name__ == '__main__':
         
         if args.model == "cin":
             self_distillation.self_distillation_CIN(teacher, sampler_teacher, original, sampler_original, optimizer, scheduler, session=wandb_session, 
-                        steps=args.steps, generations=args.updates, run_name=args.name, decrease_steps=decrease_steps, step_scheduler=step_scheduler)
+                        steps=args.steps, gradient_updates=args.updates, run_name=args.name, decrease_steps=decrease_steps, step_scheduler=step_scheduler)
         elif args.model == "celeb":
             self_distillation.self_distillation_CELEB(teacher, sampler_teacher, original, sampler_original, optimizer, scheduler, session=wandb_session, 
-                        steps=args.steps, generations=args.updates, run_name=args.name, decrease_steps=decrease_steps, step_scheduler=step_scheduler)
+                        steps=args.steps, gradient_updates=args.updates, run_name=args.name, decrease_steps=decrease_steps, step_scheduler=step_scheduler)
 
     elif args.task == "DSDGEXP":
 

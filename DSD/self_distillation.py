@@ -40,7 +40,7 @@ def self_distillation_CIN(student, sampler_student, original, sampler_original, 
     """
     NUM_CLASSES = 1000
     ddim_steps_student = steps # Setting the number of steps for the student model
-
+    ddim_eta = 0.0 # Setting the eta value to 0.0 means a deterministic output given the original noise, essential
     # For both the student and the original model, the number of steps is set to the same value. 
     # Technically the original model does not need to be trained, but it is kept for comparison purposes.
     sampler_student.make_schedule(ddim_num_steps=ddim_steps_student, ddim_eta=ddim_eta, verbose=False)

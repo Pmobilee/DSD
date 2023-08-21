@@ -1,6 +1,7 @@
 *.ckpt
 pretrained/
 cin_256/wandb/
+wandb/
 *.jpg
 *.jpeg
 *.pyc
