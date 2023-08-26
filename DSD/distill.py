@@ -12,7 +12,7 @@ cwd = os.getcwd()
 parser = argparse.ArgumentParser(description='Direct Self-Distillation')
 
 
-parser.add_argument('--task', '-t', type=str, default= "DSDI", help='Task to perform', choices=['TSD', "DSDN", "DSDI", "DSDGL", "DSDGEXP", "SI", "SI_orig", "CD", "DFD", "FID", "NPZ", "NPZ_single"])
+parser.add_argument('--task', '-t', type=str, default= "DSDI", help='Task to perform', choices=['TSD', "DSDN", "DSDI", "DSDGL", "DSDGEXP", "SI", "SI_orig", "CD", "DFD", "FID", "NPZ", "NPZ_single", "retrain"])
 parser.add_argument('--model', '-m', type=str, default= "cin", help='Model type', choices=['cin', 'celeb'])
 parser.add_argument('--steps', '-s', type=int, default= 64, help='DDIM steps to distill from')
 parser.add_argument('--updates', '-u', type=int, default= 100000, help='Number of total weight updates')
@@ -65,6 +65,27 @@ if __name__ == '__main__':
 
 
     # Start Task
+
+
+    if args.task == "retrain":
+        print("RETRAINING")
+        if args.name is None:
+            args.name = f"{args.model}_retrain_{args.steps}_{args.learning_rate}_{args.updates}"
+        
+
+        # teacher, sampler_teacher = util.create_models(config_path, model_path, student=False)
+        # if args.compare:
+        #     original, sampler_original = util.create_models(config_path, model_path, student=False)
+        
+        if args.model == "cin":
+            distillation.retrain(ddim_steps=args.steps, generations=args.updates, run_name=args.name, config=config_path, 
+                    original_model_path=model_path, lr=args.learning_rate, start_trained=False, cas=args.cas, compare=args.compare, use_wandb=args.wandb)
+        else:
+            distillation.distill_celeb(ddim_steps=args.steps, generations=args.updates, run_name=args.name, config=config_path, 
+                    original_model_path=model_path, lr=args.learning_rate, start_trained=False, cas=args.cas, compare=args.compare, use_wandb=args.wandb)
+
+
+
     if args.task == "TSD":
         
         if args.name is None:

@@ -974,7 +974,7 @@ class LatentDiffusion(DDPM):
 
             else:
                 cond_list = [cond for i in range(z.shape[-1])]  # Todo make this more efficient
-
+            print("teacher model loops:", range(z.shape[-1]))
             # apply model by loop over crops
             output_list = [self.model(z_list[i], t, **cond_list[i]) for i in range(z.shape[-1])]
             assert not isinstance(output_list[0],
