@@ -570,7 +570,6 @@ def retrain(ddim_steps, generations, run_name, config, original_model_path, lr, 
     print(f"Performing retrain")
 
    
-    steps = 64
 
     config_path=config
     
@@ -591,10 +590,10 @@ def retrain(ddim_steps, generations, run_name, config, original_model_path, lr, 
     wandb_session.log_code(".")
 
     optimizer, scheduler = saving_loading.get_optimizer(sampler_student, iterations=generations, lr=lr)
-    teacher_retrain_student(teacher, sampler_teacher, student, sampler_student, optimizer, scheduler, steps=64, generations=4000, 
+    teacher_retrain_student(teacher, sampler_teacher, student, sampler_student, optimizer, scheduler, steps=ddim_steps, generations=4000, 
                             early_stop=False, session=wandb_session, run_name=run_name, cas=cas)
     
-    saving_loading.save_model(sampler_student, optimizer, scheduler, name="Retrain", steps=steps, run_name=run_name)
+    saving_loading.save_model(sampler_student, optimizer, scheduler, name="Retrain", steps=ddim_steps, run_name=run_name)
     if compare and use_wandb:
         images, grid = util.compare_teacher_student_retrain(teacher, sampler_teacher, student, sampler_student, steps=[1, 2, 4, 8, 16, 32, 64])
         images = wandb.Image(grid, caption="left: Teacher, right: Student")
@@ -612,8 +611,8 @@ def teacher_retrain_student(teacher, sampler_teacher, student, sampler_student, 
     Task: trains the student model using the identical teacher model as a guide. Not used in direct self-distillation where a teacher distills into itself.
     """
     NUM_CLASSES = 1000
-    generations = 200
-    ddim_steps_teacher = 64
+    generations = 1000
+    ddim_steps_teacher = steps
     TEACHER_STEPS = 1
     STUDENT_STEPS = 1
     ddim_eta = 0.0
@@ -636,6 +635,14 @@ def teacher_retrain_student(teacher, sampler_teacher, student, sampler_student, 
 
     with torch.no_grad():
         with teacher.ema_scope():
+                
+
+
+
+
+
+
+                # TODO:"Change this to make new ddimsampler every time instead, weird 128 samples issue"
                 sampler_teacher.make_schedule(ddim_num_steps=ddim_steps_teacher, ddim_eta=ddim_eta, verbose=False)
                 sampler_student.make_schedule(ddim_num_steps=ddim_steps_teacher, ddim_eta=ddim_eta, verbose=False)
                 
@@ -647,7 +654,8 @@ def teacher_retrain_student(teacher, sampler_teacher, student, sampler_student, 
                 with tqdm.tqdm(torch.randint(0, NUM_CLASSES, (generations,))) as tepoch:
                     for i, class_prompt in enumerate(tepoch):
                         
-            
+                        if generation > 0 and generation % 10 == 0:
+                            saving_loading.save_model(sampler_student, optimizer, scheduler, name=f"Retrain", steps=generation, run_name=run_name)
 
                         generation += 1
                         losses = []        
@@ -658,11 +666,12 @@ def teacher_retrain_student(teacher, sampler_teacher, student, sampler_student, 
                         samples_ddim_teacher = None
                         predictions_temp = []
                         for steps in range(updates):      
-                                if steps > 0 and steps % 32 == 0:
-                                    print(steps)
+                                # if steps > 0 and steps % 32 == 0:
+                                #     print(steps)
                             # with autocast():    
                                 instance += 1
 
+                                # TODO: "Is this screwing up the 128 samples?"
                                 samples_ddim_teacher, teacher_intermediate, x_T, pred_x0_teacher, a_t_teacher = sampler_teacher.sample(S=TEACHER_STEPS,
                                                                 conditioning=c,
                                                                 batch_size=1,
@@ -729,12 +738,12 @@ def teacher_retrain_student(teacher, sampler_teacher, student, sampler_student, 
                                         # noise = 1 - at
                                         # log_snr = torch.log(signal / noise)
                                         # weight = max(log_snr, 1)
-                                        # loss = criterion(pred_x0_student, pred_x0_teacher) # * weight
-                                        loss = criterion(samples, samples_ddim_teacher) # * weight
+                                        loss = criterion(pred_x0_student, pred_x0_teacher) # * weight
+                                        # loss = criterion(samples, samples_ddim_teacher) # * weight
                                         loss.backward()
                                         # torch.nn.utils.clip_grad_norm_(sampler_student.model.parameters(), 1)
                                         optimizer.step()
-                                        scheduler.step()    
+                                        # scheduler.step()    
                                         losses.append(loss.item())
                                         
                                         
@@ -747,9 +756,9 @@ def teacher_retrain_student(teacher, sampler_teacher, student, sampler_student, 
                                     predictions_temp.append(student_target)
                         
 
-                                if session != None and generation % 6 == 0:
+                        if session != None and generation % 10 == 0:
                                     with torch.no_grad():
-                                        images, _ = util.compare_teacher_student_retrain(teacher, sampler_teacher, student, sampler_student, steps=[64, 32, 16, 8,  4, 2, 1], prompt=992)
+                                        images, _ = util.compare_teacher_student_retrain(teacher, sampler_teacher, student, sampler_student, steps=[128, 64, 16, 8,  4, 2], prompt=992)
                                         images = wandb.Image(_, caption="left: Teacher, right: Student")
                                         wandb.log({"pred_x0": images}) 
                                         sampler_student.make_schedule(ddim_num_steps=ddim_steps_teacher, ddim_eta=ddim_eta, verbose=False)
@@ -757,7 +766,7 @@ def teacher_retrain_student(teacher, sampler_teacher, student, sampler_student, 
 
                         if session != None:
                             with torch.no_grad():
-                                if generation > 0 and generation % 5 == 0 and session !=None:
+                                if  generation > 0 and generation % 5 == 0 and session !=None:
                                     img, grid = util.compare_latents(predictions_temp)
                                     images = wandb.Image(grid, caption="left: Teacher, right: Student")
                                     wandb.log({"Inter_Comp": images})
