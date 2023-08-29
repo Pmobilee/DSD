@@ -654,7 +654,7 @@ def teacher_retrain_student(teacher, sampler_teacher, student, sampler_student, 
                 with tqdm.tqdm(torch.randint(0, NUM_CLASSES, (generations,))) as tepoch:
                     for i, class_prompt in enumerate(tepoch):
                         
-                        if generation > 0 and generation % 10 == 0:
+                        if generation > 0 and generation % 5 == 0:
                             saving_loading.save_model(sampler_student, optimizer, scheduler, name=f"Retrain", steps=generation, run_name=run_name)
 
                         generation += 1
@@ -706,7 +706,7 @@ def teacher_retrain_student(teacher, sampler_teacher, student, sampler_student, 
                                                                         
                                                                         # quantize_x0 = True,
                                                                         unconditional_guidance_scale=scale,
-                                                                        unconditional_conditioning=sc, 
+                                                                        unconditional_conditioning=None, 
                                                                         eta=ddim_eta,
                                                                         keep_intermediates=False,
                                                                         intermediate_step = steps,
@@ -747,31 +747,31 @@ def teacher_retrain_student(teacher, sampler_teacher, student, sampler_student, 
                                         losses.append(loss.item())
                                         
                                         
-                                if session != None and generation % 5 == 0 and generation > 0:
-                                    x_T_teacher_decode = sampler_teacher.model.decode_first_stage(pred_x0_teacher)
-                                    teacher_target = torch.clamp((x_T_teacher_decode+1.0)/2.0, min=0.0, max=1.0)
-                                    x_T_student_decode = sampler_student.model.decode_first_stage(pred_x0_student.detach())
-                                    student_target  = torch.clamp((x_T_student_decode +1.0)/2.0, min=0.0, max=1.0)
-                                    predictions_temp.append(teacher_target)
-                                    predictions_temp.append(student_target)
+                                # if session != None and generation % 5 == 0 and generation > 0:
+                                #     x_T_teacher_decode = sampler_teacher.model.decode_first_stage(pred_x0_teacher)
+                                #     teacher_target = torch.clamp((x_T_teacher_decode+1.0)/2.0, min=0.0, max=1.0)
+                                #     x_T_student_decode = sampler_student.model.decode_first_stage(pred_x0_student.detach())
+                                #     student_target  = torch.clamp((x_T_student_decode +1.0)/2.0, min=0.0, max=1.0)
+                                #     predictions_temp.append(teacher_target)
+                                #     predictions_temp.append(student_target)
                         
 
-                        if session != None and generation % 10 == 0:
+                        if session != None and generation % 5 == 0:
                                     with torch.no_grad():
-                                        images, _ = util.compare_teacher_student_retrain(teacher, sampler_teacher, student, sampler_student, steps=[128, 64, 16, 8,  4, 2], prompt=992)
+                                        images, _ = util.compare_teacher_student_retrain(teacher, sampler_teacher, student, sampler_student, steps=[256, 128, 64, 32, 16, 8, 4, 2], prompt=992)
                                         images = wandb.Image(_, caption="left: Teacher, right: Student")
                                         wandb.log({"pred_x0": images}) 
                                         sampler_student.make_schedule(ddim_num_steps=ddim_steps_teacher, ddim_eta=ddim_eta, verbose=False)
                                         sampler_teacher.make_schedule(ddim_num_steps=ddim_steps_teacher, ddim_eta=ddim_eta, verbose=False)
 
-                        if session != None:
-                            with torch.no_grad():
-                                if  generation > 0 and generation % 5 == 0 and session !=None:
-                                    img, grid = util.compare_latents(predictions_temp)
-                                    images = wandb.Image(grid, caption="left: Teacher, right: Student")
-                                    wandb.log({"Inter_Comp": images})
-                                    del img, grid, predictions_temp, x_T_student_decode, x_T_teacher_decode, student_target, teacher_target
-                                    torch.cuda.empty_cache()
+                        # if session != None:
+                        #     with torch.no_grad():
+                        #         if  generation > 0 and generation % 5 == 0 and session !=None:
+                        #             img, grid = util.compare_latents(predictions_temp)
+                        #             images = wandb.Image(grid, caption="left: Teacher, right: Student")
+                        #             wandb.log({"Inter_Comp": images})
+                        #             del img, grid, predictions_temp, x_T_student_decode, x_T_teacher_decode, student_target, teacher_target
+                        #             torch.cuda.empty_cache()
                                 
                             
                         

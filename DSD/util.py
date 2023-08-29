@@ -198,7 +198,7 @@ def compare_teacher_student_retrain(teacher, sampler_teacher, student, sampler_s
                                                     shape=[3, 64, 64],
                                                     verbose=False,
                                                     unconditional_guidance_scale=scale,
-                                                    unconditional_conditioning=sc, 
+                                                    unconditional_conditioning=None, 
                                                     eta=ddim_eta,
                                                     intermediate_step=intermediate_step,
                                                     total_steps=sampling_steps,
