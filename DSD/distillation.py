@@ -579,7 +579,8 @@ def retrain(ddim_steps, generations, run_name, config, original_model_path, lr, 
 
     config_path=f"{cwd}/models/configs/cin256-v2-custom copy.yaml"
     
-    model_path=original_model_path
+    # model_path=original_model_path
+    # model_path=f"C:/Code/Thesis/DSD/data/trained_models/Retrain/cin_retrain_256_1e-08_100000_partly/15.pt"
     student, sampler_student, = saving_loading.create_models(config_path, model_path, student=False)
 
 
@@ -612,6 +613,7 @@ def teacher_retrain_student(teacher, sampler_teacher, student, sampler_student, 
     """
     NUM_CLASSES = 1000
     generations = 1000
+    steps = 256
     ddim_steps_teacher = steps
     TEACHER_STEPS = 1
     STUDENT_STEPS = 1
@@ -734,11 +736,11 @@ def teacher_retrain_student(teacher, sampler_teacher, student, sampler_student, 
 
 
                                         # NO AUTOCAST:
-                                        # signal = at
-                                        # noise = 1 - at
-                                        # log_snr = torch.log(signal / noise)
-                                        # weight = max(log_snr, 1)
-                                        loss = criterion(pred_x0_student, pred_x0_teacher) # * weight
+                                        signal = at
+                                        noise = 1 - at
+                                        log_snr = torch.log(signal / noise)
+                                        weight = max(log_snr, 1)
+                                        loss = criterion(pred_x0_student, pred_x0_teacher) * weight
                                         # loss = criterion(samples, samples_ddim_teacher) # * weight
                                         loss.backward()
                                         # torch.nn.utils.clip_grad_norm_(sampler_student.model.parameters(), 1)

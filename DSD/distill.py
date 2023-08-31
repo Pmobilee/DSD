@@ -68,11 +68,11 @@ if __name__ == '__main__':
 
 
     if args.task == "retrain":
-        print("RETRAINING")
+        print("RETRAINING USING PREVIOUSLY TRAINED MODEL")
         if args.name is None:
             args.name = f"{args.model}_retrain_{args.steps}_{args.learning_rate}_{args.updates}"
         
-
+        
         # teacher, sampler_teacher = util.create_models(config_path, model_path, student=False)
         # if args.compare:
         #     original, sampler_original = util.create_models(config_path, model_path, student=False)
