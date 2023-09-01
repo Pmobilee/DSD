@@ -165,15 +165,15 @@ def self_distillation_CIN(student, sampler_student, original, sampler_original, 
 
                                             
                                             # # NO AUTOCAST:
-                                            signal = at ** 2
-                                            noise = 1 - signal
+                                            signal = at
+                                            noise = 1 - at
                                             log_snr = torch.log(signal / noise)
                                             weight = max(log_snr, 1)
                                             loss = weight * criterion(pred_x0_student, pred_x0_teacher.detach())                     
                                             loss.backward()
                                             optimizer.step()
                                             scheduler.step()
-                                            torch.nn.utils.clip_grad_norm_(sampler_student.model.parameters(), 1)
+                                            # torch.nn.utils.clip_grad_norm_(sampler_student.model.parameters(), 1)
                                             losses.append(loss.item())
 
                                             # if session != None and instance % 10000 == 0 and generation > 0:
