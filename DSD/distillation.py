@@ -567,7 +567,7 @@ def distill(args, config, original_model_path, start_trained=False):
         
         saving_loading.save_model(sampler_student, optimizer, scheduler, name="TSD", steps=steps, run_name=run_name)
         if compare and use_wandb:
-            images, grid = util.compare_teacher_student(teacher, sampler_teacher, student, sampler_student, steps=[1, 2, 4, 8, 16, 32, 64])
+            images, grid = util.compare_teacher_student(teacher, sampler_teacher, student, sampler_student, steps=[1, 2, 4, 8, 16, 32, 64], x0=args.predict)
             images = wandb.Image(grid, caption="left: Teacher, right: Student")
             wandb.log({"Comparison": images})
         
