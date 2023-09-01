@@ -31,7 +31,7 @@ from torch.cuda.amp import GradScaler, autocast
 scaler = GradScaler()
 
 def self_distillation_CIN(student, sampler_student, original, sampler_original, optimizer, scheduler,
-            session=None, steps=20, gradient_updates=200, run_name="test",step_scheduler="naive"):
+            session=None, steps=20, gradient_updates=200, run_name="test",step_scheduler="naive", x0=False):
     """
     Params: student, sampler_student, original, sampler_original, optimizer, scheduler, session=None, steps=20, generations=200, run_name="test", decrease_steps=False, step_scheduler="deterministic"
 
@@ -79,8 +79,11 @@ def self_distillation_CIN(student, sampler_student, original, sampler_original, 
     #     update_list = ((update_list * 2) * gradient_updates /  np.append(step_sizes[1:],1)).astype(int)
 
     with torch.no_grad():
-        with student.ema_scope():              
-                sc = student.get_learned_conditioning({student.cond_stage_key: torch.tensor(1*[1000]).to(student.device)}) # Get the learned conditioning
+        with student.ema_scope(): 
+                if x0:
+                    sc=None
+                else:
+                    sc = student.get_learned_conditioning({student.cond_stage_key: torch.tensor(1*[1000]).to(student.device)}) # Get the learned conditioning
                 for i, step in enumerate(step_sizes): # For each step size
                     if instance != 0 and "gradual" not in step_scheduler:   # Save the model after every step size. Given the large model size, 
                                                                             # the gradual versions are not saved each time (steps * 2 * 4.7gb is a lot!)
@@ -183,18 +186,18 @@ def self_distillation_CIN(student, sampler_student, original, sampler_original, 
                                             #     session.log({"fid_2":fids[5]})
                                             #     session.log({"fid_1":fids[6]})
                                             
-                                            if session != None and instance % 500 == 0:
+                                            if session != None and instance % 2500 == 0:
 
                                                 with torch.no_grad():
                                                     # the x0 version keeps max denoising steps to 64
-                                                    images, _ = util.compare_teacher_student_x0(original, sampler_original, student, sampler_student, steps=[16, 8,  4, 2, 1], prompt=992)
+                                                    images, _ = util.compare_teacher_student(original, sampler_original, student, sampler_student, steps=[16, 8,  4, 2, 1], prompt=992, x0=x0)
                                                     images = wandb.Image(_, caption="left: Teacher, right: Student")
                                                     wandb.log({"pred_x0": images})
 
-                                                    # Optional; compare the images but also change the denoising schedule
-                                                    images, _ = util.compare_teacher_student(original, sampler_original, student, sampler_student, steps=[16, 8,  4, 2, 1], prompt=992)
-                                                    images = wandb.Image(_, caption="left: Teacher, right: Student")
-                                                    wandb.log({"pred": images})
+                                                    # # Optional; compare the images but also change the denoising schedule
+                                                    # images, _ = util.compare_teacher_student(original, sampler_original, student, sampler_student, steps=[16, 8,  4, 2, 1], prompt=992,x0=x0)
+                                                    # images = wandb.Image(_, caption="left: Teacher, right: Student")
+                                                    # wandb.log({"pred": images})
 
                                                     # Important: Reset the schedule, as compare_teacher_student changes max steps. 
                                                     sampler_student.make_schedule(ddim_num_steps=ddim_steps_student, ddim_eta=ddim_eta, verbose=False)
