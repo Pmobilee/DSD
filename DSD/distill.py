@@ -23,6 +23,7 @@ parser.add_argument('--save', '-sv', type=bool, default= True, help='Save interm
 parser.add_argument('--compare', type=bool, default= True, help='Compare to original model')
 parser.add_argument('--wandb', '-w', type=bool, default=True, help='Weights and Biases upload')
 parser.add_argument('--cuda', '-cu', type=str, default="True", help='Cuda on/off')
+parser.add_argument('--predict', '-pred', type=str, default="x0", help='either x0 of eps prediction, x0 uses the retrained model, eps uses the original model')
 parser.add_argument('--pixels', '-p', type=int, default=256, help='256/64 pixel outputs')
 
 
@@ -40,8 +41,12 @@ if __name__ == '__main__':
     # Instatiate selected model
     if args.pixels == 256:
         if args.model == "cin":
-            config_path=f"{cwd}/models/configs/cin256-v2-custom.yaml"
-            model_path=f"{cwd}/models/cin256_original.ckpt"
+            if args.predict == "x0":
+                model_path=f"{cwd}/models/cin256_retrained.ckpt"
+                config_path = f"{cwd}/models/configs/cin256-v2-custom_x0.yaml"
+            else:
+                config_path=f"{cwd}/models/configs/cin256-v2-custom.yaml"
+                model_path=f"{cwd}/models/cin256_original.ckpt"
             npz = f"{cwd}/val_saved/real_fid_both.npz"
         elif args.model == "celeb":
             config_path=f"{cwd}/models/configs/celebahq-ldm-vq-4.yaml"
@@ -68,7 +73,7 @@ if __name__ == '__main__':
 
 
     if args.task == "retrain":
-        print("RETRAINING USING PREVIOUSLY TRAINED MODEL")
+        # print("RETRAINING USING PREVIOUSLY TRAINED MODEL")
         if args.name is None:
             args.name = f"{args.model}_retrain_{args.steps}_{args.learning_rate}_{args.updates}"
         
@@ -248,8 +253,6 @@ if __name__ == '__main__':
          
         # model, sampler, optimizer, scheduler = util.load_trained(config_path, model_path)
         if args.model == "cin":
-            config_path=f"{cwd}/models/configs/cin256-v2-custom.yaml"
-            model_path=f"{cwd}/models/cin256_original.ckpt"
             original, sampler_original = util.create_models(config_path, model_path, student=False)
             original.eval()
             original
