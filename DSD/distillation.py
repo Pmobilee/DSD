@@ -207,7 +207,7 @@ def train_student_from_dataset_celeb(model, sampler, dataset, student_steps, opt
                             session.log({"generation":generation})
 
 
-def teacher_train_student(teacher, sampler_teacher, student, sampler_student, optimizer, scheduler, session=None, steps=20, generations=200, early_stop=True, run_name="test", cas=False):
+def teacher_train_student(teacher, sampler_teacher, student, sampler_student, optimizer, scheduler, session=None, steps=20, generations=200, early_stop=True, run_name="test", cas=False, x0=False):
     """
     Params: teacher, sampler_teacher, student, sampler_student, optimizer, scheduler, session=None, steps=20, generations=200, early_stop=True, run_name="test". 
     Task: trains the student model using the identical teacher model as a guide. Not used in direct self-distillation where a teacher distills into itself.
@@ -245,10 +245,15 @@ def teacher_train_student(teacher, sampler_teacher, student, sampler_student, op
                 sampler_student.make_schedule(ddim_num_steps=ddim_steps_teacher, ddim_eta=ddim_eta, verbose=False)
                 
                 # for class_prompt in tqdm.tqdm(torch.randint(0, NUM_CLASSES, (generations,))):
-                uc = teacher.get_learned_conditioning(
+               
+                if x0:
+                    sc=None
+                    uc=None
+                else:
+                    uc = teacher.get_learned_conditioning(
                             {teacher.cond_stage_key: torch.tensor(1*[1000]).to(teacher.device)}
                             )
-                sc = student.get_learned_conditioning({student.cond_stage_key: torch.tensor(1*[1000]).to(student.device)})
+                    sc = student.get_learned_conditioning({student.cond_stage_key: torch.tensor(1*[1000]).to(student.device)})
                 with tqdm.tqdm(torch.randint(0, NUM_CLASSES, (generations,))) as tepoch:
                     for i, class_prompt in enumerate(tepoch):
                         
@@ -350,13 +355,13 @@ def teacher_train_student(teacher, sampler_teacher, student, sampler_student, op
                                         predictions_temp.append(student_target)
                             
 
-                                    if session != None and instance % 2500 == 0:
-                                        with torch.no_grad():
-                                            images, _ = util.compare_teacher_student(teacher, sampler_teacher, student, sampler_student, steps=[64, 32, 16, 8,  4, 2, 1], prompt=992)
-                                            images = wandb.Image(_, caption="left: Teacher, right: Student")
-                                            wandb.log({"pred_x0": images}) 
-                                            sampler_student.make_schedule(ddim_num_steps=ddim_steps_teacher, ddim_eta=ddim_eta, verbose=False)
-                                            sampler_teacher.make_schedule(ddim_num_steps=ddim_steps_teacher, ddim_eta=ddim_eta, verbose=False)
+                        if session != None and generation > 0 and generation % 25 == 0:
+                            with torch.no_grad():
+                                images, _ = util.compare_teacher_student(teacher, sampler_teacher, student, sampler_student, steps=[64, 32, 16, 8,  4, 2, 1], prompt=992, x0=x0)
+                                images = wandb.Image(_, caption="left: Teacher, right: Student")
+                                wandb.log({"pred_x0": images}) 
+                                sampler_student.make_schedule(ddim_num_steps=ddim_steps_teacher, ddim_eta=ddim_eta, verbose=False)
+                                sampler_teacher.make_schedule(ddim_num_steps=ddim_steps_teacher, ddim_eta=ddim_eta, verbose=False)
 
                         if session != None:
                             with torch.no_grad():
@@ -511,11 +516,20 @@ def teacher_train_student_celeb(teacher, sampler_teacher, student, sampler_stude
 
     
 
-def distill(ddim_steps, generations, run_name, config, original_model_path, lr, start_trained=False, cas=False, compare=True, use_wandb=True):
+def distill(args, config, original_model_path, start_trained=False):
     """
     Distill a model into a smaller model. This is done by training a student model to match the teacher model with identical initialization.
     This is not direct self-distillation as the teacher model does not distill into itself, but rather into a student model.
     """
+
+    ddim_steps=args.steps
+    generations=args.updates 
+    run_name=args.name 
+    lr=args.learning_rate 
+    cas=args.cas 
+    compare=args.compare
+    use_wandb=args.wandb
+
     halvings = math.floor(math.log(ddim_steps)/math.log(2)) + 1
     updates_per_half = int(generations / halvings)
 
@@ -548,7 +562,7 @@ def distill(ddim_steps, generations, run_name, config, original_model_path, lr, 
 
         optimizer, scheduler = saving_loading.get_optimizer(sampler_student, iterations=generations, lr=lr)
         teacher_train_student(teacher, sampler_teacher, student, sampler_student, optimizer, scheduler, steps=step, generations=model_generations, 
-                              early_stop=False, session=wandb_session, run_name=run_name, cas=cas)
+                              early_stop=False, session=wandb_session, run_name=run_name, cas=cas, x0=args.predict)
         
         saving_loading.save_model(sampler_student, optimizer, scheduler, name="TSD", steps=steps, run_name=run_name)
         if compare and use_wandb:

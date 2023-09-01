@@ -42,7 +42,7 @@ if __name__ == '__main__':
     if args.pixels == 256:
         if args.model == "cin":
             if args.predict == "x0":
-                model_path=f"{cwd}/models/cin256_retrained.ckpt"
+                model_path=f"{cwd}/models/cin256_retrained.pt"
                 config_path = f"{cwd}/models/configs/cin256-v2-custom_x0.yaml"
             else:
                 config_path=f"{cwd}/models/configs/cin256-v2-custom.yaml"
@@ -94,7 +94,7 @@ if __name__ == '__main__':
     if args.task == "TSD":
         
         if args.name is None:
-            args.name = f"{args.model}_TSD_{args.steps}_{args.learning_rate}_{args.updates}"
+            args.name = f"{args.model}_TSD_{args.predict}_{args.steps}_{args.learning_rate}_{args.updates}"
         
 
         # teacher, sampler_teacher = util.create_models(config_path, model_path, student=False)
@@ -102,8 +102,7 @@ if __name__ == '__main__':
         #     original, sampler_original = util.create_models(config_path, model_path, student=False)
         
         if args.model == "cin":
-            distillation.distill(ddim_steps=args.steps, generations=args.updates, run_name=args.name, config=config_path, 
-                    original_model_path=model_path, lr=args.learning_rate, start_trained=False, cas=args.cas, compare=args.compare, use_wandb=args.wandb)
+            distillation.distill(args, config=config_path, original_model_path=model_path, start_trained=False)
         else:
             distillation.distill_celeb(ddim_steps=args.steps, generations=args.updates, run_name=args.name, config=config_path, 
                     original_model_path=model_path, lr=args.learning_rate, start_trained=False, cas=args.cas, compare=args.compare, use_wandb=args.wandb)
