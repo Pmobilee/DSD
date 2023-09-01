@@ -23,7 +23,7 @@ parser.add_argument('--save', '-sv', type=bool, default= True, help='Save interm
 parser.add_argument('--compare', type=bool, default= True, help='Compare to original model')
 parser.add_argument('--wandb', '-w', type=bool, default=True, help='Weights and Biases upload')
 parser.add_argument('--cuda', '-cu', type=str, default="True", help='Cuda on/off')
-parser.add_argument('--predict', '-pred', type=bool, default=True, help='either x0 of eps prediction, x0 uses the retrained model, eps uses the original model')
+parser.add_argument('--predict', '-pred', type=bool, default=True, help='either x0 or eps prediction, True = X0,  x0 uses the retrained model, eps uses the original model')
 parser.add_argument('--pixels', '-p', type=int, default=256, help='256/64 pixel outputs')
 
 
@@ -41,7 +41,7 @@ if __name__ == '__main__':
     # Instatiate selected model
     if args.pixels == 256:
         if args.model == "cin":
-            if args.predict == "x0":
+            if args.predict:
                 model_path=f"{cwd}/models/cin256_retrained.pt"
                 config_path = f"{cwd}/models/configs/cin256-v2-custom_x0.yaml"
             else:
