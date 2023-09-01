@@ -23,7 +23,7 @@ parser.add_argument('--save', '-sv', type=bool, default= True, help='Save interm
 parser.add_argument('--compare', type=bool, default= True, help='Compare to original model')
 parser.add_argument('--wandb', '-w', type=bool, default=True, help='Weights and Biases upload')
 parser.add_argument('--cuda', '-cu', type=str, default="True", help='Cuda on/off')
-parser.add_argument('--predict', '-pred', type=str, default="x0", help='either x0 of eps prediction, x0 uses the retrained model, eps uses the original model')
+parser.add_argument('--predict', '-pred', type=bool, default=True, help='either x0 of eps prediction, x0 uses the retrained model, eps uses the original model')
 parser.add_argument('--pixels', '-p', type=int, default=256, help='256/64 pixel outputs')
 
 
