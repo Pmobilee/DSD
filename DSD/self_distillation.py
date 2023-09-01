@@ -186,11 +186,11 @@ def self_distillation_CIN(student, sampler_student, original, sampler_original, 
                                             #     session.log({"fid_2":fids[5]})
                                             #     session.log({"fid_1":fids[6]})
                                             
-                                            if session != None and instance % 2500 == 0:
+                                            if session != None and instance % 2500 == 0 or instance==1:
 
                                                 with torch.no_grad():
                                                     # the x0 version keeps max denoising steps to 64
-                                                    images, _ = util.compare_teacher_student(original, sampler_original, student, sampler_student, steps=[16, 8,  4, 2, 1], prompt=992, x0=x0)
+                                                    images, _ = util.compare_teacher_student_x0(original, sampler_original, student, sampler_student, steps=[16, 8,  4, 2, 1], prompt=992, x0=x0)
                                                     images = wandb.Image(_, caption="left: Teacher, right: Student")
                                                     wandb.log({"pred_x0": images})
 

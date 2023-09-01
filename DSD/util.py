@@ -223,7 +223,7 @@ def compare_teacher_student_retrain(teacher, sampler_teacher, student, sampler_s
     return Image.fromarray(grid.astype(np.uint8)), grid.astype(np.uint8)
 
 @torch.no_grad()
-def compare_teacher_student_x0(teacher, sampler_teacher, student, sampler_student, steps=[10], prompt=None, total_steps=64):
+def compare_teacher_student_x0(teacher, sampler_teacher, student, sampler_student, steps=[10], prompt=None, total_steps=64, x0=True):
     """
     Compare the a trained model and an original (teacher). Terms used are teacher and student models, though these may be the same model but at different
     stages of training.
@@ -245,8 +245,12 @@ def compare_teacher_student_x0(teacher, sampler_teacher, student, sampler_studen
 
                 intermediate_step = None if sampling_steps != 1 else 0
                 # intermediate_step = None
-             
-                uc = teacher.get_learned_conditioning({teacher.cond_stage_key: torch.tensor(1*[1000]).to(teacher.device)})
+                if x0:
+                    uc = None
+                    sc = None
+                else:
+                    sc = student.get_learned_conditioning({student.cond_stage_key: torch.tensor(1*[1000]).to(student.device)})
+                    uc = teacher.get_learned_conditioning({teacher.cond_stage_key: torch.tensor(1*[1000]).to(teacher.device)})
                 xc = torch.tensor([class_image])
                 c = teacher.get_learned_conditioning({teacher.cond_stage_key: xc.to(teacher.device)})
                 teacher_samples_ddim, _, x_T_copy, pred_x0_teacher, a_t= sampler_teacher.sample(S=sampling_steps,
@@ -268,7 +272,7 @@ def compare_teacher_student_x0(teacher, sampler_teacher, student, sampler_studen
                 x_samples_ddim = torch.clamp((x_samples_ddim+1.0)/2.0, min=0.0, max=1.0)
                 images.append(x_samples_ddim)
                 # with student.ema_scope():
-                sc = student.get_learned_conditioning({student.cond_stage_key: torch.tensor(1*[1000]).to(student.device)})
+                
                 c = student.get_learned_conditioning({student.cond_stage_key: xc.to(student.device)})
                 student_samples_ddim, _, x_T_delete, pred_x0_student, a_t = sampler_student.sample(S=sampling_steps,
                                                     conditioning=c,
