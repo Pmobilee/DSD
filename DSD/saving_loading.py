@@ -23,6 +23,26 @@ import shutil
 import util
 import generate
 
+from torch.optim.lr_scheduler import _LRScheduler
+
+class WarmUpCosineAnnealingLR(_LRScheduler):
+    def __init__(self, optimizer, warmup_epochs, total_epochs, eta_min=0, last_epoch=-1):
+        self.warmup_epochs = warmup_epochs
+        self.total_epochs = total_epochs
+        self.eta_min = eta_min
+        super(WarmUpCosineAnnealingLR, self).__init__(optimizer, last_epoch)
+
+    def get_lr(self):
+        if self.last_epoch < self.warmup_epochs:
+            # Linear warm-up
+            return [base_lr * (self.last_epoch / self.warmup_epochs) for base_lr in self.base_lrs]
+        else:
+            # Cosine annealing
+            T_cur = self.last_epoch - self.warmup_epochs
+            T_max = self.total_epochs - self.warmup_epochs
+            return [self.eta_min + (base_lr - self.eta_min) * (1 + math.cos(math.pi * T_cur / T_max)) / 2
+                    for base_lr in self.base_lrs]
+
 # Receiving base current working directory
 cwd = os.getcwd()
 
@@ -49,18 +69,22 @@ def load_trained(model_path, config):
     sampler = DDIMSampler(model)
     return model, sampler, ckpt["optimizer"], ckpt["scheduler"]
 
-def get_optimizer(sampler, iterations, lr=0.0000001):
-    """
-    Params: sampler, iterations, lr=1e-7. Task: 
-    returns both an optimizer and a scheduler for the optimizer
-    going from a specified learning rate to 10% of that over the course of the specified iterations
-    """
-    lr = lr
-    # optimizer = torch.optim.Adam(sampler.model.parameters(), lr=lr, betas=(0.99, 0.999), weight_decay=0.0005)
-    # optimizer = torch.optim.Adam(sampler.model.parameters(), lr=lr)#, weight_decay=0.0005)
-    optimizer = torch.optim.Adam(sampler.model.parameters(), lr=lr, betas=(0.9, 0.999), eps=1e-08, weight_decay=0.0005)
-    # optimizer = torch.optim.Adam(sampler.model.parameters(), lr=lr,) # betas=(0.9, 0.999), eps=1e-08, weight_decay=0.0005)
-    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=iterations,eta_min=lr *0.1, last_epoch=-1, verbose=False)
+def get_optimizer(sampler, iterations, warmup_epochs, lr=1e-7):
+    optimizer = torch.optim.Adam(
+        sampler.model.parameters(), 
+        lr=lr, 
+        betas=(0.9, 0.999), 
+        eps=1e-08, 
+        weight_decay=0.0005
+    )
+
+    scheduler = WarmUpCosineAnnealingLR(
+        optimizer, 
+        warmup_epochs=warmup_epochs, 
+        total_epochs=iterations, 
+        eta_min=lr * 0.1
+    )
+
     return optimizer, scheduler
 
 def wandb_log(name, lr, model, tags, notes, project="cvpr_Diffusion"):

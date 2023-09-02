@@ -89,7 +89,7 @@ def compare_teacher_student(teacher, sampler_teacher, student, sampler_student, 
                 else:
                     class_image = torch.tensor([prompt])
 
-                intermediate_step = None if sampling_steps != 1 else 0
+                # intermediate_step = None if sampling_steps != 1 else 0
                 if x0:
                     uc=None
                     sc=None
@@ -231,6 +231,8 @@ def compare_teacher_student_x0(teacher, sampler_teacher, student, sampler_studen
     scale = 3.0
     ddim_eta = 0.0
     images = []
+
+    total_steps=max(steps)
     
     with torch.no_grad():
         # with teacher.ema_scope():
@@ -243,7 +245,7 @@ def compare_teacher_student_x0(teacher, sampler_teacher, student, sampler_studen
                 else:
                     class_image = torch.tensor([prompt])
 
-                intermediate_step = None if sampling_steps != 1 else 0
+                # intermediate_step = None if sampling_steps != 1 else 0
                 # intermediate_step = None
                 if x0:
                     uc = None
@@ -263,8 +265,8 @@ def compare_teacher_student_x0(teacher, sampler_teacher, student, sampler_studen
                                                     unconditional_guidance_scale=scale,
                                                     unconditional_conditioning=uc, 
                                                     eta=ddim_eta,
-                                                    intermediate_step=intermediate_step ,
-                                                    total_steps=64,
+                                                    intermediate_step=0,
+                                                    total_steps=max(steps),
                                                     steps_per_sampling=sampling_steps)
 
                 # x_samples_ddim = teacher.decode_first_stage(_["pred_x0"][-1)
@@ -284,8 +286,8 @@ def compare_teacher_student_x0(teacher, sampler_teacher, student, sampler_studen
                                                     unconditional_guidance_scale=scale,
                                                     unconditional_conditioning=sc, 
                                                     eta=ddim_eta,
-                                                    intermediate_step=intermediate_step,
-                                                    total_steps=64,
+                                                    intermediate_step=0,
+                                                    total_steps=max(steps),
                                                     steps_per_sampling=sampling_steps)
 
                 x_samples_ddim = student.decode_first_stage(pred_x0_student)
