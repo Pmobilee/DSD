@@ -79,7 +79,7 @@ def compare_teacher_student(teacher, sampler_teacher, student, sampler_student, 
     ddim_eta = 0.0
     images = []
     with torch.no_grad():
-        # with teacher.ema_scope():
+        with teacher.ema_scope():
             for sampling_steps in steps:
                 sampler_teacher.make_schedule(ddim_num_steps=sampling_steps, ddim_eta=0.0, verbose=False)
                 sampler_student.make_schedule(ddim_num_steps=sampling_steps, ddim_eta=0.0, verbose=False)
@@ -108,7 +108,7 @@ def compare_teacher_student(teacher, sampler_teacher, student, sampler_student, 
                                                     unconditional_guidance_scale=scale,
                                                     unconditional_conditioning=uc, 
                                                     eta=ddim_eta,
-                                                    intermediate_step=intermediate_step ,
+                                                    intermediate_step=0,
                                                     total_steps=sampling_steps,
                                                     steps_per_sampling=sampling_steps)
     
@@ -116,9 +116,9 @@ def compare_teacher_student(teacher, sampler_teacher, student, sampler_student, 
                 x_samples_ddim = teacher.decode_first_stage(pred_x0_teacher)
                 x_samples_ddim = torch.clamp((x_samples_ddim+1.0)/2.0, min=0.0, max=1.0)
                 images.append(x_samples_ddim)
-                # with student.ema_scope():
-                c = student.get_learned_conditioning({student.cond_stage_key: xc.to(student.device)})
-                student_samples_ddim, _, x_T_delete, pred_x0_student, a_t = sampler_student.sample(S=sampling_steps,
+                with student.ema_scope():
+                    c = student.get_learned_conditioning({student.cond_stage_key: xc.to(student.device)})
+                    student_samples_ddim, _, x_T_delete, pred_x0_student, a_t = sampler_student.sample(S=sampling_steps,
                                                     conditioning=c,
                                                     batch_size=1,
                                                     
@@ -128,14 +128,14 @@ def compare_teacher_student(teacher, sampler_teacher, student, sampler_student, 
                                                     unconditional_guidance_scale=scale,
                                                     unconditional_conditioning=sc, 
                                                     eta=ddim_eta,
-                                                    intermediate_step=intermediate_step,
+                                                    intermediate_step=0,
                                                     total_steps=sampling_steps,
                                                     steps_per_sampling=sampling_steps)
 
-                x_samples_ddim = student.decode_first_stage(pred_x0_student)
-                # x_samples_ddim = teacher.decode_first_stage(_f)
-                x_samples_ddim = torch.clamp((x_samples_ddim+1.0)/2.0, min=0.0, max=1.0)
-                images.append(x_samples_ddim)
+                    x_samples_ddim = student.decode_first_stage(pred_x0_student)
+                    # x_samples_ddim = teacher.decode_first_stage(_f)
+                    x_samples_ddim = torch.clamp((x_samples_ddim+1.0)/2.0, min=0.0, max=1.0)
+                    images.append(x_samples_ddim)
 
     # from torchmetrics.image.fid import FrechetInceptionDistance
     # print(fid.compute())
