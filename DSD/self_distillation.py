@@ -188,22 +188,22 @@ def self_distillation_CIN(student, sampler_student, original, sampler_original, 
                                             #     session.log({"fid_2":fids[5]})
                                             #     session.log({"fid_1":fids[6]})
                                             
-                                            if session != None and instance % 2500 == 0 or instance == 500: # or instance==1:
+                                            #if session != None and instance % 2500 == 0 or instance == 500: # or instance==1:
 
-                                                with torch.no_grad():
-                                                    # the x0 version keeps max denoising steps to 64
-                                                    images, _ = util.compare_teacher_student_x0(original, sampler_original, student, sampler_student, steps=[64, 16, 8,  4, 2, 1], prompt=992, x0=x0)
-                                                    images = wandb.Image(_, caption="left: Teacher, right: Student")
-                                                    wandb.log({"pred_x0": images})
+                                            # with torch.no_grad():
+                                            #         # the x0 version keeps max denoising steps to 64
+                                            #         images, _ = util.compare_teacher_student_x0(original, sampler_original, student, sampler_student, steps=[64, 16, 8,  4, 2, 1], prompt=992, x0=x0)
+                                            #         images = wandb.Image(_, caption="left: Teacher, right: Student")
+                                            #         wandb.log({"pred_x0": images})
 
-                                                    # Optional; compare the images but also change the denoising schedule
-                                                    images, _ = util.compare_teacher_student(original, sampler_original, student, sampler_student, steps=[64, 16, 8,  4, 2, 1], prompt=992,x0=x0)
-                                                    images = wandb.Image(_, caption="left: Teacher, right: Student")
-                                                    wandb.log({"with_sched": images})
+                                            #         # Optional; compare the images but also change the denoising schedule
+                                            #         images, _ = util.compare_teacher_student(original, sampler_original, student, sampler_student, steps=[64, 16, 8,  4, 2, 1], prompt=992,x0=x0)
+                                            #         images = wandb.Image(_, caption="left: Teacher, right: Student")
+                                            #         wandb.log({"with_sched": images})
 
-                                                    # Important: Reset the schedule, as compare_teacher_student changes max steps. 
-                                                    sampler_student.make_schedule(ddim_num_steps=ddim_steps_student, ddim_eta=ddim_eta, verbose=False)
-                                                    sampler_original.make_schedule(ddim_num_steps=ddim_steps_student, ddim_eta=ddim_eta, verbose=False)
+                                            #         # Important: Reset the schedule, as compare_teacher_student changes max steps. 
+                                            #         sampler_student.make_schedule(ddim_num_steps=ddim_steps_student, ddim_eta=ddim_eta, verbose=False)
+                                            #         sampler_original.make_schedule(ddim_num_steps=ddim_steps_student, ddim_eta=ddim_eta, verbose=False)
 
                             # # Use if you want to base the schedule on FID
                             # if generation > 0 and generation % 20 == 0 and ddim_steps_student != 1 and step_scheduler=="FID":
