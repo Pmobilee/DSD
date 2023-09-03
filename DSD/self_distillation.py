@@ -128,7 +128,9 @@ def self_distillation_CIN(student, sampler_student, original, sampler_original, 
                                             # Code below first decodes the latent image and then reconstructs it. This is not necessary, but can be used to check if the latent image is correct
                                             # decode_student = student.differentiable_decode_first_stage(pred_x0_student)
                                             # reconstruct_student = torch.clamp((decode_student+1.0)/2.0, min=0.0, max=1.0)
-                               
+                                            
+                                            # copy samples_ddim to avoid gradient issues:
+                                            samples_ddim_student = samples_ddim.clone()
 
                                             with torch.no_grad():
                                                 samples_ddim.detach()
@@ -170,12 +172,12 @@ def self_distillation_CIN(student, sampler_student, original, sampler_original, 
                                             # noise = 1 - at
                                             # log_snr = torch.log(signal / noise)
                                             # weight = max(log_snr, 1)
-                                            loss = criterion(pred_x0_student, pred_x0_teacher.detach())     
+                                            loss = criterion(samples_ddim_student, samples_ddim.detach())     
                                             # loss = weight * criterion(reconstruct_student, reconstruct_teacher.detach())                    
                                             loss.backward()
                                             optimizer.step()
                                             scheduler.step()
-                                            torch.nn.utils.clip_grad_norm_(sampler_student.model.parameters(), 1)
+                                            # torch.nn.utils.clip_grad_norm_(sampler_student.model.parameters(), 1)
                                             losses.append(loss.item())
 
                                             # if session != None and instance % 10000 == 0 and generation > 0:
