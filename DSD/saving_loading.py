@@ -82,7 +82,7 @@ def get_optimizer(sampler, iterations, warmup_epochs, lr=1e-7):
         optimizer, 
         warmup_epochs=warmup_epochs, 
         total_epochs=iterations, 
-        eta_min=lr * 0.1
+        eta_min=0.0
     )
 
     return optimizer, scheduler
