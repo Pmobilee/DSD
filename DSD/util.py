@@ -265,8 +265,8 @@ def compare_teacher_student_x0(teacher, sampler_teacher, student, sampler_studen
                                                     unconditional_guidance_scale=scale,
                                                     unconditional_conditioning=uc, 
                                                     eta=ddim_eta,
-                                                    intermediate_step=0,
-                                                    total_steps=max(steps),
+                                                    intermediate_step=intermediate_step,
+                                                    total_steps=sampling_steps,
                                                     steps_per_sampling=sampling_steps)
 
                 # x_samples_ddim = teacher.decode_first_stage(_["pred_x0"][-1)
@@ -286,8 +286,8 @@ def compare_teacher_student_x0(teacher, sampler_teacher, student, sampler_studen
                                                     unconditional_guidance_scale=scale,
                                                     unconditional_conditioning=sc, 
                                                     eta=ddim_eta,
-                                                    intermediate_step=0,
-                                                    total_steps=max(steps),
+                                                    intermediate_step=intermediate_step,
+                                                    total_steps=sampling_steps,
                                                     steps_per_sampling=sampling_steps)
 
                 x_samples_ddim = student.decode_first_stage(pred_x0_student)
