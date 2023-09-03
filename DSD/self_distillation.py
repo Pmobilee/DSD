@@ -111,7 +111,7 @@ def self_distillation_CIN(student, sampler_student, original, sampler_original, 
                                             instance += 1
                                             
                                             optimizer.zero_grad()
-                                            samples_ddim, pred_x0_student, _, at= sampler_student.sample_student(S=1,
+                                            samples_ddim, pred_x0, _, at= sampler_student.sample_student(S=1,
                                                                                 conditioning=c_student,
                                                                                 batch_size=1,
                                                                                 shape=[3, 64, 64],
@@ -129,8 +129,7 @@ def self_distillation_CIN(student, sampler_student, original, sampler_original, 
                                             # decode_student = student.differentiable_decode_first_stage(pred_x0_student)
                                             # reconstruct_student = torch.clamp((decode_student+1.0)/2.0, min=0.0, max=1.0)
                                             
-                                            # copy samples_ddim to avoid gradient issues:
-                                            samples_ddim_student = samples_ddim.clone()
+                                         
 
                                             with torch.no_grad():
                                                 samples_ddim.detach()
@@ -172,7 +171,7 @@ def self_distillation_CIN(student, sampler_student, original, sampler_original, 
                                             # noise = 1 - at
                                             # log_snr = torch.log(signal / noise)
                                             # weight = max(log_snr, 1)
-                                            loss = criterion(samples_ddim_student, samples_ddim.detach())     
+                                            loss = criterion(pred_x0_student, pred_x0_teacher.detach())     
                                             # loss = weight * criterion(reconstruct_student, reconstruct_teacher.detach())                    
                                             loss.backward()
                                             optimizer.step()
