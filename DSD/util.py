@@ -245,7 +245,7 @@ def compare_teacher_student_x0(teacher, sampler_teacher, student, sampler_studen
                 else:
                     class_image = torch.tensor([prompt])
 
-                # intermediate_step = None if sampling_steps != 1 else 0
+                intermediate_step = None if sampling_steps != 1 else 0
                 # intermediate_step = None
                 if x0:
                     uc = None
