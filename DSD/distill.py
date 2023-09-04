@@ -122,7 +122,7 @@ if __name__ == '__main__':
         # iterations = 10000  # Total number of iterations
         # lr = 1e-7
 
-        optimizer, scheduler = util.get_optimizer(sampler_teacher, iterations=args.updates, warmup_epochs=args.updates*0.05, lr=args.learning_rate)
+        optimizer, scheduler = util.get_optimizer(sampler_teacher, iterations=args.updates, warmup_epochs=warmup_epochs, lr=args.learning_rate)
 
         # optimizer, scheduler = util.get_optimizer(sampler_teacher, iterations=args.updates, lr=args.learning_rate)
         wandb_session = util.wandb_log(name=args.name, lr=args.learning_rate, model=teacher, tags=["DSDN"], 
