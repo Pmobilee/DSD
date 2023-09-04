@@ -546,7 +546,7 @@ def distill(args, config, original_model_path, start_trained=False):
         if index == 0 and start_trained != True:
             model_path=original_model_path
             teacher, sampler_teacher, student, sampler_student = saving_loading.create_models(config_path, model_path, student=True)
-            optimizer, scheduler = saving_loading.get_optimizer(sampler_student, iterations=generations, lr=lr)
+            optimizer, scheduler = saving_loading.get_optimizer(sampler_student, iterations=generations, warmup_epochs=100, lr=lr)
             print("Loading New Student and teacher:", step)
         else:
             model_path = f"{cwd}/data/trained_models/TSD/{run_name}/{step}.pt"
