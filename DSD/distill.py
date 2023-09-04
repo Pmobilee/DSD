@@ -118,7 +118,7 @@ if __name__ == '__main__':
 
         step_scheduler = "naive"
         decrease_steps = True
-        # warmup_epochs = 100  # The number of initial iterations to linearly increase the learning rate
+        warmup_epochs = 1000  # The number of initial iterations to linearly increase the learning rate
         # iterations = 10000  # Total number of iterations
         # lr = 1e-7
 

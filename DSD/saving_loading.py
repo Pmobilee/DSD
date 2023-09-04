@@ -73,9 +73,9 @@ def get_optimizer(sampler, iterations, warmup_epochs, lr=1e-7):
     optimizer = torch.optim.Adam(
         sampler.model.parameters(), 
         lr=lr, 
-        betas=(0.9, 0.999), 
-        eps=1e-08, 
-        weight_decay=0.0005
+        # betas=(0.9, 0.999), 
+        # eps=1e-08, 
+        # weight_decay=0.0005
     )
 
     scheduler = WarmUpCosineAnnealingLR(

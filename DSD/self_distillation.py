@@ -79,8 +79,8 @@ def self_distillation_CIN(student, sampler_student, original, sampler_original, 
     #     update_list = ((update_list * 2) * gradient_updates /  np.append(step_sizes[1:],1)).astype(int)
 
     with torch.no_grad():
-        student.use_ema = False
-        with student.ema_scope(): 
+        # student.use_ema = False
+        # with student.ema_scope(): 
                 if x0:
                     sc=None
                 else:
@@ -91,7 +91,7 @@ def self_distillation_CIN(student, sampler_student, original, sampler_original, 
                         util.save_model(sampler_student, optimizer, scheduler, name=step_scheduler, steps=updates, run_name=run_name)
                     updates = int(step / 2) # We take updates as half the step size, because we do 2 steps per update
                     generations = update_list[i] # The number of generations has been determined earlier
-                    print("Distilling to:", step)
+                    print("Distilling to:", updates)
                     
                     with tqdm.tqdm(torch.randint(0, NUM_CLASSES, (generations,))) as tepoch: # Take a random class for each generation
 
@@ -111,7 +111,7 @@ def self_distillation_CIN(student, sampler_student, original, sampler_original, 
                                             instance += 1
                                             
                                             optimizer.zero_grad()
-                                            samples_ddim, pred_x0, _, at= sampler_student.sample_student(S=1,
+                                            samples_ddim, pred_x0_student, _, at= sampler_student.sample_student(S=1,
                                                                                 conditioning=c_student,
                                                                                 batch_size=1,
                                                                                 shape=[3, 64, 64],
@@ -167,11 +167,11 @@ def self_distillation_CIN(student, sampler_student, original, sampler_original, 
 
                                             
                                             # # NO AUTOCAST:
-                                            # signal = at
-                                            # noise = 1 - at
-                                            # log_snr = torch.log(signal / noise)
-                                            # weight = max(log_snr, 1)
-                                            loss = criterion(pred_x0_student, pred_x0_teacher.detach())     
+                                            signal = at
+                                            noise = 1 - at
+                                            log_snr = torch.log(signal / noise)
+                                            weight = max(log_snr, 1)
+                                            loss = weight * criterion(pred_x0_student, pred_x0_teacher.detach())     
                                             # loss = weight * criterion(reconstruct_student, reconstruct_teacher.detach())                    
                                             loss.backward()
                                             optimizer.step()
@@ -193,12 +193,12 @@ def self_distillation_CIN(student, sampler_student, original, sampler_original, 
 
                                     with torch.no_grad():
                                         # the x0 version keeps max denoising steps to 64
-                                        images, _ = util.compare_teacher_student_x0(original, sampler_original, student, sampler_student, steps=[64, 16, 8,  4, 2, 1], prompt=992, x0=x0)
+                                        images, _ = util.compare_teacher_student_x0(original, sampler_original, student, sampler_student, steps=[16, 8,  4], prompt=992, x0=x0)
                                         images = wandb.Image(_, caption="left: Teacher, right: Student")
                                         wandb.log({"pred_x0": images})
 
                                         # Optional; compare the images but also change the denoising schedule
-                                        images, _ = util.compare_teacher_student(original, sampler_original, student, sampler_student, steps=[64, 16, 8,  4, 2, 1], prompt=992,x0=x0)
+                                        images, _ = util.compare_teacher_student(original, sampler_original, student, sampler_student, steps=[16, 8,  4], prompt=992,x0=x0)
                                         images = wandb.Image(_, caption="left: Teacher, right: Student")
                                         wandb.log({"with_sched": images})
 
