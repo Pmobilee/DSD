@@ -149,7 +149,12 @@ if __name__ == '__main__':
 
         step_scheduler = "iterative"
         decrease_steps = True
-        optimizer, scheduler = util.get_optimizer(sampler_teacher, iterations=args.updates, lr=args.learning_rate)
+        warmup_epochs = 1000  # The number of initial iterations to linearly increase the learning rate
+        # iterations = 10000  # Total number of iterations
+        # lr = 1e-7
+
+        optimizer, scheduler = util.get_optimizer(sampler_teacher, iterations=args.updates, warmup_epochs=warmup_epochs, lr=args.learning_rate)
+
         wandb_session = util.wandb_log(name=args.name, lr=args.learning_rate, model=teacher, tags=["DSDI"], 
                 notes=f"Direct Iterative Self-Distillation from {args.steps} steps with {args.updates} weight updates",  project="Self-Distillation")
         wandb.run.log_code(".")
