@@ -80,7 +80,7 @@ def self_distillation_CIN(student, sampler_student, original, sampler_original, 
 
     with torch.no_grad():
         # student.use_ema = False
-        # with student.ema_scope(): 
+        with student.ema_scope(): 
                 if x0:
                     sc=None
                 else:
@@ -100,7 +100,8 @@ def self_distillation_CIN(student, sampler_student, original, sampler_original, 
                             losses = []       
                             scale = 3.0
                             #scale = np.random.uniform(1.0, 4.0) # Randomly sample a scale for each generation, optional
-                            c_student = student.get_learned_conditioning({student.cond_stage_key: torch.tensor([class_prompt]).to(student.device)}) # Set to 0 for unconditional, requires pretraining
+                            xc = torch.tensor([class_prompt])
+                            c_student = student.get_learned_conditioning({student.cond_stage_key: xc.to(student.device)}) # Set to 0 for unconditional, requires pretraining
                             
                             samples_ddim= None # Setting to None will create a new noise vector for each generation
                             predictions_temp = []
@@ -110,7 +111,7 @@ def self_distillation_CIN(student, sampler_student, original, sampler_original, 
                                     with torch.enable_grad():
                                             instance += 1
                                             
-                                            optimizer.zero_grad()
+                                            
                                             samples_ddim, pred_x0_student, _, at= sampler_student.sample_student(S=1,
                                                                                 conditioning=c_student,
                                                                                 batch_size=1,
@@ -165,7 +166,7 @@ def self_distillation_CIN(student, sampler_student, original, sampler_original, 
                                             # torch.nn.utils.clip_grad_norm_(sampler_student.model.parameters(), 1)
                                             # losses.append(loss.item())
 
-                                            
+                                            optimizer.zero_grad()
                                             # # NO AUTOCAST:
                                             signal = at
                                             noise = 1 - at
