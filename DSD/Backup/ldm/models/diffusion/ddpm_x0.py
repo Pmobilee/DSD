@@ -95,6 +95,7 @@ class DDPM(pl.LightningModule):
         self.use_ema = use_ema
         if self.use_ema:
             self.model_ema = LitEma(self.model)
+            print("EMAMMAAAAAA")
             print(f"Keeping EMAs of {len(list(self.model_ema.buffers()))}.")
         # timesteps=400
         self.use_scheduler = scheduler_config is not None

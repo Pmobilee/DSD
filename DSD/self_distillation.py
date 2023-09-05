@@ -83,6 +83,8 @@ def self_distillation_CIN(student, sampler_student, original, sampler_original, 
 
     with torch.no_grad():
         # student.use_ema = False
+        # student.train()
+        # student.use_ema = True
         with student.ema_scope(): 
                 # if x0:
                 #     sc=None
