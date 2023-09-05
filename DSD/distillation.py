@@ -608,7 +608,7 @@ def retrain(ddim_steps, generations, run_name, config, original_model_path, lr, 
     # if args.compare:
         #     original, sampler_original = util.create_models(config_path, model_path, student=False)
     warmup_epochs = 1000  # The number of initial iterations to linearly increase the learning rate
-    optimizer, scheduler = util.get_optimizer(sampler_teacher, iterations=generations, warmup_epochs=warmup_epochs, lr=lr)
+    optimizer, scheduler = util.get_optimizer(sampler_teacher, iterations=generations, warmup_epochs=warmup_epochs, eta_min=lr, lr=lr)
 
 
     # optimizer, scheduler = saving_loading.get_optimizer(sampler_student, iterations=generations, lr=lr)
@@ -634,7 +634,7 @@ def teacher_retrain_student(teacher, sampler_teacher, student, sampler_student, 
     """
     NUM_CLASSES = 1000
     generations = 1000
-    steps = 64
+    
     ddim_steps_teacher = steps
     TEACHER_STEPS = 1
     STUDENT_STEPS = 1
@@ -677,7 +677,7 @@ def teacher_retrain_student(teacher, sampler_teacher, student, sampler_student, 
                 with tqdm.tqdm(torch.randint(0, NUM_CLASSES, (generations,))) as tepoch:
                     for i, class_prompt in enumerate(tepoch):
                         
-                        if generation > 0 and generation % 5 == 0:
+                        if generation > 0 and generation % 10 == 0:
                             saving_loading.save_model(sampler_student, optimizer, scheduler, name=f"Retrain", steps=generation, run_name=run_name)
 
                         generation += 1

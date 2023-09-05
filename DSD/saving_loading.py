@@ -69,20 +69,20 @@ def load_trained(model_path, config):
     sampler = DDIMSampler(model)
     return model, sampler, ckpt["optimizer"], ckpt["scheduler"]
 
-def get_optimizer(sampler, iterations, warmup_epochs, lr=1e-7):
+def get_optimizer(sampler, iterations, warmup_epochs, eta_min=0.0, lr=1e-7):
     optimizer = torch.optim.Adam(
         sampler.model.parameters(), 
         lr=lr, 
-        # betas=(0.9, 0.999), 
-        # eps=1e-08, 
-        # weight_decay=0.0005
+        betas=(0.9, 0.999), 
+        eps=1e-08, 
+        weight_decay=0.0005
     )
 
     scheduler = WarmUpCosineAnnealingLR(
         optimizer, 
         warmup_epochs=warmup_epochs, 
         total_epochs=iterations, 
-        eta_min=0.0
+        eta_min=eta_min
     )
 
     return optimizer, scheduler
