@@ -78,6 +78,8 @@ def self_distillation_CIN(student, sampler_student, original, sampler_original, 
     #     update_list = np.exp(1 / np.append(step_sizes[1:],1)) / np.sum(np.exp(1 / np.append(step_sizes[1:],1)))
     #     update_list = ((update_list * 2) * gradient_updates /  np.append(step_sizes[1:],1)).astype(int)
 
+    total_steps = max(step_sizes)
+
     with torch.no_grad():
         # student.use_ema = False
         with student.ema_scope(): 
@@ -124,7 +126,7 @@ def self_distillation_CIN(student, sampler_student, original, sampler_original, 
                                                                                 keep_intermediates=False,
                                                                                 intermediate_step = steps*2,
                                                                                 steps_per_sampling = 1,
-                                                                                total_steps = ddim_steps_student)
+                                                                                total_steps = total_steps)
                                             
                                             # Code below first decodes the latent image and then reconstructs it. This is not necessary, but can be used to check if the latent image is correct
                                             # decode_student = student.differentiable_decode_first_stage(pred_x0_student)
@@ -146,7 +148,7 @@ def self_distillation_CIN(student, sampler_student, original, sampler_original, 
                                                                             keep_intermediates=False,
                                                                             intermediate_step = steps*2+1,
                                                                             steps_per_sampling = 1,
-                                                                            total_steps = ddim_steps_student)     
+                                                                            total_steps = total_steps)     
 
                                                 # decode_teacher = student.decode_first_stage(pred_x0_teacher)
                                                 # reconstruct_teacher = torch.clamp((decode_teacher+1.0)/2.0, min=0.0, max=1.0)
