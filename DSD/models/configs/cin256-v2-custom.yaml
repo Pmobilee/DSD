@@ -14,7 +14,7 @@ model:
     cond_stage_trainable: true
     conditioning_key: crossattn
     monitor: val/loss
-    use_ema: False
+    use_ema: True
     
     unet_config:
       target: ldm.modules.diffusionmodules.openaimodel.UNetModel
