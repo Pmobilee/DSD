@@ -76,7 +76,7 @@ def self_distillation_CIN(student, sampler_student, original, sampler_original, 
     #     step_sizes = np.arange(64, 0, -2)
     #     update_list = np.exp(1 / np.append(step_sizes[1:],1)) / np.sum(np.exp(1 / np.append(step_sizes[1:],1)))
     #     update_list = ((update_list * 2) * gradient_updates /  np.append(step_sizes[1:],1)).astype(int)
-
+    print(update_list)
     total_steps = max(step_sizes)
     sampler_student.make_schedule(ddim_num_steps=total_steps, ddim_eta=ddim_eta, verbose=False)
     sampler_original.make_schedule(ddim_num_steps=total_steps, ddim_eta=ddim_eta, verbose=False)
