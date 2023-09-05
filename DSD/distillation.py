@@ -628,7 +628,7 @@ def teacher_retrain_student(teacher, sampler_teacher, student, sampler_student, 
     """
     NUM_CLASSES = 1000
     generations = 1000
-    steps = 256
+    steps = 64
     ddim_steps_teacher = steps
     TEACHER_STEPS = 1
     STUDENT_STEPS = 1
