@@ -751,11 +751,11 @@ def teacher_retrain_student(teacher, sampler_teacher, student, sampler_student, 
 
 
                                         # NO AUTOCAST:
-                                        signal = at
-                                        noise = 1 - at
-                                        log_snr = torch.log(signal / noise)
-                                        weight = max(log_snr, 1)
-                                        loss = criterion(pred_x0_student, pred_x0_teacher) * weight
+                                        # signal = at
+                                        # noise = 1 - at
+                                        # log_snr = torch.log(signal / noise)
+                                        # weight = max(log_snr, 1)
+                                        loss = criterion(pred_x0_student, pred_x0_teacher) #* weight
                                         # loss = criterion(samples, samples_ddim_teacher) # * weight
                                         loss.backward()
                                         # torch.nn.utils.clip_grad_norm_(sampler_student.model.parameters(), 1)
@@ -773,7 +773,7 @@ def teacher_retrain_student(teacher, sampler_teacher, student, sampler_student, 
                                 #     predictions_temp.append(student_target)
                         
 
-                        if session != None and generation % 5 == 0:
+                        if session != None and generation % 10 == 0:
                                     with torch.no_grad():
                                         images, _ = util.compare_teacher_student_retrain(teacher, sampler_teacher, student, sampler_student, steps=[256, 128, 64, 32, 16, 8, 4, 2], prompt=992)
                                         images = wandb.Image(_, caption="left: Teacher, right: Student")
