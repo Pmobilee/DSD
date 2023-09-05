@@ -45,6 +45,7 @@ if __name__ == '__main__':
                 model_path=f"{cwd}/models/cin256_retrained.pt"
                 config_path = f"{cwd}/models/configs/cin256-v2-custom_x0.yaml"
             else:
+                print("GETTING EPS MODEL")
                 config_path=f"{cwd}/models/configs/cin256-v2-custom.yaml"
                 model_path=f"{cwd}/models/cin256_original.ckpt"
             npz = f"{cwd}/val_saved/real_fid_both.npz"
