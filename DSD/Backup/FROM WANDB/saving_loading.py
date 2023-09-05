@@ -23,26 +23,6 @@ import shutil
 import util
 import generate
 
-from torch.optim.lr_scheduler import _LRScheduler
-
-class WarmUpCosineAnnealingLR(_LRScheduler):
-    def __init__(self, optimizer, warmup_epochs, total_epochs, eta_min=0, last_epoch=-1):
-        self.warmup_epochs = warmup_epochs
-        self.total_epochs = total_epochs
-        self.eta_min = eta_min
-        super(WarmUpCosineAnnealingLR, self).__init__(optimizer, last_epoch)
-
-    def get_lr(self):
-        if self.last_epoch < self.warmup_epochs:
-            # Linear warm-up
-            return [base_lr * (self.last_epoch / self.warmup_epochs) for base_lr in self.base_lrs]
-        else:
-            # Cosine annealing
-            T_cur = self.last_epoch - self.warmup_epochs
-            T_max = self.total_epochs - self.warmup_epochs
-            return [self.eta_min + (base_lr - self.eta_min) * (1 + math.cos(math.pi * T_cur / T_max)) / 2
-                    for base_lr in self.base_lrs]
-
 # Receiving base current working directory
 cwd = os.getcwd()
 
@@ -69,25 +49,20 @@ def load_trained(model_path, config):
     sampler = DDIMSampler(model)
     return model, sampler, ckpt["optimizer"], ckpt["scheduler"]
 
-def get_optimizer(sampler, iterations, warmup_epochs, lr=1e-7):
-    optimizer = torch.optim.Adam(
-        sampler.model.parameters(), 
-        lr=lr, 
-        # betas=(0.9, 0.999), 
-        # eps=1e-08, 
-        # weight_decay=0.0005
-    )
-
-    scheduler = WarmUpCosineAnnealingLR(
-        optimizer, 
-        warmup_epochs=warmup_epochs, 
-        total_epochs=iterations, 
-        eta_min=0.0
-    )
-
+def get_optimizer(sampler, iterations, lr=0.000000003):
+    """
+    Params: sampler, iterations, lr=1e-8. Task: 
+    returns both an optimizer (Adam, lr=1e-8, eps=1e-08, decay=0.001), and a scheduler for the optimizer
+    going from a learning rate of 1e-8 to 0 over the course of the specified iterations
+    """
+    lr = lr
+    # optimizer = torch.optim.Adam(sampler.model.parameters(), lr=lr, betas=(0.9, 0.98), weight_decay=0.0005)
+    optimizer = torch.optim.Adam(sampler.model.parameters(), lr=lr)#, weight_decay=0.0005)
+    # optimizer = torch.optim.Adam(sampler.model.parameters(), lr=lr, betas=(0.9, 0.999), eps=1e-08, weight_decay=0)
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=iterations,eta_min=lr *0.1, last_epoch=-1, verbose=False)
     return optimizer, scheduler
 
-def wandb_log(name, lr, model, tags, notes, project="cvpr_Diffusion"):
+def wandb_log(name, lr, model, tags, notes, project="diffusion-thesis"):
     """
     Params: wandb name, lr, model, wand tags, wandb notes. Task: returns a wandb session with CIFAR-1000 information,
     logs: Loss, Generational Loss, hardware specs, model gradients
@@ -120,10 +95,7 @@ def load_model_from_config(config, ckpt):
     try:
         sd = pl_sd["model"]
     except KeyError:
-        try:
-            sd = pl_sd["state_dict"]
-        except KeyError:
-            sd = pl_sd
+        sd = pl_sd["state_dict"]
     model = instantiate_from_config(config.model)
     m, u = model.load_state_dict(sd, strict=False)
     model.cuda()
@@ -143,8 +115,7 @@ def save_images(model, sampler, num_imgs, name, steps, verbose=False, celeb=Fals
     """
     Params: model, sampler, num_imgs, name, steps, verbose=False. Task: saves generated images to the specified folder name
     """
-    model_type = "celeb" if celeb else "cin"
-    basic_path = f"{cwd}/saved_images/{model_type}/"
+    basic_path = f"{cwd}/saved_images/"
     imgs_per_batch = num_imgs
     if not os.path.exists(basic_path + name + "/"):
         os.mkdir(basic_path + name + "/")
@@ -216,10 +187,6 @@ def return_intermediates_for_student(model, sampler, steps=20, eta=0.0, scale=3.
 
 @torch.no_grad()
 def return_intermediates_for_student_celeb(model, sampler, steps=20, eta=0.0, scale=3.0):
-    """
-    Params: model, sampler, steps=20, eta=0.0, scale=3.0. Task: returns intermediate samples from the provided model and accompanying sampler.
-    Has not been updated to work with the newest version of the code, as self-distillation does not require teacher intermediates.
-    """
     NUM_CLASSES = 1000
     ddim_steps = steps
     ddim_eta = eta

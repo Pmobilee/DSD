@@ -12,7 +12,7 @@ cwd = os.getcwd()
 parser = argparse.ArgumentParser(description='Direct Self-Distillation')
 
 
-parser.add_argument('--task', '-t', type=str, default= "DSDI", help='Task to perform', choices=['TSD', "DSDN", "DSDI", "DSDGL", "DSDGEXP", "SI", "SI_orig", "CD", "DFD", "FID", "NPZ", "NPZ_single", "retrain"])
+parser.add_argument('--task', '-t', type=str, default= "DSDI", help='Task to perform', choices=['TSD', "DSDN", "DSDI", "DSDGL", "DSDGEXP", "SI", "SI_orig", "CD", "DFD", "FID"])
 parser.add_argument('--model', '-m', type=str, default= "cin", help='Model type', choices=['cin', 'celeb'])
 parser.add_argument('--steps', '-s', type=int, default= 64, help='DDIM steps to distill from')
 parser.add_argument('--updates', '-u', type=int, default= 100000, help='Number of total weight updates')
@@ -23,8 +23,6 @@ parser.add_argument('--save', '-sv', type=bool, default= True, help='Save interm
 parser.add_argument('--compare', type=bool, default= True, help='Compare to original model')
 parser.add_argument('--wandb', '-w', type=bool, default=True, help='Weights and Biases upload')
 parser.add_argument('--cuda', '-cu', type=str, default="True", help='Cuda on/off')
-parser.add_argument('--predict', '-pred', type=bool, default=True, help='either x0 or eps prediction, True = X0,  x0 uses the retrained model, eps uses the original model')
-parser.add_argument('--pixels', '-p', type=int, default=256, help='256/64 pixel outputs')
 
 
 if __name__ == '__main__':
@@ -39,62 +37,21 @@ if __name__ == '__main__':
     else:
         device = 'cuda'
     # Instatiate selected model
-    if args.pixels == 256:
-        if args.model == "cin":
-            if args.predict:
-                model_path=f"{cwd}/models/cin256_retrained.pt"
-                config_path = f"{cwd}/models/configs/cin256-v2-custom_x0.yaml"
-            else:
-                config_path=f"{cwd}/models/configs/cin256-v2-custom.yaml"
-                model_path=f"{cwd}/models/cin256_original.ckpt"
-            npz = f"{cwd}/val_saved/real_fid_both.npz"
-        elif args.model == "celeb":
-            config_path=f"{cwd}/models/configs/celebahq-ldm-vq-4.yaml"
-            model_path=f"{cwd}/models/CelebA.ckpt"
-            npz = f"{cwd}/val_saved/celeb.npz"
-            # npz = f"C:\Diffusion_Thesis\cin_256\celeba_hq_256"
-            # npz = f"C:\Diffusion_Thesis\cin_256\celeb_64.npz"
-    elif args.pixels == 64:
-        print("64 model")
-        if args.model == "cin":
-            config_path=f"{cwd}/models/configs/cin256-v2-custom.yaml"
-            model_path=f"{cwd}/models/64x64_diffusion.pt"
-            npz = f"{cwd}/val_saved/real_fid_both.npz"
-        elif args.model == "celeb":
-            config_path=f"{cwd}/models/configs/celebahq-ldm-vq-4.yaml"
-            model_path=f"{cwd}/models/CelebA.ckpt"
-            npz = f"{cwd}/val_saved/celeb.npz"
-            # npz = f"C:\Diffusion_Thesis\cin_256\celeba_hq_256"
-            # npz = f"C:\Diffusion_Thesis\cin_256\celeb_64.npz"
-
+    if args.model == "cin":
+        config_path=f"{cwd}/models/configs/cin256-v2-custom.yaml"
+        model_path=f"{cwd}/models/cin256_original.ckpt"
+        npz = f"{cwd}/val_saved/real_fid_both.npz"
+    elif args.model == "celeb":
+        config_path=f"{cwd}/models/configs/celebahq-ldm-vq-4.yaml"
+        model_path=f"{cwd}/models/CelebA.ckpt"
+        npz = f"{cwd}/val_saved/celeb.npz"
 
 
     # Start Task
-
-
-    if args.task == "retrain":
-        # print("RETRAINING USING PREVIOUSLY TRAINED MODEL")
-        if args.name is None:
-            args.name = f"{args.model}_retrain_{args.steps}_{args.learning_rate}_{args.updates}"
-        
-        
-        # teacher, sampler_teacher = util.create_models(config_path, model_path, student=False)
-        # if args.compare:
-        #     original, sampler_original = util.create_models(config_path, model_path, student=False)
-        
-        if args.model == "cin":
-            distillation.retrain(ddim_steps=args.steps, generations=args.updates, run_name=args.name, config=config_path, 
-                    original_model_path=model_path, lr=args.learning_rate, start_trained=False, cas=args.cas, compare=args.compare, use_wandb=args.wandb)
-        else:
-            distillation.distill_celeb(ddim_steps=args.steps, generations=args.updates, run_name=args.name, config=config_path, 
-                    original_model_path=model_path, lr=args.learning_rate, start_trained=False, cas=args.cas, compare=args.compare, use_wandb=args.wandb)
-
-
-
     if args.task == "TSD":
         
         if args.name is None:
-            args.name = f"{args.model}_TSD_{args.predict}_{args.steps}_{args.learning_rate}_{args.updates}"
+            args.name = f"{args.model}_TSD_{args.steps}_{args.learning_rate}_{args.updates}"
         
 
         # teacher, sampler_teacher = util.create_models(config_path, model_path, student=False)
@@ -102,7 +59,8 @@ if __name__ == '__main__':
         #     original, sampler_original = util.create_models(config_path, model_path, student=False)
         
         if args.model == "cin":
-            distillation.distill(args, config=config_path, original_model_path=model_path, start_trained=False)
+            distillation.distill(ddim_steps=args.steps, generations=args.updates, run_name=args.name, config=config_path, 
+                    original_model_path=model_path, lr=args.learning_rate, start_trained=False, cas=args.cas, compare=args.compare, use_wandb=args.wandb)
         else:
             distillation.distill_celeb(ddim_steps=args.steps, generations=args.updates, run_name=args.name, config=config_path, 
                     original_model_path=model_path, lr=args.learning_rate, start_trained=False, cas=args.cas, compare=args.compare, use_wandb=args.wandb)
@@ -118,25 +76,17 @@ if __name__ == '__main__':
 
         step_scheduler = "naive"
         decrease_steps = True
-        warmup_epochs = 100  # The number of initial iterations to linearly increase the learning rate
-        # iterations = 10000  # Total number of iterations
-        # lr = 1e-7
-
-        optimizer, scheduler = util.get_optimizer(sampler_teacher, iterations=args.updates, warmup_epochs=warmup_epochs, lr=args.learning_rate)
-
-        # optimizer, scheduler = util.get_optimizer(sampler_teacher, iterations=args.updates, lr=args.learning_rate)
+        optimizer, scheduler = util.get_optimizer(sampler_teacher, iterations=args.updates, lr=args.learning_rate)
         wandb_session = util.wandb_log(name=args.name, lr=args.learning_rate, model=teacher, tags=["DSDN"], 
                 notes=f"Direct Naive Self-Distillation from {args.steps} steps with {args.updates} weight updates",  project="Self-Distillation")
         wandb.run.log_code(".")
         
         if args.model == "cin":
             self_distillation.self_distillation_CIN(teacher, sampler_teacher, original, sampler_original, optimizer, scheduler, session=wandb_session, 
-                        steps=args.steps, gradient_updates=args.updates, run_name=args.name, step_scheduler=step_scheduler, x0=args.predict)
-            
-          
+                        steps=args.steps, generations=args.updates, run_name=args.name, decrease_steps=decrease_steps, step_scheduler=step_scheduler)
         elif args.model == "celeb":
             self_distillation.self_distillation_CELEB(teacher, sampler_teacher, original, sampler_original, optimizer, scheduler, session=wandb_session, 
-                        steps=args.steps, gradient_updates=args.updates, run_name=args.name, decrease_steps=decrease_steps, step_scheduler=step_scheduler)
+                        steps=args.steps, generations=args.updates, run_name=args.name, decrease_steps=decrease_steps, step_scheduler=step_scheduler)
 
     elif args.task == "DSDI":
 
@@ -149,7 +99,7 @@ if __name__ == '__main__':
 
         step_scheduler = "iterative"
         decrease_steps = True
-        optimizer, scheduler = util.get_optimizer(sampler_teacher, iterations=args.updates, warmup_epochs=100, lr=args.learning_rate)
+        optimizer, scheduler = util.get_optimizer(sampler_teacher, iterations=args.updates, lr=args.learning_rate)
         wandb_session = util.wandb_log(name=args.name, lr=args.learning_rate, model=teacher, tags=["DSDI"], 
                 notes=f"Direct Iterative Self-Distillation from {args.steps} steps with {args.updates} weight updates",  project="Self-Distillation")
         wandb.run.log_code(".")
@@ -160,6 +110,7 @@ if __name__ == '__main__':
         elif args.model == "celeb":
             self_distillation.self_distillation_CELEB(teacher, sampler_teacher, original, sampler_original, optimizer, scheduler, session=wandb_session, 
                         steps=args.steps, generations=args.updates, run_name=args.name, decrease_steps=decrease_steps, step_scheduler=step_scheduler)
+            
     elif args.task == "DSDGL":
 
         if args.name is None:
@@ -178,10 +129,10 @@ if __name__ == '__main__':
         
         if args.model == "cin":
             self_distillation.self_distillation_CIN(teacher, sampler_teacher, original, sampler_original, optimizer, scheduler, session=wandb_session, 
-                        steps=args.steps, gradient_updates=args.updates, run_name=args.name, decrease_steps=decrease_steps, step_scheduler=step_scheduler)
+                        steps=args.steps, generations=args.updates, run_name=args.name, decrease_steps=decrease_steps, step_scheduler=step_scheduler)
         elif args.model == "celeb":
             self_distillation.self_distillation_CELEB(teacher, sampler_teacher, original, sampler_original, optimizer, scheduler, session=wandb_session, 
-                        steps=args.steps, gradient_updates=args.updates, run_name=args.name, decrease_steps=decrease_steps, step_scheduler=step_scheduler)
+                        steps=args.steps, generations=args.updates, run_name=args.name, decrease_steps=decrease_steps, step_scheduler=step_scheduler)
 
     elif args.task == "DSDGEXP":
 
@@ -242,9 +193,9 @@ if __name__ == '__main__':
             sampler = DDIMSampler(model)
             # model, sampler, optimizer, scheduler = util.load_trained(config_path, model_path)
             if args.model == "cin":
-              util.save_images(model, sampler, args.updates, train_type, [4,8], verbose=True)
+              util.save_images(model, sampler, args.updates, train_type, [2,4,8,16], verbose=True)
             else:
-              saving_loading.save_images(model, sampler, args.updates, train_type, [4,8], verbose=True, celeb=True)
+              saving_loading.save_images(model, sampler, args.updates, train_type, [2,4,8,16], verbose=True, celeb=True)
             del model, sampler, ckpt#, optimizer, scheduler
             torch.cuda.empty_cache()
 
@@ -259,6 +210,8 @@ if __name__ == '__main__':
          
         # model, sampler, optimizer, scheduler = util.load_trained(config_path, model_path)
         if args.model == "cin":
+            config_path=f"{cwd}/models/configs/cin256-v2-custom.yaml"
+            model_path=f"{cwd}/models/cin256_original.ckpt"
             original, sampler_original = util.create_models(config_path, model_path, student=False)
             original.eval()
             original
@@ -276,87 +229,16 @@ if __name__ == '__main__':
         torch.cuda.empty_cache()
 
     elif args.task == "FID":
-        import pandas as pd
-        import os
-        import torch_fidelity
+        from pytorch_fid import fid_score
         os.environ["KMP_DUPLICATE_LIB_OK"]="TRUE"
-        filename = 'metrics.csv'
-  
-        if not os.path.isfile(filename):
-            df = pd.DataFrame({
-                "model": [],
-                "type" : [],
-                "step": [],
-                "fid": [],
-                "isc": [],
-                "kid": []
-            })
-            df.to_csv(filename, index=False)
-        df = pd.read_csv(filename)
-        cin_target = r"C:\imagenet\val"
-        celeb_target = r"C:\Diffusion_Thesis\cin_256\celeba_hq_256"
-        # cin_target = r"C:\imagenet\DIFFERENCE\fill"
-        # celeb_target = r"C:\imagenet\DIFFERENCE\fill"
-        for model in ["cin", "celeb"]:  
-            target = cin_target if model == "cin" else celeb_target 
-            basic_path_source = f"{cwd}/saved_images/{model}/"
-            model_names = [name for name in os.listdir(basic_path_source)]
-         
-            for model_name in model_names:
-                model_path_source = basic_path_source + f"{model_name}/"
-                steps = [step for step in os.listdir(model_path_source)]
-                for step in steps:
-                    current_path_source = model_path_source + f"{step}/"
-                    if  df.loc[(df['model'] == model) & (df['step'] == step) & (df['type'] == model_name)].empty:
-                        try:
-                            metrics = torch_fidelity.calculate_metrics(gpu=0, fid=True, isc=True, kid=True, input1=current_path_source, input2=target)
-                            metrics_df = pd.DataFrame({
-                            "model" : [model],
-                            "type": [model_name],
-                            "step": [step],
-                            "fid": [metrics["frechet_inception_distance"]],
-                            "isc" :[metrics["inception_score_mean"]],
-                            "kid": [metrics["kernel_inception_distance_mean"]]})                            
-                            df = pd.concat([df, metrics_df])
-                            df.to_csv(filename, index=False)
-                        except Exception as e:
-                            print("Failed to create metrics for:", current_path_source)
-                            print(e)
-                    else:
-                        print("Already have metrics for:", current_path_source)
-    
-
-
-
-    elif args.task == "NPZ": 
-        os.environ["KMP_DUPLICATE_LIB_OK"]="TRUE"
-        for model in ["cin", "celeb"]:   
-            basic_path_source = f"{cwd}/saved_images/{model}/"
-            basic_path_target = f"{cwd}/NPZ/{model}"
-            model_names = [name for name in os.listdir(basic_path_source)]
- 
-            for model_name in model_names:
-                model_path_source = basic_path_source + f"{model_name}/"
-                model_path_target = basic_path_target + f"_{model_name}"
-                
-                steps = [step for step in os.listdir(model_path_source)]
-                for step in steps:
-                    current_path_source = model_path_source + f"{step}/"
-                    current_path_target = model_path_target + f"_{step}"
-                    try:
-                        util.generate_npz(current_path_source, current_path_target)
-                   
-                    except Exception as e:
-                        print("Failed to generate npz for ", current_path_source)
-                        print(e)
-
-    elif args.task == "NPZ_single":
-        
-        os.environ["KMP_DUPLICATE_LIB_OK"]="TRUE"
-        current_path_source = "C:\Diffusion_Thesis\cin_256\saved_images\cin\cin_original\\64"
-        current_path_target = "C:\Diffusion_Thesis\cin_256\\NPZ\cin_cin_original_64"
-        util.generate_npz(current_path_source, current_path_target)
-
-
-
-# fidelity --gpu 0 --fid --input1 C:\Diffusion_Thesis\cin_256\saved_images\cin\cin_original\32 --input2 C:\imagenet\test2
+        if args.name == "all":
+            print("Grabbing FID for all models")
+            for model in ["DSDGL", "DSDN", "TSD", "DSDI", "DSDGEXP"]:
+                for step in [2, 4, 8, 16]:
+                    fid = fid_score.calculate_fid_given_paths([npz, f"C:\Diffusion_Thesis\cin_256\saved_images\{args.model}\{model}\\{step}"],batch_size=64,device="cuda", dims=2048 )
+                    print(f"FID score for {args.model} {model} at step {step}: ", fid)
+        else:
+            for step in [2, 4, 8, 16]:
+                print("Grabbing FID for ", args.name)
+                fid = fid_score.calculate_fid_given_paths([npz, f"C:\Diffusion_Thesis\cin_256\saved_images\{args.model}\{args.name}\\{step}"],batch_size=64,device="cuda", dims=2048 )
+                print(f"FID score for {args.model} {args.name} at step {step}: ", fid)
