@@ -153,7 +153,7 @@ def compare_teacher_student_x0(teacher, sampler_teacher, student, sampler_studen
     scale = 3.0
     ddim_eta = 0.0
     images = []
-    
+    total_steps=max(steps)
     with torch.no_grad():
         # with teacher.ema_scope():
             for sampling_steps in steps:
@@ -185,7 +185,7 @@ def compare_teacher_student_x0(teacher, sampler_teacher, student, sampler_studen
                                                     unconditional_conditioning=uc, 
                                                     eta=ddim_eta,
                                                     intermediate_step=intermediate_step ,
-                                                    total_steps=64,
+                                                    total_steps=total_steps,
                                                     steps_per_sampling=sampling_steps)
 
                 # x_samples_ddim = teacher.decode_first_stage(_["pred_x0"][-1)
@@ -206,7 +206,7 @@ def compare_teacher_student_x0(teacher, sampler_teacher, student, sampler_studen
                                                     unconditional_conditioning=sc, 
                                                     eta=ddim_eta,
                                                     intermediate_step=intermediate_step,
-                                                    total_steps=64,
+                                                    total_steps=total_steps,
                                                     steps_per_sampling=sampling_steps)
 
                 x_samples_ddim = student.decode_first_stage(pred_x0_student)
