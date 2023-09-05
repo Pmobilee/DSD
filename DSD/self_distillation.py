@@ -84,10 +84,10 @@ def self_distillation_CIN(student, sampler_student, original, sampler_original, 
     with torch.no_grad():
         # student.use_ema = False
         with student.ema_scope(): 
-                if x0:
-                    sc=None
-                else:
-                    sc = student.get_learned_conditioning({student.cond_stage_key: torch.tensor(1*[1000]).to(student.device)}) # Get the learned conditioning
+                # if x0:
+                #     sc=None
+                # else:
+                 # Get the learned conditioning
                 for i, step in enumerate(step_sizes): # For each step size
                     # if instance != 0 and "gradual" not in step_scheduler:   # Save the model after every step size. Given the large model size, 
                     #                                                         # the gradual versions are not saved each time (steps * 2 * 4.7gb is a lot!)
@@ -105,7 +105,7 @@ def self_distillation_CIN(student, sampler_student, original, sampler_original, 
                             #scale = np.random.uniform(1.0, 4.0) # Randomly sample a scale for each generation, optional
                             xc = torch.tensor([class_prompt])
                             c_student = student.get_learned_conditioning({student.cond_stage_key: xc.to(student.device)}) # Set to 0 for unconditional, requires pretraining
-                            
+                            sc = student.get_learned_conditioning({student.cond_stage_key: torch.tensor(1*[1000]).to(student.device)})
                             samples_ddim= None # Setting to None will create a new noise vector for each generation
                             predictions_temp = []
                             
