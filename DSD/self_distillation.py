@@ -86,9 +86,9 @@ def self_distillation_CIN(student, sampler_student, original, sampler_original, 
                 else:
                     sc = student.get_learned_conditioning({student.cond_stage_key: torch.tensor(1*[1000]).to(student.device)}) # Get the learned conditioning
                 for i, step in enumerate(step_sizes): # For each step size
-                    if instance != 0 and "gradual" not in step_scheduler:   # Save the model after every step size. Given the large model size, 
-                                                                            # the gradual versions are not saved each time (steps * 2 * 4.7gb is a lot!)
-                        util.save_model(sampler_student, optimizer, scheduler, name=step_scheduler, steps=updates, run_name=run_name)
+                    # if instance != 0 and "gradual" not in step_scheduler:   # Save the model after every step size. Given the large model size, 
+                    #                                                         # the gradual versions are not saved each time (steps * 2 * 4.7gb is a lot!)
+                    #     util.save_model(sampler_student, optimizer, scheduler, name=step_scheduler, steps=updates, run_name=run_name)
                     updates = int(step / 2) # We take updates as half the step size, because we do 2 steps per update
                     generations = update_list[i] # The number of generations has been determined earlier
                     print("Distilling to:", updates)
