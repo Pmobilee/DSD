@@ -70,7 +70,7 @@ def compare_latents(images):
    
 
 @torch.no_grad()
-def compare_teacher_student(teacher, sampler_teacher, student, sampler_student, steps=[10], prompt=None, total_steps=64, x0=False):
+def compare_teacher_student_x0(teacher, sampler_teacher, student, sampler_student, steps=[10], prompt=None, total_steps=64, x0=False):
     """
     Compare the a trained model and an original (teacher). Terms used are teacher and student models, though these may be the same model but at different
     stages of training.
