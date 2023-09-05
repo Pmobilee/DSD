@@ -43,8 +43,7 @@ def self_distillation_CIN(student, sampler_student, original, sampler_original, 
     ddim_eta = 0.0 # Setting the eta value to 0.0 means a deterministic output given the original noise, essential
     # For both the student and the original model, the number of steps is set to the same value. 
     # Technically the original model does not need to be trained, but it is kept for comparison purposes.
-    sampler_student.make_schedule(ddim_num_steps=ddim_steps_student, ddim_eta=ddim_eta, verbose=False)
-    sampler_original.make_schedule(ddim_num_steps=ddim_steps_student, ddim_eta=ddim_eta, verbose=False)
+    
     ddim_eta = 0.0 # Setting the eta value to 0.0 means a deterministic output given the original noise, essential
     scale = 3.0 # This is $w$ in the paper, the CFG scale. Can be left static or varied as is done occasionally.
     criterion = nn.MSELoss() 
@@ -79,6 +78,8 @@ def self_distillation_CIN(student, sampler_student, original, sampler_original, 
     #     update_list = ((update_list * 2) * gradient_updates /  np.append(step_sizes[1:],1)).astype(int)
 
     total_steps = max(step_sizes)
+    sampler_student.make_schedule(ddim_num_steps=total_steps, ddim_eta=ddim_eta, verbose=False)
+    sampler_original.make_schedule(ddim_num_steps=total_steps, ddim_eta=ddim_eta, verbose=False)
 
     with torch.no_grad():
         # student.use_ema = False
@@ -179,7 +180,7 @@ def self_distillation_CIN(student, sampler_student, original, sampler_original, 
                                             loss.backward()
                                             optimizer.step()
                                             scheduler.step()
-                                            # torch.nn.utils.clip_grad_norm_(sampler_student.model.parameters(), 1)
+                                            torch.nn.utils.clip_grad_norm_(sampler_student.model.parameters(), 1)
                                             losses.append(loss.item())
 
                                             # if session != None and instance % 10000 == 0 and generation > 0:
@@ -206,8 +207,8 @@ def self_distillation_CIN(student, sampler_student, original, sampler_original, 
                                         wandb.log({"with_sched": images})
 
                                         # Important: Reset the schedule, as compare_teacher_student changes max steps. 
-                                        sampler_student.make_schedule(ddim_num_steps=ddim_steps_student, ddim_eta=ddim_eta, verbose=False)
-                                        sampler_original.make_schedule(ddim_num_steps=ddim_steps_student, ddim_eta=ddim_eta, verbose=False)
+                                        sampler_student.make_schedule(ddim_num_steps=total_steps, ddim_eta=ddim_eta, verbose=False)
+                                        sampler_original.make_schedule(ddim_num_steps=total_steps, ddim_eta=ddim_eta, verbose=False)
 
                             # # Use if you want to base the schedule on FID
                             # if generation > 0 and generation % 20 == 0 and ddim_steps_student != 1 and step_scheduler=="FID":
