@@ -656,7 +656,7 @@ def teacher_retrain_student(teacher, sampler_teacher, student, sampler_student, 
                 with tqdm.tqdm(torch.randint(0, NUM_CLASSES, (generations,))) as tepoch:
                     for i, class_prompt in enumerate(tepoch):
                         
-                        if generation > 0 and generation % 5 == 0:
+                        if generation > 0 and generation % 20 == 0:
                             saving_loading.save_model(sampler_student, optimizer, scheduler, name=f"Retrain", steps=generation, run_name=run_name)
 
                         generation += 1
