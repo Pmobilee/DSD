@@ -169,7 +169,7 @@ def compare_teacher_student_retrain(teacher, sampler_teacher, student, sampler_s
                 uc = teacher.get_learned_conditioning({teacher.cond_stage_key: torch.tensor(1*[1000]).to(teacher.device)})
                 xc = torch.tensor([class_image])
                 c = teacher.get_learned_conditioning({teacher.cond_stage_key: xc.to(teacher.device)})
-                teacher_samples_ddim, _, x_T_copy, pred_x0_teacher, a_t= sampler_teacher.sample(S=sampling_steps,
+                teacher_samples_ddim, _, x_T_copy, pred_x0_teacher, a_t, v= sampler_teacher.sample(S=sampling_steps,
                                                     conditioning=c,
                                                     batch_size=1,
                                            
@@ -190,7 +190,7 @@ def compare_teacher_student_retrain(teacher, sampler_teacher, student, sampler_s
                 # with student.ema_scope():
                 sc = student.get_learned_conditioning({student.cond_stage_key: torch.tensor(1*[1000]).to(student.device)})
                 c = student.get_learned_conditioning({student.cond_stage_key: xc.to(student.device)})
-                student_samples_ddim, _, x_T_delete, pred_x0_student, a_t = sampler_student.sample(S=sampling_steps,
+                student_samples_ddim, _, x_T_delete, pred_x0_student, a_t, v = sampler_student.sample(S=sampling_steps,
                                                     conditioning=c,
                                                     batch_size=1,
                                                     
