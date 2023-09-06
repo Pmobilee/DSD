@@ -81,13 +81,13 @@ def self_distillation_CIN(student, sampler_student, original, sampler_original, 
     sampler_student.make_schedule(ddim_num_steps=total_steps, ddim_eta=ddim_eta, verbose=False)
     sampler_original.make_schedule(ddim_num_steps=total_steps, ddim_eta=ddim_eta, verbose=False)
 
-    # for param in student.first_stage_model.parameters():
-    #     param.requires_grad = False
+    for param in student.first_stage_model.parameters():
+        param.requires_grad = False
     # for param in sampler_student.model.first_stage_model.parameters():
     #     param.requires_grad = False
     with torch.no_grad():
         # student.use_ema = False
-        # student.train()d
+        # student.train()
         # student.use_ema = True
         # with student.ema_scope(): 
                 # if x0:
@@ -181,8 +181,8 @@ def self_distillation_CIN(student, sampler_student, original, sampler_original, 
                                             noise = 1 - at
                                             log_snr = torch.log(signal / noise)
                                             weight = max(log_snr, 1)
-                                            loss = weight * criterion(pred_x0_student, pred_x0_teacher.detach())     
-                                            # loss = weight * criterion(reconstruct_student, reconstruct_teacher.detach())                    
+                                            # loss = weight * criterion(pred_x0_student, pred_x0_teacher.detach())     
+                                            loss = weight * criterion(reconstruct_student, reconstruct_teacher.detach())                    
                                             loss.backward()
                                             optimizer.step()
                                             scheduler.step()
