@@ -81,8 +81,8 @@ def self_distillation_CIN(student, sampler_student, original, sampler_original, 
     sampler_student.make_schedule(ddim_num_steps=total_steps, ddim_eta=ddim_eta, verbose=False)
     sampler_original.make_schedule(ddim_num_steps=total_steps, ddim_eta=ddim_eta, verbose=False)
 
-    for param in student.first_stage_model.parameters():
-        param.requires_grad = False
+    # for param in student.first_stage_model.parameters():
+    #     param.requires_grad = False
     # for param in sampler_student.model.first_stage_model.parameters():
     #     param.requires_grad = False
     with torch.no_grad():
