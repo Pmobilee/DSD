@@ -121,7 +121,7 @@ def self_distillation_CIN(student, sampler_student, original, sampler_original, 
                                             instance += 1
                                             
                                             
-                                            samples_ddim, pred_x0_student, _, at= sampler_student.sample_student(S=1,
+                                            samples_ddim, pred_x0_student, _, at, v_student= sampler_student.sample_student(S=1,
                                                                                 conditioning=c_student,
                                                                                 batch_size=1,
                                                                                 shape=[3, 64, 64],
@@ -136,14 +136,14 @@ def self_distillation_CIN(student, sampler_student, original, sampler_original, 
                                                                                 total_steps = total_steps)
                                             
                                             # Code below first decodes the latent image and then reconstructs it. This is not necessary, but can be used to check if the latent image is correct
-                                            decode_student = student.differentiable_decode_first_stage(pred_x0_student)
-                                            reconstruct_student = torch.clamp((decode_student+1.0)/2.0, min=0.0, max=1.0)
+                                            # decode_student = student.differentiable_decode_first_stage(pred_x0_student)
+                                            # reconstruct_student = torch.clamp((decode_student+1.0)/2.0, min=0.0, max=1.0)
                                             
                                          
 
                                             with torch.no_grad():
                                                 samples_ddim.detach()
-                                                samples_ddim, _, _, pred_x0_teacher, _ = sampler_student.sample(S=1,
+                                                samples_ddim, _, _, pred_x0_teacher, _, v = sampler_student.sample(S=1,
                                                                             conditioning=c_student,
                                                                             batch_size=1,
                                                                             shape=[3, 64, 64],
@@ -157,8 +157,8 @@ def self_distillation_CIN(student, sampler_student, original, sampler_original, 
                                                                             steps_per_sampling = 1,
                                                                             total_steps = total_steps)     
 
-                                                decode_teacher = student.decode_first_stage(pred_x0_teacher)
-                                                reconstruct_teacher = torch.clamp((decode_teacher+1.0)/2.0, min=0.0, max=1.0)
+                                                # decode_teacher = student.decode_first_stage(pred_x0_teacher)
+                                                # reconstruct_teacher = torch.clamp((decode_teacher+1.0)/2.0, min=0.0, max=1.0)
                                         
 
                                      
@@ -182,7 +182,7 @@ def self_distillation_CIN(student, sampler_student, original, sampler_original, 
                                             log_snr = torch.log(signal / noise)
                                             weight = max(log_snr, 1)
                                             # loss = weight * criterion(pred_x0_student, pred_x0_teacher.detach())     
-                                            loss = weight * criterion(reconstruct_student, reconstruct_teacher.detach())                    
+                                            loss = weight * criterion(v_student, v.detach())                    
                                             loss.backward()
                                             optimizer.step()
                                             scheduler.step()
