@@ -677,7 +677,7 @@ def teacher_retrain_student(teacher, sampler_teacher, student, sampler_student, 
                 with tqdm.tqdm(torch.randint(0, NUM_CLASSES, (generations,))) as tepoch:
                     for i, class_prompt in enumerate(tepoch):
                         
-                        if generation > 0 and generation % 10 == 0:
+                        if generation > 0 and generation % 20 == 0:
                             saving_loading.save_model(sampler_student, optimizer, scheduler, name=f"Retrain", steps=generation, run_name=run_name)
 
                         generation += 1
@@ -695,7 +695,7 @@ def teacher_retrain_student(teacher, sampler_teacher, student, sampler_student, 
                                 instance += 1
 
                                 # TODO: "Is this screwing up the 128 samples?"
-                                samples_ddim_teacher, teacher_intermediate, x_T, pred_x0_teacher, a_t_teacher = sampler_teacher.sample(S=TEACHER_STEPS,
+                                samples_ddim_teacher, teacher_intermediate, x_T, pred_x0_teacher, a_t_teacher, v_teach = sampler_teacher.sample(S=TEACHER_STEPS,
                                                                 conditioning=c,
                                                                 batch_size=1,
                                                                 shape=[3, 64, 64],
@@ -720,7 +720,7 @@ def teacher_retrain_student(teacher, sampler_teacher, student, sampler_student, 
                                         
                                         
                                         
-                                        samples, pred_x0_student, st, at = sampler_student.sample_student(S=STUDENT_STEPS,
+                                        samples, pred_x0_student, st, at, v = sampler_student.sample_student(S=STUDENT_STEPS,
                                                                         conditioning=c_student,
                                                                         batch_size=1,
                                                                         shape=[3, 64, 64],
@@ -761,10 +761,10 @@ def teacher_retrain_student(teacher, sampler_teacher, student, sampler_student, 
                                         # noise = 1 - at
                                         # log_snr = torch.log(signal / noise)
                                         # weight = max(log_snr, 1)
-                                        loss = criterion(pred_x0_student, pred_x0_teacher) #* weight
+                                        loss = criterion(v, v_teach) #* weight
                                         # loss = criterion(samples, samples_ddim_teacher) # * weight
                                         loss.backward()
-                                        # torch.nn.utils.clip_grad_norm_(sampler_student.model.parameters(), 1)
+                                        torch.nn.utils.clip_grad_norm_(sampler_student.model.parameters(), 1)
                                         optimizer.step()
                                         # scheduler.step()    
                                         losses.append(loss.item())
