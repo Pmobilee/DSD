@@ -59,7 +59,7 @@ def train_student_from_dataset(model, sampler, dataset, student_steps, optimizer
     STUDENT_STEPS = 1
     ddim_eta = 0.0
     scale = 3.0
-
+    
     averaged_losses = []
     teacher_samples = list()
     criterion = nn.MSELoss()
