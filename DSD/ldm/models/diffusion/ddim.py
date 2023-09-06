@@ -134,7 +134,7 @@ class DDIMSampler(object):
         size = (batch_size, C, H, W)
         samples = x_T
         # print(f'Data shape for DDIM sampling is {size}, eta {eta}')
-        samples, intermediates, x_T_copy, pred_x0, a_t, e_t = self.ddim_sampling(conditioning, size,
+        samples, intermediates, x_T_copy, pred_x0, a_t, v = self.ddim_sampling(conditioning, size,
                                                     callback=callback,
                                                     img_callback=img_callback,
                                                     quantize_denoised=quantize_x0,
@@ -153,7 +153,7 @@ class DDIMSampler(object):
                                                     steps_per_sampling = steps_per_sampling,
                                                     )
         
-        return samples, intermediates, x_T_copy, pred_x0, a_t
+        return samples, intermediates, x_T_copy, pred_x0, a_t, v
     # @torch.enable_grad()
     @torch.no_grad()
     def ddim_sampling(self, cond, shape,
@@ -222,7 +222,7 @@ class DDIMSampler(object):
                                       corrector_kwargs=corrector_kwargs,
                                       unconditional_guidance_scale=unconditional_guidance_scale,
                                       unconditional_conditioning=unconditional_conditioning)
-            img, pred_x0, a_t, e_t = outs
+            img, pred_x0, a_t, v = outs
             if callback: callback(i)
             if img_callback: img_callback(pred_x0, i)
 
@@ -230,7 +230,7 @@ class DDIMSampler(object):
                 intermediates['x_inter'].append(img)
                 intermediates['pred_x0'].append(pred_x0)
         
-        return img, intermediates, x_T_copy, pred_x0, a_t, e_t
+        return img, intermediates, x_T_copy, pred_x0, a_t, v
 
     # @torch.enable_grad()
     @torch.no_grad()
@@ -275,7 +275,8 @@ class DDIMSampler(object):
         if noise_dropout > 0.:
             noise = torch.nn.functional.dropout(noise, p=noise_dropout, requires_grad=True)
         x_prev = a_prev.sqrt() * pred_x0 + dir_xt + noise
-        return x_prev, pred_x0, a_t, e_t
+        v_ground_truth = a_t * e_t - sigma_t * x
+        return x_prev, pred_x0, a_t, v_ground_truth
 
 
 
@@ -346,7 +347,7 @@ class DDIMSampler(object):
                                                     steps_per_sampling = steps_per_sampling,
                                                     )
         else:
-            samples, intermediates, a_t, pred_x0, sigma_t, e_t = self.ddim_sampling_student(conditioning, size,
+            samples, intermediates, a_t, pred_x0, sigma_t, v = self.ddim_sampling_student(conditioning, size,
                                                     callback=callback,
                                                     img_callback=img_callback,
                                                     quantize_denoised=quantize_x0,
@@ -372,7 +373,7 @@ class DDIMSampler(object):
 
         if keep_intermediates == True:
             return samples, pred_x0, sigma_t, a_t, intermediates, first
-        return samples, pred_x0, sigma_t, a_t
+        return samples, pred_x0, sigma_t, a_t, v
     
     #### FOR THE STUDENT!!!!!!!!!!
     # @torch.no_grad()
@@ -441,7 +442,7 @@ class DDIMSampler(object):
                                       corrector_kwargs=corrector_kwargs,
                                       unconditional_guidance_scale=unconditional_guidance_scale,
                                       unconditional_conditioning=unconditional_conditioning)
-            img, pred_x0, a_t, sigma_t, e_t = outs
+            img, pred_x0, a_t, sigma_t, v = outs
             if callback: callback(i)
             if img_callback: img_callback(pred_x0, i)
 
@@ -456,8 +457,8 @@ class DDIMSampler(object):
             #     intermediates['pred_x0'].append(pred_x0)
 
         if keep_intermediates == True:
-            return img, intermediates, a_t, pred_x0, sigma_t, e_t, first
-        return img, intermediates, a_t, pred_x0, sigma_t, e_t
+            return img, intermediates, a_t, pred_x0, sigma_t,  first
+        return img, intermediates, a_t, pred_x0, sigma_t, v
 
 
     #### FOR THE STUDENT!!!!!!!!!!
@@ -501,4 +502,5 @@ class DDIMSampler(object):
         if noise_dropout > 0.:
             noise = torch.nn.functional.dropout(noise, p=noise_dropout, requires_grad=True)
         x_prev = a_prev.sqrt() * pred_x0 + dir_xt + noise
-        return x_prev, pred_x0, a_t, sqrt_one_minus_at, e_t
+        v_ground_truth = a_t * e_t - sigma_t * x
+        return x_prev, pred_x0, a_t, sqrt_one_minus_at, v_ground_truth
