@@ -16,8 +16,8 @@ module load cuDNN/8.4.1.50-CUDA-11.7.0
 source $HOME/.bashrc
 conda activate D-SD
 
-cd $Home/thesis/Diffusion_Thesis/cin_256
+cd $Home/thesis/Diffusion_Thesis/DSD
 export LD_LIBRARY_PATH=$HOME/anaconda3/envs/D-SD/lib
 wandb login 
-python distill.py -t DSDI -n cin_2e9
+python distill.py -t retrain -u 200000 -s 256 -lr 0.00000004
 
