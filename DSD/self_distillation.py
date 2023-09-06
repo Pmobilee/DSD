@@ -81,15 +81,15 @@ def self_distillation_CIN(student, sampler_student, original, sampler_original, 
     sampler_student.make_schedule(ddim_num_steps=total_steps, ddim_eta=ddim_eta, verbose=False)
     sampler_original.make_schedule(ddim_num_steps=total_steps, ddim_eta=ddim_eta, verbose=False)
 
-    for param in student.first_stage_model.parameters():
-        param.requires_grad = False
-    for param in sampler_student.model.first_stage_model.parameters():
-        param.requires_grad = False
+    # for param in student.first_stage_model.parameters():
+    #     param.requires_grad = False
+    # for param in sampler_student.model.first_stage_model.parameters():
+    #     param.requires_grad = False
     with torch.no_grad():
         # student.use_ema = False
         # student.train()
         # student.use_ema = True
-        with student.ema_scope(): 
+        # with student.ema_scope(): 
                 # if x0:
                 #     sc=None
                 # else:
@@ -136,8 +136,8 @@ def self_distillation_CIN(student, sampler_student, original, sampler_original, 
                                                                                 total_steps = total_steps)
                                             
                                             # Code below first decodes the latent image and then reconstructs it. This is not necessary, but can be used to check if the latent image is correct
-                                            # decode_student = sampler_student.model.differentiable_decode_first_stage(pred_x0_student)
-                                            # reconstruct_student = torch.clamp((decode_student+1.0)/2.0, min=0.0, max=1.0)
+                                            decode_student = student.differentiable_decode_first_stage(pred_x0_student)
+                                            reconstruct_student = torch.clamp((decode_student+1.0)/2.0, min=0.0, max=1.0)
                                             
                                          
 
@@ -157,8 +157,8 @@ def self_distillation_CIN(student, sampler_student, original, sampler_original, 
                                                                             steps_per_sampling = 1,
                                                                             total_steps = total_steps)     
 
-                                                # decode_teacher = sampler_student.model.decode_first_stage(pred_x0_teacher)
-                                                # reconstruct_teacher = torch.clamp((decode_teacher+1.0)/2.0, min=0.0, max=1.0)
+                                                decode_teacher = student.decode_first_stage(pred_x0_teacher)
+                                                reconstruct_teacher = torch.clamp((decode_teacher+1.0)/2.0, min=0.0, max=1.0)
                                         
 
                                      
