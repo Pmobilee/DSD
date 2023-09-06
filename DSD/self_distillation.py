@@ -81,6 +81,10 @@ def self_distillation_CIN(student, sampler_student, original, sampler_original, 
     sampler_student.make_schedule(ddim_num_steps=total_steps, ddim_eta=ddim_eta, verbose=False)
     sampler_original.make_schedule(ddim_num_steps=total_steps, ddim_eta=ddim_eta, verbose=False)
 
+    for param in student.first_stage_model.parameters():
+        param.requires_grad = False
+    for param in sampler_student.model.first_stage_model.parameters():
+        param.requires_grad = False
     with torch.no_grad():
         # student.use_ema = False
         # student.train()
@@ -106,8 +110,8 @@ def self_distillation_CIN(student, sampler_student, original, sampler_original, 
                             scale = 3.0
                             #scale = np.random.uniform(1.0, 4.0) # Randomly sample a scale for each generation, optional
                             xc = torch.tensor([class_prompt])
-                            c_student = student.get_learned_conditioning({student.cond_stage_key: xc.to(student.device)}) # Set to 0 for unconditional, requires pretraining
-                            sc = student.get_learned_conditioning({student.cond_stage_key: torch.tensor(1*[1000]).to(student.device)})
+                            c_student = sampler_student.model.get_learned_conditioning({student.cond_stage_key: xc.to(sampler_student.model.device)}) # Set to 0 for unconditional, requires pretraining
+                            sc = student.get_learned_conditioning({sampler_student.model.cond_stage_key: torch.tensor(1*[1000]).to(sampler_student.model.device)})
                             samples_ddim= None # Setting to None will create a new noise vector for each generation
                             predictions_temp = []
                             
@@ -132,8 +136,8 @@ def self_distillation_CIN(student, sampler_student, original, sampler_original, 
                                                                                 total_steps = total_steps)
                                             
                                             # Code below first decodes the latent image and then reconstructs it. This is not necessary, but can be used to check if the latent image is correct
-                                            # decode_student = student.differentiable_decode_first_stage(pred_x0_student)
-                                            # reconstruct_student = torch.clamp((decode_student+1.0)/2.0, min=0.0, max=1.0)
+                                            decode_student = sampler_student.model.differentiable_decode_first_stage(pred_x0_student)
+                                            reconstruct_student = torch.clamp((decode_student+1.0)/2.0, min=0.0, max=1.0)
                                             
                                          
 
@@ -153,8 +157,8 @@ def self_distillation_CIN(student, sampler_student, original, sampler_original, 
                                                                             steps_per_sampling = 1,
                                                                             total_steps = total_steps)     
 
-                                                # decode_teacher = student.decode_first_stage(pred_x0_teacher)
-                                                # reconstruct_teacher = torch.clamp((decode_teacher+1.0)/2.0, min=0.0, max=1.0)
+                                                decode_teacher = sampler_student.model.decode_first_stage(pred_x0_teacher)
+                                                reconstruct_teacher = torch.clamp((decode_teacher+1.0)/2.0, min=0.0, max=1.0)
                                         
 
                                      
@@ -177,8 +181,8 @@ def self_distillation_CIN(student, sampler_student, original, sampler_original, 
                                             noise = 1 - at
                                             log_snr = torch.log(signal / noise)
                                             weight = max(log_snr, 1)
-                                            loss = weight * criterion(pred_x0_student, pred_x0_teacher.detach())     
-                                            # loss = weight * criterion(reconstruct_student, reconstruct_teacher.detach())                    
+                                            # loss = weight * criterion(pred_x0_student, pred_x0_teacher.detach())     
+                                            loss = weight * criterion(reconstruct_student, reconstruct_teacher.detach())                    
                                             loss.backward()
                                             optimizer.step()
                                             scheduler.step()
