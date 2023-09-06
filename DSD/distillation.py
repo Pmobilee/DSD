@@ -577,7 +577,7 @@ def retrain(ddim_steps, generations, run_name, config, original_model_path, lr, 
     teacher, sampler_teacher, = saving_loading.create_models(config_path, model_path, student=False)
     print("Loading teacher and student")
 
-    # config_path=f"{cwd}/models/configs/cin256-v2-custom copy.yaml"
+    config_path=f"{cwd}/models/configs/cin256-v2-custom copy.yaml"
     
     # model_path=original_model_path
     # model_path=f"C:/Code/Thesis/DSD/data/trained_models/Retrain/cin_retrain_256_1e-08_100000_partly/15.pt"
