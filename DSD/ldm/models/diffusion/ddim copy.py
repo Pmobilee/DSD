@@ -238,82 +238,45 @@ class DDIMSampler(object):
                       temperature=1., noise_dropout=0., score_corrector=None, corrector_kwargs=None,
                       unconditional_guidance_scale=1., unconditional_conditioning=None):
         b, *_, device = *x.shape, x.device
-        if self.model.parameterization == "x0":
-            # Calculating the v-term via the apply_model function
-            v = self.model.apply_model(x, t, c)
 
-            # Alpha and Sigma related calculations
-            alphas = self.model.alphas_cumprod if use_original_steps else self.ddim_alphas
-            alphas_prev = self.model.alphas_cumprod_prev if use_original_steps else self.ddim_alphas_prev
-            sqrt_one_minus_alphas = self.model.sqrt_one_minus_alphas_cumprod if use_original_steps else self.ddim_sqrt_one_minus_alphas
-            sigmas = self.model.ddim_sigmas_for_original_num_steps if use_original_steps else self.ddim_sigmas
-
-            # Selecting timestep-dependent parameters
-            a_t = torch.full((b, 1, 1, 1), alphas[index], device=device)
-            a_prev = torch.full((b, 1, 1, 1), alphas_prev[index], device=device)
-            sigma_t = torch.full((b, 1, 1, 1), sigmas[index], device=device)
-            sqrt_one_minus_at = torch.full((b, 1, 1, 1), sqrt_one_minus_alphas[index], device=device)
-
-            # Creating the v-prediction
-            pred = (x * a_t - v * sigma_t)
-            eps = (x - a_t * pred) / sigma_t
-            eta = 0.0  # Deterministic, no noise added
-
-            # Applying DDIM adjustments if t > 0
-            if t > 0:
-                # Assuming a_prev and sigma_prev for t-1 are directly computable
-                a_t_prev = a_prev
-                sigma_t_prev = torch.full((b, 1, 1, 1), sigmas[index-1], device=device) if index > 0 else sigma_t  # Replace with your logic if different
-                
-                ddim_sigma = eta * (sigma_t_prev ** 2 / sigma_t ** 2).sqrt() * \
-                            (1 - a_t ** 2 / a_t_prev ** 2).sqrt()
-                adjusted_sigma = (sigma_t_prev ** 2 - ddim_sigma ** 2).sqrt()
-                pred = pred * a_t_prev + eps * adjusted_sigma
-                if eta:
-                    pred += torch.randn_like(pred) * ddim_sigma
-
-            return pred, sigma_t, a_t, sqrt_one_minus_at
-
-
+        if unconditional_conditioning is None or unconditional_guidance_scale == 1. or self.model.parameterization=="x0":
+            e_t = self.model.apply_model(x, t, c)
         else:
-            if unconditional_conditioning is None or unconditional_guidance_scale == 1. or self.model.parameterization=="x0":
-                e_t = self.model.apply_model(x, t, c)
-            else:
-                x_in = torch.cat([x] * 2)
-                t_in = torch.cat([t] * 2)
-                c_in = torch.cat([unconditional_conditioning, c])
-                e_t_uncond, e_t = self.model.apply_model(x_in, t_in, c_in).chunk(2)
-                e_t = e_t_uncond + unconditional_guidance_scale * (e_t - e_t_uncond)
-                
+            x_in = torch.cat([x] * 2)
+            t_in = torch.cat([t] * 2)
+            c_in = torch.cat([unconditional_conditioning, c])
+            e_t_uncond, e_t = self.model.apply_model(x_in, t_in, c_in).chunk(2)
+            e_t = e_t_uncond + unconditional_guidance_scale * (e_t - e_t_uncond)
+            
 
-            if score_corrector is not None:
-                assert self.model.parameterization == "eps"
-                e_t = score_corrector.modify_score(self.model, e_t, x, t, c, **corrector_kwargs)
+        if score_corrector is not None:
+            assert self.model.parameterization == "eps"
+            e_t = score_corrector.modify_score(self.model, e_t, x, t, c, **corrector_kwargs)
 
-            alphas = self.model.alphas_cumprod if use_original_steps else self.ddim_alphas
-            alphas_prev = self.model.alphas_cumprod_prev if use_original_steps else self.ddim_alphas_prev
-            sqrt_one_minus_alphas = self.model.sqrt_one_minus_alphas_cumprod if use_original_steps else self.ddim_sqrt_one_minus_alphas
-            sigmas = self.model.ddim_sigmas_for_original_num_steps if use_original_steps else self.ddim_sigmas
-            # select parameters corresponding to the currently considered timestep
-            a_t = torch.full((b, 1, 1, 1), alphas[index], device=device)
-            a_prev = torch.full((b, 1, 1, 1), alphas_prev[index], device=device)
-            sigma_t = torch.full((b, 1, 1, 1), sigmas[index], device=device)
-            sqrt_one_minus_at = torch.full((b, 1, 1, 1), sqrt_one_minus_alphas[index],device=device)
+        alphas = self.model.alphas_cumprod if use_original_steps else self.ddim_alphas
+        alphas_prev = self.model.alphas_cumprod_prev if use_original_steps else self.ddim_alphas_prev
+        sqrt_one_minus_alphas = self.model.sqrt_one_minus_alphas_cumprod if use_original_steps else self.ddim_sqrt_one_minus_alphas
+        sigmas = self.model.ddim_sigmas_for_original_num_steps if use_original_steps else self.ddim_sigmas
+        # select parameters corresponding to the currently considered timestep
+        a_t = torch.full((b, 1, 1, 1), alphas[index], device=device)
+        a_prev = torch.full((b, 1, 1, 1), alphas_prev[index], device=device)
+        sigma_t = torch.full((b, 1, 1, 1), sigmas[index], device=device)
+        sqrt_one_minus_at = torch.full((b, 1, 1, 1), sqrt_one_minus_alphas[index],device=device)
 
-            # print("a_prev", a_prev)
+        # print("a_prev", a_prev)
 
-            # current prediction for x_0
-            pred_x0 = (x - sqrt_one_minus_at * e_t) / a_t.sqrt()
-            if quantize_denoised:
-                pred_x0, _, *_ = self.model.first_stage_model.quantize(pred_x0)
-            # direction pointing to x_t
-            dir_xt = (1. - a_prev - sigma_t**2).sqrt() * e_t
-            noise = sigma_t * noise_like(x.shape, device, repeat_noise) * temperature
-            if noise_dropout > 0.:
-                noise = torch.nn.functional.dropout(noise, p=noise_dropout, requires_grad=True)
-            x_prev = a_prev.sqrt() * pred_x0 + dir_xt + noise
-            v_ground_truth = a_t * e_t - sigma_t * x
-            return x_prev, pred_x0, a_t, v_ground_truth
+        # current prediction for x_0
+        pred_x0 = (x - sqrt_one_minus_at * e_t) / a_t.sqrt()
+        if quantize_denoised:
+            pred_x0, _, *_ = self.model.first_stage_model.quantize(pred_x0)
+        # direction pointing to x_t
+        dir_xt = (1. - a_prev - sigma_t**2).sqrt() * e_t
+        noise = sigma_t * noise_like(x.shape, device, repeat_noise) * temperature
+        if noise_dropout > 0.:
+            noise = torch.nn.functional.dropout(noise, p=noise_dropout, requires_grad=True)
+        x_prev = a_prev.sqrt() * pred_x0 + dir_xt + noise
+        v_ground_truth = a_t * e_t - sigma_t * x
+        return x_prev, pred_x0, a_t, v_ground_truth
 
 
 
@@ -384,7 +347,7 @@ class DDIMSampler(object):
                                                     steps_per_sampling = steps_per_sampling,
                                                     )
         else:
-            outs = self.ddim_sampling_student(conditioning, size,
+            samples, intermediates, a_t, pred_x0, sigma_t, v = self.ddim_sampling_student(conditioning, size,
                                                     callback=callback,
                                                     img_callback=img_callback,
                                                     quantize_denoised=quantize_x0,
@@ -403,19 +366,14 @@ class DDIMSampler(object):
                                                     steps_per_sampling = steps_per_sampling,
                                                     )
         # return samples, intermediates, x_T_copy, a_t, pred_x0
-        if self.model.parameterization == "x0":
-            samples, a_t, sigma_t = outs
-            return samples, a_t, sigma_t
-        else:
-            samples, intermediates, a_t, pred_x0, sigma_t, v = outs
-            return samples, pred_x0, sigma_t, a_t, v
+  
         st = 1 - self.sqrt_one_minus_alphas_cumprod[intermediate_step]
         at = self.sqrt_one_minus_alphas_cumprod[intermediate_step]
 
 
         if keep_intermediates == True:
             return samples, pred_x0, sigma_t, a_t, intermediates, first
-        
+        return samples, pred_x0, sigma_t, a_t, v
     
     #### FOR THE STUDENT!!!!!!!!!!
     # @torch.no_grad()
@@ -484,10 +442,7 @@ class DDIMSampler(object):
                                       corrector_kwargs=corrector_kwargs,
                                       unconditional_guidance_scale=unconditional_guidance_scale,
                                       unconditional_conditioning=unconditional_conditioning)
-            if self.model.parameterization == "x0":
-                img, sigma_t, a_t = outs
-            else:
-                img, pred_x0, a_t, sigma_t, v = outs
+            img, pred_x0, a_t, sigma_t, v = outs
             if callback: callback(i)
             if img_callback: img_callback(pred_x0, i)
 
@@ -503,10 +458,7 @@ class DDIMSampler(object):
 
         if keep_intermediates == True:
             return img, intermediates, a_t, pred_x0, sigma_t,  first
-        if self.model.parameterization == "x0":
-            return img, a_t, sigma_t
-        else:
-            return img, intermediates, a_t, pred_x0, sigma_t, v
+        return img, intermediates, a_t, pred_x0, sigma_t, v
 
 
     #### FOR THE STUDENT!!!!!!!!!!
@@ -516,75 +468,39 @@ class DDIMSampler(object):
                       temperature=1., noise_dropout=0., score_corrector=None, corrector_kwargs=None,
                       unconditional_guidance_scale=1., unconditional_conditioning=None):
         b, *_, device = *x.shape, x.device
-        if self.model.parameterization == "x0":
-            # Calculating the v-term via the apply_model function
-            v = self.model.apply_model(x, t, c)
 
-            # Alpha and Sigma related calculations
-            alphas = self.model.alphas_cumprod if use_original_steps else self.ddim_alphas
-            alphas_prev = self.model.alphas_cumprod_prev if use_original_steps else self.ddim_alphas_prev
-            sqrt_one_minus_alphas = self.model.sqrt_one_minus_alphas_cumprod if use_original_steps else self.ddim_sqrt_one_minus_alphas
-            sigmas = self.model.ddim_sigmas_for_original_num_steps if use_original_steps else self.ddim_sigmas
-
-            # Selecting timestep-dependent parameters
-            a_t = torch.full((b, 1, 1, 1), alphas[index], device=device)
-            a_prev = torch.full((b, 1, 1, 1), alphas_prev[index], device=device)
-            sigma_t = torch.full((b, 1, 1, 1), sigmas[index], device=device)
-            sqrt_one_minus_at = torch.full((b, 1, 1, 1), sqrt_one_minus_alphas[index], device=device)
-
-            # Creating the v-prediction
-            pred = (x * a_t - v * sigma_t)
-            eps = (x - a_t * pred) / sigma_t
-            eta = 0.0  # Deterministic, no noise added
-
-            # Applying DDIM adjustments if t > 0
-            if t > 0:
-                # Assuming a_prev and sigma_prev for t-1 are directly computable
-                a_t_prev = a_prev
-                sigma_t_prev = torch.full((b, 1, 1, 1), sigmas[index-1], device=device) if index > 0 else sigma_t  # Replace with your logic if different
-                
-                ddim_sigma = eta * (sigma_t_prev ** 2 / sigma_t ** 2).sqrt() * \
-                            (1 - a_t ** 2 / a_t_prev ** 2).sqrt()
-                adjusted_sigma = (sigma_t_prev ** 2 - ddim_sigma ** 2).sqrt()
-                pred = pred * a_t_prev + eps * adjusted_sigma
-                if eta:
-                    pred += torch.randn_like(pred) * ddim_sigma
-
-            return pred, sigma_t, a_t
+        if unconditional_conditioning is None or unconditional_guidance_scale == 1. or self.model.parameterization == "x0":
+            e_t = self.model.apply_model(x, t, c)
         else:
+            x_in = torch.cat([x] * 2)
+            t_in = torch.cat([t] * 2)
+            c_in = torch.cat([unconditional_conditioning, c])
+            e_t_uncond, e_t = self.model.apply_model(x_in, t_in, c_in).chunk(2)
+            e_t = e_t_uncond + unconditional_guidance_scale * (e_t - e_t_uncond)
 
-            if unconditional_conditioning is None or unconditional_guidance_scale == 1. or self.model.parameterization == "x0":
-                e_t = self.model.apply_model(x, t, c)
-            else:
-                x_in = torch.cat([x] * 2)
-                t_in = torch.cat([t] * 2)
-                c_in = torch.cat([unconditional_conditioning, c])
-                e_t_uncond, e_t = self.model.apply_model(x_in, t_in, c_in).chunk(2)
-                e_t = e_t_uncond + unconditional_guidance_scale * (e_t - e_t_uncond)
+        if score_corrector is not None:
+            assert self.model.parameterization == "eps"
+            e_t = score_corrector.modify_score(self.model, e_t, x, t, c, **corrector_kwargs)
 
-            if score_corrector is not None:
-                assert self.model.parameterization == "eps"
-                e_t = score_corrector.modify_score(self.model, e_t, x, t, c, **corrector_kwargs)
+        alphas = self.model.alphas_cumprod if use_original_steps else self.ddim_alphas
+        alphas_prev = self.model.alphas_cumprod_prev if use_original_steps else self.ddim_alphas_prev
+        sqrt_one_minus_alphas = self.model.sqrt_one_minus_alphas_cumprod if use_original_steps else self.ddim_sqrt_one_minus_alphas
+        sigmas = self.model.ddim_sigmas_for_original_num_steps if use_original_steps else self.ddim_sigmas
+        # select parameters corresponding to the currently considered timestep
+        a_t = torch.full((b, 1, 1, 1), alphas[index], device=device)
+        a_prev = torch.full((b, 1, 1, 1), alphas_prev[index], device=device)
+        sigma_t = torch.full((b, 1, 1, 1), sigmas[index], device=device)
+        sqrt_one_minus_at = torch.full((b, 1, 1, 1), sqrt_one_minus_alphas[index],device=device)
 
-            alphas = self.model.alphas_cumprod if use_original_steps else self.ddim_alphas
-            alphas_prev = self.model.alphas_cumprod_prev if use_original_steps else self.ddim_alphas_prev
-            sqrt_one_minus_alphas = self.model.sqrt_one_minus_alphas_cumprod if use_original_steps else self.ddim_sqrt_one_minus_alphas
-            sigmas = self.model.ddim_sigmas_for_original_num_steps if use_original_steps else self.ddim_sigmas
-            # select parameters corresponding to the currently considered timestep
-            a_t = torch.full((b, 1, 1, 1), alphas[index], device=device)
-            a_prev = torch.full((b, 1, 1, 1), alphas_prev[index], device=device)
-            sigma_t = torch.full((b, 1, 1, 1), sigmas[index], device=device)
-            sqrt_one_minus_at = torch.full((b, 1, 1, 1), sqrt_one_minus_alphas[index],device=device)
-
-
-            # current prediction for x_0
-            pred_x0 = (x - sqrt_one_minus_at * e_t) / a_t.sqrt()
-            if quantize_denoised:
-                pred_x0, _, *_ = self.model.first_stage_model.quantize(pred_x0)
-            # direction pointing to x_t
-            dir_xt = (1. - a_prev - sigma_t**2).sqrt() * e_t
-            noise = sigma_t * noise_like(x.shape, device, repeat_noise) * temperature
-            if noise_dropout > 0.:
-                noise = torch.nn.functional.dropout(noise, p=noise_dropout)
-            x_prev = a_prev.sqrt() * pred_x0 + dir_xt + noise
-            return x_prev, pred_x0, a_t, sqrt_one_minus_at
+        # current prediction for x_0
+        pred_x0 = (x - sqrt_one_minus_at * e_t) / a_t.sqrt()
+        if quantize_denoised:
+            pred_x0, _, *_ = self.model.first_stage_model.quantize(pred_x0)
+        # direction pointing to x_t
+        dir_xt = (1. - a_prev - sigma_t**2).sqrt() * e_t
+        noise = sigma_t * noise_like(x.shape, device, repeat_noise) * temperature
+        if noise_dropout > 0.:
+            noise = torch.nn.functional.dropout(noise, p=noise_dropout)
+        x_prev = a_prev.sqrt() * pred_x0 + dir_xt + noise
+        v_ground_truth = a_t * e_t - sigma_t * x
+        return x_prev, pred_x0, a_t, sqrt_one_minus_at, v_ground_truth
