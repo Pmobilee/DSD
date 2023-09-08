@@ -276,7 +276,7 @@ class DDIMSampler(object):
             noise = torch.nn.functional.dropout(noise, p=noise_dropout)
         x_prev = a_prev.sqrt() * pred_x0 + dir_xt + noise
         v_ground_truth = a_t * e_t - sigma_t * x
-        return x_prev, pred_x0, a_t, e_t, v_ground_truth
+        return x_prev, pred_x0, a_t, v_ground_truth
 
 
 
@@ -491,7 +491,7 @@ class DDIMSampler(object):
         a_prev = torch.full((b, 1, 1, 1), alphas_prev[index], device=device)
         sigma_t = torch.full((b, 1, 1, 1), sigmas[index], device=device)
         sqrt_one_minus_at = torch.full((b, 1, 1, 1), sqrt_one_minus_alphas[index],device=device)
-
+        print(sigma_t)
         # current prediction for x_0
         pred_x0 = (x - sqrt_one_minus_at * e_t) / a_t.sqrt()
         if quantize_denoised:
