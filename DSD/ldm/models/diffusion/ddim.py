@@ -405,8 +405,8 @@ class DDIMSampler(object):
                                                     )
         # return samples, intermediates, x_T_copy, a_t, pred_x0
         if self.model.parameterization == "x0":
-            samples, a_t, sigma_t = outs
-            return samples, a_t, sigma_t
+            samples, a_t, sigma_t, v = outs
+            return samples, a_t, sigma_t, v
         else:
             samples, intermediates, a_t, pred_x0, sigma_t, v = outs
             return samples, pred_x0, sigma_t, a_t, v
@@ -486,7 +486,7 @@ class DDIMSampler(object):
                                       unconditional_guidance_scale=unconditional_guidance_scale,
                                       unconditional_conditioning=unconditional_conditioning)
             if self.model.parameterization == "x0":
-                img, sigma_t, a_t = outs
+                img, sigma_t, a_t, v = outs
             else:
                 img, pred_x0, a_t, sigma_t, v = outs
             if callback: callback(i)
@@ -505,7 +505,7 @@ class DDIMSampler(object):
         if keep_intermediates == True:
             return img, intermediates, a_t, pred_x0, sigma_t,  first
         if self.model.parameterization == "x0":
-            return img, a_t, sigma_t
+            return img, a_t, sigma_t, v
         else:
             return img, intermediates, a_t, pred_x0, sigma_t, v
 
@@ -542,6 +542,7 @@ class DDIMSampler(object):
             # print("pred: ", pred)
             # print("at: ", a_t)
 
+            # a_t * e_t - sigma_t * x
             eps = (x - a_t * pred) / sigma_t
             # print(sigma_t)
             eta = 0.0  # Deterministic, no noise added
@@ -556,11 +557,12 @@ class DDIMSampler(object):
                             (1 - a_t ** 2 / a_t_prev ** 2).sqrt()
                 adjusted_sigma = (sigma_t_prev ** 2 - ddim_sigma ** 2).sqrt()
                 pred = pred * a_t_prev + eps * adjusted_sigma
+                # print(adjusted_sigma)
                 # print(pred)
                 if eta:
                     pred += torch.randn_like(pred) * ddim_sigma
             # print("pred", pred)
-            return pred, sigma_t, a_t
+            return pred, sigma_t, a_t, v
         else:
 
             if unconditional_conditioning is None or unconditional_guidance_scale == 1. or self.model.parameterization == "x0":

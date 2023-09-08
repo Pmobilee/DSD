@@ -612,12 +612,12 @@ def teacher_retrain_student(teacher, sampler_teacher, student, sampler_student, 
     Task: trains the student model using the identical teacher model as a guide. Not used in direct self-distillation where a teacher distills into itself.
     """
     NUM_CLASSES = 1000
-    generations = 1000
-    steps = 256
+    # generations = 1000
+    # steps = 256
     ddim_steps_teacher = steps
     TEACHER_STEPS = 1
     STUDENT_STEPS = 1
-    ddim_eta = 0.0
+    ddim_eta = 0.01
     scale = 3.0
     updates = int(ddim_steps_teacher)
     optimizer=optimizer
@@ -699,7 +699,7 @@ def teacher_retrain_student(teacher, sampler_teacher, student, sampler_student, 
                                         
                                         
                                         
-                                        samples, at, st = sampler_student.sample_student(S=STUDENT_STEPS,
+                                        samples, at, st, v = sampler_student.sample_student(S=STUDENT_STEPS,
                                                                         conditioning=c_student,
                                                                         batch_size=1,
                                                                         shape=[3, 64, 64],
@@ -740,8 +740,8 @@ def teacher_retrain_student(teacher, sampler_teacher, student, sampler_student, 
                                         # noise = 1 - at
                                         # log_snr = torch.log(signal / noise)
                                         # weight = max(log_snr, 1)
-                                        # loss = criterion(v, v_teach) * weight
-                                        loss = criterion(samples, samples_ddim_teacher) # * weight
+                                        loss = criterion(v, v_teach) #* weight
+                                        # loss = criterion(samples, samples_ddim_teacher) # * weight
                                         loss.backward()
                                         torch.nn.utils.clip_grad_norm_(sampler_student.model.parameters(), 1)
                                         optimizer.step()
@@ -758,9 +758,9 @@ def teacher_retrain_student(teacher, sampler_teacher, student, sampler_student, 
                                 #     predictions_temp.append(student_target)
                         
 
-                        if session != None and generation % 5 == 0:
+                        if session != None and generation % 20 == 0:
                                     with torch.no_grad():
-                                        images, _ = util.compare_teacher_student_retrain(teacher, sampler_teacher, student, sampler_student, steps=[256, 128, 64, 32, 16, 8, 4, 2], prompt=992)
+                                        images, _ = util.compare_teacher_student_retrain_V(teacher, sampler_teacher, student, sampler_student, steps=[64, 16, 8, 4, 2], prompt=992)
                                         images = wandb.Image(_, caption="left: Teacher, right: Student")
                                         wandb.log({"pred_x0": images}) 
                                         sampler_student.make_schedule(ddim_num_steps=ddim_steps_teacher, ddim_eta=ddim_eta, verbose=False)
