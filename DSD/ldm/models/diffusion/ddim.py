@@ -307,6 +307,7 @@ class DDIMSampler(object):
             if quantize_denoised:
                 pred_x0, _, *_ = self.model.first_stage_model.quantize(pred_x0)
             # direction pointing to x_t
+           
             dir_xt = (1. - a_prev - sigma_t**2).sqrt() * e_t
             noise = sigma_t * noise_like(x.shape, device, repeat_noise) * temperature
             if noise_dropout > 0.:
@@ -516,10 +517,11 @@ class DDIMSampler(object):
                       temperature=1., noise_dropout=0., score_corrector=None, corrector_kwargs=None,
                       unconditional_guidance_scale=1., unconditional_conditioning=None):
         b, *_, device = *x.shape, x.device
+       
         if self.model.parameterization == "x0":
             # Calculating the v-term via the apply_model function
             v = self.model.apply_model(x, t, c)
-
+            
             # Alpha and Sigma related calculations
             alphas = self.model.alphas_cumprod if use_original_steps else self.ddim_alphas
             alphas_prev = self.model.alphas_cumprod_prev if use_original_steps else self.ddim_alphas_prev
@@ -533,10 +535,17 @@ class DDIMSampler(object):
             sqrt_one_minus_at = torch.full((b, 1, 1, 1), sqrt_one_minus_alphas[index], device=device)
 
             # Creating the v-prediction
-            pred = (x * a_t - v * sigma_t)
-            eps = (x - a_t * pred) / sigma_t
-            eta = 0.0  # Deterministic, no noise added
+            pred = (x * a_t - v * sqrt_one_minus_at)
+            # print("x: ", x)
+            # print("sqrt: ", sqrt_one_minus_at)
+            # print("v: ", v)
+            # print("pred: ", pred)
+            # print("at: ", a_t)
 
+            eps = (x - a_t * pred) / sigma_t
+            # print(sigma_t)
+            eta = 0.0  # Deterministic, no noise added
+            # print("pred", pred)
             # Applying DDIM adjustments if t > 0
             if t > 0:
                 # Assuming a_prev and sigma_prev for t-1 are directly computable
@@ -547,9 +556,10 @@ class DDIMSampler(object):
                             (1 - a_t ** 2 / a_t_prev ** 2).sqrt()
                 adjusted_sigma = (sigma_t_prev ** 2 - ddim_sigma ** 2).sqrt()
                 pred = pred * a_t_prev + eps * adjusted_sigma
+                # print(pred)
                 if eta:
                     pred += torch.randn_like(pred) * ddim_sigma
-
+            # print("pred", pred)
             return pred, sigma_t, a_t
         else:
 

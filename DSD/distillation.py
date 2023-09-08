@@ -732,7 +732,7 @@ def teacher_retrain_student(teacher, sampler_teacher, student, sampler_student, 
                                         #     scheduler.step()
                                         #     losses.append(loss.item())
 
-
+                                        # print(samples)
 
 
                                         # NO AUTOCAST:
@@ -743,7 +743,7 @@ def teacher_retrain_student(teacher, sampler_teacher, student, sampler_student, 
                                         # loss = criterion(v, v_teach) * weight
                                         loss = criterion(samples, samples_ddim_teacher) # * weight
                                         loss.backward()
-                                        # torch.nn.utils.clip_grad_norm_(sampler_student.model.parameters(), 1)
+                                        torch.nn.utils.clip_grad_norm_(sampler_student.model.parameters(), 1)
                                         optimizer.step()
                                         # scheduler.step()    
                                         losses.append(loss.item())
