@@ -28,7 +28,7 @@ parser.add_argument('--pixels', '-p', type=int, default=256, help='256/64 pixel 
 
 if __name__ == '__main__':
     
-    os.environ['WANDB_NOTEBOOK_NAME'] = "Cin_256_custom.ipynb"
+    
     args = parser.parse_args()
 
     if "False" in args.cuda:

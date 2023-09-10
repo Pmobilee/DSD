@@ -146,6 +146,64 @@ def compare_teacher_student(teacher, sampler_teacher, student, sampler_student, 
 
 
 @torch.no_grad()
+def compare_teacher_student_test( student, sampler_student, steps=[10], prompt=None, total_steps=64):
+    """
+    Compare the a trained model and an original (teacher). Terms used are teacher and student models, though these may be the same model but at different
+    stages of training.
+    """
+    scale = 3.0
+    ddim_eta = 0.0
+    images = []
+    with torch.no_grad():
+        # with teacher.ema_scope():
+            for sampling_steps in steps:
+                
+                sampler_student.make_schedule(ddim_num_steps=sampling_steps, ddim_eta=ddim_eta, verbose=False)
+                
+                if prompt == None:
+                    class_image = torch.randint(0, 999, (1,))
+                else:
+                    class_image = torch.tensor([prompt])
+
+                intermediate_step = None if sampling_steps != 1 else 0
+             
+               
+                xc = torch.tensor([class_image])
+                
+                
+                # with student.ema_scope():
+                sc = student.get_learned_conditioning({student.cond_stage_key: torch.tensor(1*[1000]).to(student.device)})
+                c = student.get_learned_conditioning({student.cond_stage_key: xc.to(student.device)})
+                samples,  a_tstudent, sigma_t, v_student = sampler_student.sample_student(S=sampling_steps,
+                                                    conditioning=c,
+                                                    batch_size=1,
+                                                    
+                                                    x_T=None,
+                                                    shape=[3, 64, 64],
+                                                    verbose=False,
+                                                    unconditional_guidance_scale=scale,
+                                                    unconditional_conditioning=None, 
+                                                    eta=ddim_eta,
+                                                    intermediate_step=intermediate_step,
+                                                    total_steps=sampling_steps,
+                                                    steps_per_sampling=sampling_steps)
+
+                x_samples_ddim = student.decode_first_stage(samples)
+                # x_samples_ddim = teacher.decode_first_stage(_f)
+                x_samples_ddim = torch.clamp((x_samples_ddim+1.0)/2.0, min=0.0, max=1.0)
+                images.append(x_samples_ddim)
+
+    # from torchmetrics.image.fid import FrechetInceptionDistance
+    # print(fid.compute())
+    grid = torch.stack(images, 0)
+    grid = rearrange(grid, 'n b c h w -> (n b) c h w')
+    grid = make_grid(grid, nrow=2)
+
+    # to image
+    grid = 255. * rearrange(grid, 'c h w -> h w c').cpu().numpy()
+    return Image.fromarray(grid.astype(np.uint8)), grid.astype(np.uint8)
+
+@torch.no_grad()
 def compare_teacher_student_retrain_V(teacher, sampler_teacher, student, sampler_student, steps=[10], prompt=None, total_steps=64):
     """
     Compare the a trained model and an original (teacher). Terms used are teacher and student models, though these may be the same model but at different
@@ -157,8 +215,8 @@ def compare_teacher_student_retrain_V(teacher, sampler_teacher, student, sampler
     with torch.no_grad():
         # with teacher.ema_scope():
             for sampling_steps in steps:
-                sampler_teacher.make_schedule(ddim_num_steps=sampling_steps, ddim_eta=0.0, verbose=False)
-                sampler_student.make_schedule(ddim_num_steps=sampling_steps, ddim_eta=0.0, verbose=False)
+                sampler_teacher.make_schedule(ddim_num_steps=sampling_steps, ddim_eta=ddim_eta, verbose=False)
+                sampler_student.make_schedule(ddim_num_steps=sampling_steps, ddim_eta=ddim_eta, verbose=False)
                 
                 if prompt == None:
                     class_image = torch.randint(0, 999, (1,))

@@ -758,9 +758,9 @@ def teacher_retrain_student(teacher, sampler_teacher, student, sampler_student, 
                                 #     predictions_temp.append(student_target)
                         
 
-                        if session != None and generation % 20 == 0:
+                        if session != None and generation % 5 == 0:
                                     with torch.no_grad():
-                                        images, _ = util.compare_teacher_student_retrain_V(teacher, sampler_teacher, student, sampler_student, steps=[64, 16, 8, 4, 2], prompt=992)
+                                        images, _ = util.compare_teacher_student_retrain_V(teacher, sampler_teacher, student, sampler_student, steps=[16], prompt=992)
                                         images = wandb.Image(_, caption="left: Teacher, right: Student")
                                         wandb.log({"pred_x0": images}) 
                                         sampler_student.make_schedule(ddim_num_steps=ddim_steps_teacher, ddim_eta=ddim_eta, verbose=False)
