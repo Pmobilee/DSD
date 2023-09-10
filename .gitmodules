@@ -1,0 +1,3 @@
+[submodule "DSD/distill_diffusion/distill_diffusion"]
+	path = DSD/distill_diffusion/distill_diffusion
+	url = https://github.com/pmobilee/distill_diffusion.git
