@@ -181,8 +181,8 @@ def self_distillation_CIN(student, sampler_student, original, sampler_original, 
                                             noise = 1 - at
                                             log_snr = torch.log(signal / noise)
                                             weight = max(log_snr, 1)
-                                            # loss = weight * criterion(pred_x0_student, pred_x0_teacher.detach())     
-                                            loss = weight * criterion(v_student, v.detach())                    
+                                            loss = weight * criterion(pred_x0_student, pred_x0_teacher.detach())     
+                                            # loss = weight * criterion(v_student, v.detach())                    
                                             loss.backward()
                                             optimizer.step()
                                             scheduler.step()
