@@ -184,9 +184,10 @@ def self_distillation_CIN(student, sampler_student, original, sampler_original, 
                                             loss = weight * criterion(pred_x0_student, pred_x0_teacher.detach())     
                                             # loss = weight * criterion(v_student, v.detach())                    
                                             loss.backward()
+                                            torch.nn.utils.clip_grad_norm_(sampler_student.model.parameters(), 1)
                                             optimizer.step()
                                             scheduler.step()
-                                            torch.nn.utils.clip_grad_norm_(sampler_student.model.parameters(), 1)
+                                            
                                             losses.append(loss.item())
 
                                             # if session != None and instance % 10000 == 0 and generation > 0:
@@ -368,9 +369,10 @@ def self_distillation_CELEB(student, sampler_student, original, sampler_original
                                 weight = max(log_snr, 1)
                                 loss = weight * criterion(pred_x0_student, pred_x0_teacher.detach())
                                 loss.backward()
+                                torch.nn.utils.clip_grad_norm_(sampler_student.model.parameters(), 1)
                                 optimizer.step()
                                 scheduler.step()
-                                torch.nn.utils.clip_grad_norm_(sampler_student.model.parameters(), 1)
+                                
                                 losses.append(loss.item())
 
                             # if session != None and instance % 10000 == 0 and generation > 0:

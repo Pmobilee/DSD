@@ -108,6 +108,7 @@ def train_student_from_dataset(model, sampler, dataset, student_steps, optimizer
                                 # loss = criterion(x_T_student, dataset[str(i)]["intermediates"][steps+1])
                                 loss = max(math.log(a_t / (1-a_t)), 1) *  criterion(x_T_student, dataset[str(i)]["intermediates"][steps+1])
                                 loss.backward()
+                                torch.nn.utils.clip_grad_norm_(sampler_student.model.parameters(), 1)
                                 optimizer.step()
                                 scheduler.step()
                                 # x_T.detach()
@@ -187,7 +188,9 @@ def train_student_from_dataset_celeb(model, sampler, dataset, student_steps, opt
                                 x_T_student = student_intermediate["x_inter"][-1]
                                 # loss = criterion(x_T_student, dataset[str(i)]["intermediates"][steps+1])
                                 loss = max(math.log(a_t / (1-a_t)), 1) *  criterion(x_T_student, dataset[str(i)]["intermediates"][steps+1])
+                                
                                 loss.backward()
+                                torch.nn.utils.clip_grad_norm_(sampler_student.model.parameters(), 1)
                                 optimizer.step()
                                 scheduler.step()
                                 # x_T.detach()
