@@ -246,7 +246,7 @@ def self_distillation_CIN(student, sampler_student, original, sampler_original, 
 
                                                                            
 def self_distillation_CELEB(student, sampler_student, original, sampler_original, optimizer, scheduler,
-        session=None, steps=20, gradient_updates=200, run_name="test",step_scheduler="deterministic"):
+        session=None, steps=20, generations=200, run_name="test",step_scheduler="deterministic"):
     """
     Distill a model into itself. This is done by having a (teacher) model distill knowledge into itself. Copies of the original model and sampler 
     are passed in to compare the original untrained version with the distilled model at scheduled intervals.
@@ -266,7 +266,7 @@ def self_distillation_CELEB(student, sampler_student, original, sampler_original
     generation = 0 # The amount of final-step images generated
     averaged_losses = []
     all_losses = []
-    
+    gradient_updates = generations
     if step_scheduler == "iterative": # Halve the number of steps from start to 1 with even allocation of gradient updates
         halvings = math.floor(math.log(ddim_steps_student)/math.log(2))
         updates_per_halving = int(gradient_updates / halvings)
