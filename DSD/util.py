@@ -310,7 +310,7 @@ def compare_teacher_student_celeb(teacher, sampler_teacher, student, sampler_stu
     # print("comapring teacher and student")
     # print("same state dict:", teacher.model.state_dict()['diffusion_model.time_embed.0.weight'][0][0]  == student.model.state_dict()['diffusion_model.time_embed.0.weight'][0][0] )
     scale = 3.0
-    ddim_eta = 0.0
+    ddim_eta = 1.0
     images = []
 
     total_steps = max(steps)
@@ -321,8 +321,8 @@ def compare_teacher_student_celeb(teacher, sampler_teacher, student, sampler_stu
                 sampler_student.make_schedule(ddim_num_steps=total_steps, ddim_eta=0.0, verbose=False)
                 intermediate_step = None if sampling_steps != 1 else 0
                 
-                   
-                teacher_samples_ddim, _, x_T_copy, pred_x0, a_t= sampler_teacher.sample(S=sampling_steps,
+                
+                teacher_samples_ddim, _, x_T_copy, pred_x0, a_t, _= sampler_teacher.sample(S=sampling_steps,
 
                                                         batch_size=1,
                                                         x_T=None,  
@@ -341,7 +341,7 @@ def compare_teacher_student_celeb(teacher, sampler_teacher, student, sampler_stu
                 images.append(x_samples_ddim)
                
                 # with student.ema_scope():
-                student_samples_ddim, _, x_T_delete, pred_x0_student, a_t = sampler_student.sample(S=sampling_steps,
+                student_samples_ddim, _, _, pred_x0_student, _ , _  = sampler_student.sample(S=sampling_steps,
                                            
                                                         batch_size=1,
                                                         x_T= x_T_copy,
