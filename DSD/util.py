@@ -310,7 +310,7 @@ def compare_teacher_student_celeb(teacher, sampler_teacher, student, sampler_stu
     # print("comapring teacher and student")
     # print("same state dict:", teacher.model.state_dict()['diffusion_model.time_embed.0.weight'][0][0]  == student.model.state_dict()['diffusion_model.time_embed.0.weight'][0][0] )
     scale = 3.0
-    ddim_eta = 1.0
+    ddim_eta = 0.0
     images = []
 
     total_steps = max(steps)
