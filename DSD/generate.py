@@ -135,7 +135,7 @@ def generate_images_celeb(model, sampler, num_imgs=1, steps=20, total_steps=64, 
     with torch.no_grad():
         # with model.ema_scope(): # uncomment for EMA, unimportant for now as this function is only used for evaluation
 
-            samples_ddim, _, x_T_copy, pred_x0, a_t = sampler.sample(S=steps,
+            samples_ddim, _, x_T_copy, pred_x0, a_t, _ = sampler.sample(S=steps,
                                             
                                             batch_size=1,
                                             shape=[3, 64, 64],
