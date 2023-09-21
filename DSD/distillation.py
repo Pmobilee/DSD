@@ -844,8 +844,8 @@ def distill_celeb(ddim_steps, generations, run_name, config, original_model_path
             notes=f"Teacher-Student Distillation from {steps} steps with {generations} weight updates",  project="Self-Distillation")
             wandb_session.log_code(".")
     
-
-        optimizer, scheduler = saving_loading.get_optimizer(sampler_student, iterations=generations, lr=lr)
+        warmup_epochs = generations * 0.05 
+        optimizer, scheduler = saving_loading.get_optimizer(sampler_student, iterations=generations, warmup_epochs=warmup_epochs, lr=lr)
         teacher_train_student_celeb(teacher, sampler_teacher, student, sampler_student, optimizer, scheduler, steps=step, generations=model_generations, 
                               early_stop=False, session=wandb_session, run_name=run_name)
         
