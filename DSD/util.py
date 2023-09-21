@@ -313,12 +313,12 @@ def compare_teacher_student_celeb(teacher, sampler_teacher, student, sampler_stu
     ddim_eta = 0.0
     images = []
 
-
+    total_steps = max(steps)
     with torch.no_grad():
         # with teacher.ema_scope():
             for sampling_steps in steps:
-                sampler_teacher.make_schedule(ddim_num_steps=sampling_steps, ddim_eta=0.0, verbose=False)
-                sampler_student.make_schedule(ddim_num_steps=sampling_steps, ddim_eta=0.0, verbose=False)
+                sampler_teacher.make_schedule(ddim_num_steps=total_steps, ddim_eta=0.0, verbose=False)
+                sampler_student.make_schedule(ddim_num_steps=total_steps, ddim_eta=0.0, verbose=False)
                 intermediate_step = None if sampling_steps != 1 else 0
                 
                    
@@ -333,7 +333,7 @@ def compare_teacher_student_celeb(teacher, sampler_teacher, student, sampler_stu
                                                  
                                                         eta=ddim_eta,
                                                         intermediate_step=intermediate_step,
-                                                        total_steps=sampling_steps,
+                                                        total_steps=total_steps,
                                                         steps_per_sampling=sampling_steps)
                 
                 x_samples_ddim = teacher.decode_first_stage(pred_x0)
@@ -352,7 +352,7 @@ def compare_teacher_student_celeb(teacher, sampler_teacher, student, sampler_stu
                                                         eta=ddim_eta,
                                                        
                                                         intermediate_step=intermediate_step,
-                                                        total_steps=sampling_steps,
+                                                        total_steps=total_steps,
                                                         steps_per_sampling=sampling_steps)
 
                 x_samples_ddim = student.decode_first_stage(pred_x0_student)
