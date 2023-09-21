@@ -431,7 +431,7 @@ def teacher_train_student_celeb(teacher, sampler_teacher, student, sampler_stude
 
                             
                             instance += 1
-                            samples_ddim_teacher, _, _, pred_x0_teacher, x_T , _ = sampler_teacher.sample(S=TEACHER_STEPS,
+                            samples_ddim_teacher, _, x_T, pred_x0_teacher, _ , _ = sampler_teacher.sample(S=TEACHER_STEPS,
                                                             conditioning=None,
                                                             batch_size=1,
                                                             shape=[3, 64, 64],
