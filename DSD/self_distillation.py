@@ -315,7 +315,7 @@ def self_distillation_CELEB(student, sampler_student, original, sampler_original
                                 instance += 1
                                 optimizer.zero_grad()
 
-                                samples_ddim, pred_x0_student, _, at= sampler_student.sample_student(S=1,
+                                samples_ddim, pred_x0_student, _, at, _= sampler_student.sample_student(S=1,
                                                                     conditioning=None,
                                                                     batch_size=1,
                                                                     shape=[3, 64, 64],
@@ -332,7 +332,7 @@ def self_distillation_CELEB(student, sampler_student, original, sampler_original
 
                             with torch.no_grad():
                                 
-                                samples_ddim, _, _, pred_x0_teacher, _ = sampler_student.sample(S=1,
+                                samples_ddim, _, _, pred_x0_teacher, _ , _ = sampler_student.sample(S=1,
                                                                 conditioning=None,
                                                                 batch_size=1,
                                                                 shape=[3, 64, 64],
