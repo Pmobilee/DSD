@@ -253,12 +253,12 @@ def self_distillation_CELEB(student, sampler_student, original, sampler_original
     """
     NUM_CLASSES = 1000
     ddim_steps_student = steps # Setting the number of steps for the student model
-
+    ddim_eta = 0.0
     # For both the student and the original model, the number of steps is set to the same value. 
     # Technically the original model does not need to be trained, but it is kept for comparison purposes.
     sampler_student.make_schedule(ddim_num_steps=ddim_steps_student, ddim_eta=ddim_eta, verbose=False)
     sampler_original.make_schedule(ddim_num_steps=ddim_steps_student, ddim_eta=ddim_eta, verbose=False)
-    ddim_eta = 0.0 # Setting the eta value to 0.0 means a deterministic output given the original noise, essential
+     # Setting the eta value to 0.0 means a deterministic output given the original noise, essential
     scale = 3.0 # This is $w$ in the paper, the CFG scale. Can be left static or varied as is done occasionally.
     criterion = nn.MSELoss() 
 
