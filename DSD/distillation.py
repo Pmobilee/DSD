@@ -275,7 +275,7 @@ def teacher_train_student(teacher, sampler_teacher, student, sampler_student, op
                                 # with autocast():    
                                     instance += 1
 
-                                    samples_ddim_teacher, teacher_intermediate, x_T, pred_x0_teacher, a_t_teacher = sampler_teacher.sample(S=TEACHER_STEPS,
+                                    samples_ddim_teacher, teacher_intermediate, x_T, pred_x0_teacher, a_t_teacher, _ = sampler_teacher.sample(S=TEACHER_STEPS,
                                                                     conditioning=c,
                                                                     batch_size=1,
                                                                     shape=[3, 64, 64],
@@ -300,7 +300,7 @@ def teacher_train_student(teacher, sampler_teacher, student, sampler_student, op
                                             
                                             
                                             
-                                            samples, pred_x0_student, st, at = sampler_student.sample_student(S=STUDENT_STEPS,
+                                            samples, pred_x0_student, st, at, _ = sampler_student.sample_student(S=STUDENT_STEPS,
                                                                             conditioning=c_student,
                                                                             batch_size=1,
                                                                             shape=[3, 64, 64],
