@@ -49,6 +49,15 @@ if __name__ == '__main__':
                 config_path=f"{cwd}/models/configs/cin256-v2-custom.yaml"
                 model_path=f"{cwd}/models/cin256_original.ckpt"
             npz = f"{cwd}/val_saved/real_fid_both.npz"
+        if args.model == "lsun_bedroom":
+            if args.predict:
+                model_path=f"{cwd}/models/lsun_bedrooms.ckpt"
+                config_path = f"{cwd}/models/configs/lsun_bedrooms-ldm-vq-4.yaml"
+            else:
+                print("GETTING EPS MODEL")
+                model_path=f"{cwd}/models/lsun_bedrooms.ckpt"
+                config_path = f"{cwd}/models/configs/lsun_bedrooms-ldm-vq-4.yaml"
+            # npz = f"{cwd}/val_saved/real_fid_both.npz"
         elif args.model == "celeb":
             config_path=f"{cwd}/models/configs/celebahq-ldm-vq-4.yaml"
             model_path=f"{cwd}/models/CelebA.ckpt"
@@ -135,7 +144,7 @@ if __name__ == '__main__':
                         steps=args.steps, gradient_updates=args.updates, run_name=args.name, step_scheduler=step_scheduler, x0=args.predict)
             
           
-        elif args.model == "celeb":
+        elif args.model == "celeb" or args.model == "lsun_bedroom":
             self_distillation.self_distillation_CELEB(teacher, sampler_teacher, original, sampler_original, optimizer, scheduler, session=wandb_session, 
                         steps=args.steps, gradient_updates=args.updates, run_name=args.name, decrease_steps=decrease_steps, step_scheduler=step_scheduler)
 
@@ -164,7 +173,7 @@ if __name__ == '__main__':
         if args.model == "cin":
             self_distillation.self_distillation_CIN(teacher, sampler_teacher, original, sampler_original, optimizer, scheduler, session=wandb_session, 
                         steps=args.steps, gradient_updates=args.updates, run_name=args.name, step_scheduler=step_scheduler, x0=args.predict)
-        elif args.model == "celeb":
+        else:
             self_distillation.self_distillation_CELEB(teacher, sampler_teacher, original, sampler_original, optimizer, scheduler, session=wandb_session, 
                         steps=args.steps, generations=args.updates, run_name=args.name, decrease_steps=decrease_steps, step_scheduler=step_scheduler)
     elif args.task == "DSDGL":
@@ -186,7 +195,7 @@ if __name__ == '__main__':
         if args.model == "cin":
             self_distillation.self_distillation_CIN(teacher, sampler_teacher, original, sampler_original, optimizer, scheduler, session=wandb_session, 
                         steps=args.steps, gradient_updates=args.updates, run_name=args.name, decrease_steps=decrease_steps, step_scheduler=step_scheduler)
-        elif args.model == "celeb":
+        else:
             self_distillation.self_distillation_CELEB(teacher, sampler_teacher, original, sampler_original, optimizer, scheduler, session=wandb_session, 
                         steps=args.steps, gradient_updates=args.updates, run_name=args.name, decrease_steps=decrease_steps, step_scheduler=step_scheduler)
 
@@ -209,7 +218,7 @@ if __name__ == '__main__':
         if args.model == "cin":
             self_distillation.self_distillation_CIN(teacher, sampler_teacher, original, sampler_original, optimizer, scheduler, session=wandb_session, 
                         steps=args.steps, generations=args.updates, run_name=args.name, decrease_steps=decrease_steps, step_scheduler=step_scheduler)
-        elif args.model == "celeb":
+        else:
             self_distillation.self_distillation_CELEB(teacher, sampler_teacher, original, sampler_original, optimizer, scheduler, session=wandb_session, 
                         steps=args.steps, generations=args.updates, run_name=args.name, decrease_steps=decrease_steps, step_scheduler=step_scheduler)
 
