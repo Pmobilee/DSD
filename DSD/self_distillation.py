@@ -416,5 +416,5 @@ def self_distillation_CELEB(student, sampler_student, original, sampler_original
                             session.log({"generation_loss":averaged_losses[-1]})
                         tepoch.set_postfix(epoch_loss=averaged_losses[-1])
 
-                if step_scheduler == "naive" or "gradual" in step_scheduler: # Save the final model, since we skipped all the intermediate steps
+            if step_scheduler == "naive" or "gradual" in step_scheduler: # Save the final model, since we skipped all the intermediate steps
                     util.save_model(sampler_student, optimizer, scheduler, name=step_scheduler, steps=updates, run_name=run_name)

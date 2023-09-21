@@ -838,6 +838,17 @@ def distill_celeb(ddim_steps, generations, run_name, config, original_model_path
             teacher, sampler_teacher, optimizer, scheduler = saving_loading.load_trained(model_path, config_path)
             student = copy.deepcopy(teacher)
             sampler_student = DDIMSampler(student)
+            file_path = model_path
+            try:
+                os.remove(file_path)
+                print(f"File {file_path} has been deleted successfully")
+            except FileNotFoundError:
+                print(f"Error: {file_path} not found")
+            except PermissionError:
+                print(f"Error: Permission denied to delete {file_path}")
+            except Exception as e:
+                print(f"An error occurred: {e}")
+        
         
         if index == 0 and use_wandb:
             wandb_session = util.wandb_log(name=run_name, lr=lr, model=student, tags=["TSD"], 
