@@ -431,7 +431,7 @@ def teacher_train_student_celeb(teacher, sampler_teacher, student, sampler_stude
 
                             
                             instance += 1
-                            samples_ddim_teacher, teacher_intermediate, x_T, pred_x0_teacher, a_t_teacher = sampler_teacher.sample(S=TEACHER_STEPS,
+                            samples_ddim_teacher, _, _, pred_x0_teacher, x_T , _ = sampler_teacher.sample(S=TEACHER_STEPS,
                                                             conditioning=None,
                                                             batch_size=1,
                                                             shape=[3, 64, 64],
@@ -455,7 +455,7 @@ def teacher_train_student_celeb(teacher, sampler_teacher, student, sampler_stude
                             with torch.enable_grad() and autocast():
                                 with student.ema_scope():
                                     optimizer.zero_grad()
-                                    samples, pred_x0_student, st, at = sampler_student.sample_student(S=STUDENT_STEPS,
+                                    samples_ddim, pred_x0_student, _, at, _ = sampler_student.sample_student(S=STUDENT_STEPS,
                                                                     conditioning=None,
                                                                     batch_size=1,
                                                                     shape=[3, 64, 64],

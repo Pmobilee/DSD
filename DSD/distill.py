@@ -194,10 +194,10 @@ if __name__ == '__main__':
         
         if args.model == "cin":
             self_distillation.self_distillation_CIN(teacher, sampler_teacher, original, sampler_original, optimizer, scheduler, session=wandb_session, 
-                        steps=args.steps, gradient_updates=args.updates, run_name=args.name, step_scheduler=step_scheduler)
+                        steps=args.steps, generations=args.updates, run_name=args.name, step_scheduler=step_scheduler)
         else:
             self_distillation.self_distillation_CELEB(teacher, sampler_teacher, original, sampler_original, optimizer, scheduler, session=wandb_session, 
-                        steps=args.steps, gradient_updates=args.updates, run_name=args.name, step_scheduler=step_scheduler)
+                        steps=args.steps, generations=args.updates, run_name=args.name, step_scheduler=step_scheduler)
 
     elif args.task == "DSDGEXP":
 
