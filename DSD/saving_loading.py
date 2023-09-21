@@ -164,9 +164,9 @@ def save_images(model, sampler, num_imgs, name, steps, verbose=False, celeb=Fals
         num_imgs = num_imgs - items_present
         for i in tqdm.tqdm(range(num_imgs)):
             if celeb==False:
-                image, _, class_prompt, _ = generate.generate_images(model, sampler, steps=step, x_0=x_0)
+                image, _, class_prompt, = generate.generate_images(model, sampler, steps=step, x_0=x_0)
             else:
-                image, _, class_prompt, _ = generate.generate_images_celeb(model, sampler, steps=step,x_0=x_0)
+                image, _, class_prompt, = generate.generate_images_celeb(model, sampler, steps=step,x_0=x_0)
             image.save(new_path + str(class_prompt.item()) + "_" + str(i) + ".png")
 
 @torch.no_grad()

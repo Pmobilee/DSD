@@ -160,7 +160,7 @@ def generate_images_celeb(model, sampler, num_imgs=1, steps=20, total_steps=64, 
     grid = 255. * rearrange(grid, 'c h w -> h w c').cpu().numpy()
     image = Image.fromarray(grid.astype(np.uint8))
 
-    return image, x_T_copy, class_prompt, _["x_inter"]
+    return image, x_T_copy, class_prompt
 
 
 @torch.no_grad()
