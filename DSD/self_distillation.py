@@ -404,7 +404,7 @@ def self_distillation_CELEB(student, sampler_student, original, sampler_original
 
                         if session != None:
                             with torch.no_grad():
-                                if session != None and generation % 1000 == 0:
+                                if session != None and generation % 10 == 0:
                                     images, _ = util.compare_teacher_student_celeb(original, sampler_original, student, sampler_student, steps=[64, 32, 16, 8,  4, 2, 1])
                                     images = wandb.Image(_, caption="left: Teacher, right: Student")
                                     wandb.log({"pred_x0": images})
