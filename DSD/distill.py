@@ -231,7 +231,7 @@ if __name__ == '__main__':
         # config = OmegaConf.load(config_path)  
         if args.updates == 100000:
             print("Doing 100k, did you mean to do this? Change -u for a specific amount of generated images")
-        start_path = f"{cwd}/data/trained_models/final_versions2/{args.model}/"
+        start_path = f"{cwd}/data/trained_models/final_versions/{args.model}/"
         for train_type in os.listdir(start_path):
             if args.name != None:
                 if args.name != train_type:
