@@ -12,7 +12,7 @@ cwd = os.getcwd()
 parser = argparse.ArgumentParser(description='Direct Self-Distillation')
 
 
-parser.add_argument('--task', '-t', type=str, default= "DSDI", help='Task to perform', choices=['TSD', "DSDN", "DSDI", "DSDGL", "DSDGEXP", "SI", "SI_orig", "CD", "DFD", "FID", "NPZ", "NPZ_single", "retrain"])
+parser.add_argument('--task', '-t', type=str, default= "DSDI", help='Task to perform', choices=['TSD', "DSDN", "DSDI", "DSDGL", "DSDGEXP", "SI", "SI_orig", "CD", "DFD", "FID", "NPZ", "NPZ_single", "retrain", "GET_FID"])
 parser.add_argument('--model', '-m', type=str, default= "cin", help='Model type', choices=['cin', 'celeb', 'lsun_bedroom'])
 parser.add_argument('--steps', '-s', type=int, default= 64, help='DDIM steps to distill from')
 parser.add_argument('--updates', '-u', type=int, default= 100000, help='Number of total weight updates')
@@ -272,7 +272,7 @@ if __name__ == '__main__':
         # config = OmegaConf.load(config_path)  
         if args.updates == 100000:
             print("Doing 100k, did you mean to do this? Change -u for a specific amount of generated images")
-         
+
         # model, sampler, optimizer, scheduler = util.load_trained(config_path, model_path)
         if args.model == "cin":
             original, sampler_original = util.create_models(config_path, model_path, student=False)
@@ -282,12 +282,17 @@ if __name__ == '__main__':
                 original.cuda()
             else:
                 original.cpu()
-            util.save_images(original, sampler_original, args.updates,"cin_original", [2,4,8,16],verbose=True)
-        else:
+            util.save_images(args, original, sampler_original, args.updates,"cin_original", [2,4,8, 16, 32, 64],verbose=True)
+        elif args.model == "celeb":
             config_path=f"{cwd}/models/configs/celebahq-ldm-vq-4.yaml"
             model_path=f"{cwd}/models/CelebA.ckpt"
             original, sampler_original = util.create_models(config_path, model_path, student=False)
-            util.save_images(original, sampler_original, args.updates,"celeb_original", [2,4,8,16], verbose=True)
+            util.save_images(args, original, sampler_original, args.updates,"celeb_original", [2,4,8, 16, 32, 64], verbose=True, celeb=True)
+        elif args.model == "lsun_bedroom":
+            model_path=f"{cwd}/models/lsun_bedrooms.ckpt"
+            config_path = f"{cwd}/models/configs/lsun_bedrooms-ldm-vq-4.yaml"
+            original, sampler_original = util.create_models(config_path, model_path, student=False)
+            util.save_images(args, original, sampler_original, args.updates,"lsun_bedroom_original", [2,4,8, 16, 32, 64], verbose=True, celeb=True)
         del original, sampler_original
         torch.cuda.empty_cache()
 
@@ -340,13 +345,14 @@ if __name__ == '__main__':
                             print(e)
                     else:
                         print("Already have metrics for:", current_path_source)
-    
 
 
+
+# fid_stats_lsun_train
 
     elif args.task == "NPZ": 
         os.environ["KMP_DUPLICATE_LIB_OK"]="TRUE"
-        for model in ["cin", "celeb"]:   
+        for model in ["lsun_bedroom"]:   
             basic_path_source = f"{cwd}/saved_images/{model}/"
             basic_path_target = f"{cwd}/NPZ/{model}"
             model_names = [name for name in os.listdir(basic_path_source)]
@@ -374,5 +380,22 @@ if __name__ == '__main__':
         util.generate_npz(current_path_source, current_path_target)
 
 
-
+    elif args.task == "GET_FID":
+    
+        """
+        Calculates the FID score for a given model and sampler. Potentially useful for monitoring training, or comparing distillation
+        methods.
+        """
+        import torch
+        from pytorch_fid import fid_score
+        for name in ["gradual_exp", "gradual_linear", "iterative", "naive", "TSD"]:
+            for instance in [2, 4, 8]:
+                # if not os.path.exists(f"{cwd}/saved_images/FID/{name}/{instance}"):
+                #     os.makedirs(f"{cwd}/saved_images/FID/{name}/{instance}")
+                print(f"{cwd}/saved_images/{args.model}/{name}/{instance}/")
+                with torch.no_grad():
+                        fid = fid_score.calculate_fid_given_paths([f"{cwd}/val_saved/fid_stats_lsun_train.npz", 
+                        f"{cwd}/saved_images/{args.model}/{name}/{instance}/"], batch_size = 16, device='cuda', dims=2048)
+                        print(fid, name, instance)
+    
 # fidelity --gpu 0 --fid --input1 C:\Diffusion_Thesis\cin_256\saved_images\cin\cin_original\32 --input2 C:\imagenet\test2

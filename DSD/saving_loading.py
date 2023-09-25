@@ -139,12 +139,12 @@ def get_model(config_path, model_path):
     model = load_model_from_config(config, model_path)
     return model
 
-def save_images(model, sampler, num_imgs, name, steps, verbose=False, celeb=False, total_steps=64, x_0=False):
+def save_images(args, model, sampler, num_imgs, name, steps, verbose=False, celeb=False, total_steps=64, x_0=False):
     """
     Params: model, sampler, num_imgs, name, steps, verbose=False. Task: saves generated images to the specified folder name
     """
     model_type = "celeb" if celeb else "cin"
-    basic_path = f"{cwd}/saved_images/{model_type}/"
+    basic_path = f"{cwd}/saved_images/{args.model}/"
     imgs_per_batch = num_imgs
     if not os.path.exists(basic_path + name + "/"):
         os.mkdir(basic_path + name + "/")

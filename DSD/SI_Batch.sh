@@ -19,5 +19,5 @@ conda activate D-SD
 cd $Home/thesis/Diffusion_Thesis/DSD
 export LD_LIBRARY_PATH=$HOME/anaconda3/envs/D-SD/lib
 wandb login 
-python distill.py -t DSDI -m cin -s 64 -lr 0.0000001 -u 500 
+python distill.py -t SI -m lsun_bedroom -u 30000
 
