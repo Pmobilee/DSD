@@ -22,7 +22,7 @@ import shutil
 import util
 import saving_loading
 import generate
-
+import random
 # Receiving base current working directory
 cwd = os.getcwd()
 
@@ -44,7 +44,7 @@ def self_distillation_CIN(student, sampler_student, original, sampler_original, 
     # For both the student and the original model, the number of steps is set to the same value. 
     # Technically the original model does not need to be trained, but it is kept for comparison purposes.
     
-    ddim_eta = 0.0 # Setting the eta value to 0.0 means a deterministic output given the original noise, essential
+    ddim_eta = 0.1 # Setting the eta value to 0.0 means a deterministic output given the original noise, essential
     scale = 3.0 # This is $w$ in the paper, the CFG scale. Can be left static or varied as is done occasionally.
     criterion = nn.MSELoss() 
 
@@ -79,8 +79,9 @@ def self_distillation_CIN(student, sampler_student, original, sampler_original, 
     print(update_list)
     total_steps = max(step_sizes)
     sampler_student.make_schedule(ddim_num_steps=total_steps, ddim_eta=ddim_eta, verbose=False)
-    sampler_original.make_schedule(ddim_num_steps=total_steps, ddim_eta=ddim_eta, verbose=False)
-
+    if not sampler_original == None:
+        sampler_original.make_schedule(ddim_num_steps=total_steps, ddim_eta=ddim_eta, verbose=False)
+    # scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=gradient_updates, gamma=0.1)
     # for param in student.first_stage_model.parameters():
     #     param.requires_grad = False
     # for param in sampler_student.model.first_stage_model.parameters():
@@ -116,11 +117,11 @@ def self_distillation_CIN(student, sampler_student, original, sampler_original, 
                             predictions_temp = []
                             
                             for steps in range(updates):
-                                # with autocast() and torch.enable_grad(): # For mixed precision training, should not be used for final results
-                                    with torch.enable_grad():
+                                with autocast() and torch.enable_grad(): # For mixed precision training, should not be used for final results
+                                    # with torch.enable_grad():
                                             instance += 1
                                             
-                                            
+                                            scale = random.uniform(1.0, 4.0)
                                             samples_ddim, pred_x0_student, _, at, v_student= sampler_student.sample_student(S=1,
                                                                                 conditioning=c_student,
                                                                                 batch_size=1,
@@ -175,19 +176,26 @@ def self_distillation_CIN(student, sampler_student, original, sampler_original, 
                                             # torch.nn.utils.clip_grad_norm_(sampler_student.model.parameters(), 1)
                                             # losses.append(loss.item())
 
-                                            optimizer.zero_grad()
-                                            # # NO AUTOCAST:
+                                            # optimizer.zero_grad()
+                                            # # # NO AUTOCAST:
+                                            
+
                                             signal = at
                                             noise = 1 - at
                                             log_snr = torch.log(signal / noise)
                                             weight = max(log_snr, 1)
-                                            loss = weight * criterion(pred_x0_student, pred_x0_teacher.detach())     
-                                            # loss = weight * criterion(v_student, v.detach())                    
+                                            # loss = weight * criterion(pred_x0_student, pred_x0_teacher.detach())     
+                                            # loss = weight * criterion(v_student, v.detach())   
+                                            loss = criterion(pred_x0_student, pred_x0_teacher.detach())    
                                             loss.backward()
-                                            torch.nn.utils.clip_grad_norm_(sampler_student.model.parameters(), 1)
+                                            # loss = criterion(pred_x0_student, pred_x0_teacher.detach())               
+                                            
+                                            torch.nn.utils.clip_grad_norm_(sampler_student.model.parameters(), 5.0)        
+
+                                            # torch.nn.utils.clip_grad_norm_(sampler_student.model.parameters(), 5.0)
                                             optimizer.step()
                                             scheduler.step()
-                                            
+                                            print(scheduler.get_last_lr())
                                             losses.append(loss.item())
 
                                             # if session != None and instance % 10000 == 0 and generation > 0:
@@ -204,18 +212,20 @@ def self_distillation_CIN(student, sampler_student, original, sampler_original, 
 
                                 with torch.no_grad():
                                         # the x0 version keeps max denoising steps to 64
-                                        images, _ = util.compare_teacher_student_x0(original, sampler_original, student, sampler_student, steps=[16, 8,  4, 1], prompt=992, x0=x0)
+                                        images, _ = util.compare_teacher_student_x0(original, sampler_original, student, sampler_student, steps=[8,  4, 2, 1], prompt=992, x0=x0)
                                         images = wandb.Image(_, caption="left: Teacher, right: Student")
                                         wandb.log({"pred_x0": images})
 
                                         # Optional; compare the images but also change the denoising schedule
-                                        images, _ = util.compare_teacher_student(original, sampler_original, student, sampler_student, steps=[16, 8,  4, 1], prompt=992,x0=x0)
-                                        images = wandb.Image(_, caption="left: Teacher, right: Student")
-                                        wandb.log({"with_sched": images})
+                                        
+                                        # images, _ = util.compare_teacher_student(original, sampler_original, student, sampler_student, steps=[16, 8,  4, 1], prompt=992,x0=x0)
+                                        # images = wandb.Image(_, caption="left: Teacher, right: Student")
+                                        # wandb.log({"with_sched": images})
 
                                         # Important: Reset the schedule, as compare_teacher_student changes max steps. 
                                         sampler_student.make_schedule(ddim_num_steps=total_steps, ddim_eta=ddim_eta, verbose=False)
-                                        sampler_original.make_schedule(ddim_num_steps=total_steps, ddim_eta=ddim_eta, verbose=False)
+                                        if not sampler_original == None:
+                                            sampler_original.make_schedule(ddim_num_steps=total_steps, ddim_eta=ddim_eta, verbose=False)
 
                             # # Use if you want to base the schedule on FID
                             # if generation > 0 and generation % 20 == 0 and ddim_steps_student != 1 and step_scheduler=="FID":

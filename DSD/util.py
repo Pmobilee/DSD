@@ -27,16 +27,6 @@ from saving_loading import *
 # Receiving base current working directory
 cwd = os.getcwd()
 
-"""
-This module is property of the Vrije Universiteit Amsterdam, department of Beta Science. It contains in part code
-snippets obtained from Rombach et al., https://github.com/CompVis/latent-diffusion. No rights may be attributed.
-
-The module presents both helper modules for loading, saving, generating from, and training of diffusion models, as
-well as components for the process of knowledge distillation of teacher DDIMs into students, requiring fewer denoising
-steps after every iteration, retaining original sampling quality at reduced computational expense.
-"""
-
-
 def latent_to_img(model, latent):
     """
     Params: model, latent. Task: converts a latent vector to an image
@@ -163,7 +153,8 @@ def compare_teacher_student_x0(teacher, sampler_teacher, student, sampler_studen
     with torch.no_grad():
         # with teacher.ema_scope():
             for sampling_steps in steps:
-                sampler_teacher.make_schedule(ddim_num_steps=total_steps, ddim_eta=0.0, verbose=False)
+                if not sampler_teacher == None:
+                    sampler_teacher.make_schedule(ddim_num_steps=total_steps, ddim_eta=0.0, verbose=False)
                 sampler_student.make_schedule(ddim_num_steps=total_steps, ddim_eta=0.0, verbose=False)
                 
                 if prompt == None:
@@ -177,31 +168,34 @@ def compare_teacher_student_x0(teacher, sampler_teacher, student, sampler_studen
                     sc=None
                 else:
                     sc = student.get_learned_conditioning({student.cond_stage_key: torch.tensor(1*[1000]).to(student.device)})
-                    uc = teacher.get_learned_conditioning({teacher.cond_stage_key: torch.tensor(1*[1000]).to(teacher.device)})
+                    if not sampler_teacher == None:
+                        uc = teacher.get_learned_conditioning({teacher.cond_stage_key: torch.tensor(1*[1000]).to(teacher.device)})
                 xc = torch.tensor([class_image])
-                c = teacher.get_learned_conditioning({teacher.cond_stage_key: xc.to(teacher.device)})
-                teacher_samples_ddim, _, x_T_copy, pred_x0_teacher, a_t= sampler_teacher.sample(S=sampling_steps,
-                                                    conditioning=c,
-                                                    batch_size=1,
-                                           
-                                                    x_T=None,
-                                                    shape=[3, 64, 64],
-                                                    verbose=False,
-                                                    unconditional_guidance_scale=scale,
-                                                    unconditional_conditioning=uc, 
-                                                    eta=ddim_eta,
-                                                    intermediate_step=intermediate_step ,
-                                                    total_steps=total_steps,
-                                                    steps_per_sampling=sampling_steps)
+                x_T_copy = None
+                if not teacher == None:
+                    c = teacher.get_learned_conditioning({teacher.cond_stage_key: xc.to(teacher.device)})
+                    teacher_samples_ddim, _, x_T_copy, pred_x0_teacher, a_t, v= sampler_teacher.sample(S=sampling_steps,
+                                                        conditioning=c,
+                                                        batch_size=1,
+                                            
+                                                        x_T=None,
+                                                        shape=[3, 64, 64],
+                                                        verbose=False,
+                                                        unconditional_guidance_scale=scale,
+                                                        unconditional_conditioning=uc, 
+                                                        eta=ddim_eta,
+                                                        intermediate_step=intermediate_step ,
+                                                        total_steps=total_steps,
+                                                        steps_per_sampling=sampling_steps)
 
-                # x_samples_ddim = teacher.decode_first_stage(_["pred_x0"][-1)
-                x_samples_ddim = teacher.decode_first_stage(pred_x0_teacher)
-                x_samples_ddim = torch.clamp((x_samples_ddim+1.0)/2.0, min=0.0, max=1.0)
-                images.append(x_samples_ddim)
-                # with student.ema_scope():
+                    # x_samples_ddim = teacher.decode_first_stage(_["pred_x0"][-1)
+                    x_samples_ddim = teacher.decode_first_stage(pred_x0_teacher)
+                    x_samples_ddim = torch.clamp((x_samples_ddim+1.0)/2.0, min=0.0, max=1.0)
+                    images.append(x_samples_ddim)
+                    # with student.ema_scope():
                 
                 c = student.get_learned_conditioning({student.cond_stage_key: xc.to(student.device)})
-                student_samples_ddim, _, x_T_delete, pred_x0_student, a_t = sampler_student.sample(S=sampling_steps,
+                student_samples_ddim, _, x_T_delete, pred_x0_student, a_t, v = sampler_student.sample(S=sampling_steps,
                                                     conditioning=c,
                                                     batch_size=1,
                                                     
@@ -224,7 +218,10 @@ def compare_teacher_student_x0(teacher, sampler_teacher, student, sampler_studen
     # print(fid.compute())
     grid = torch.stack(images, 0)
     grid = rearrange(grid, 'n b c h w -> (n b) c h w')
-    grid = make_grid(grid, nrow=2)
+    if not sampler_teacher == None:
+        grid = make_grid(grid, nrow=2)
+    else:
+        grid = make_grid(grid, nrow=1)
 
     # to image
     grid = 255. * rearrange(grid, 'c h w -> h w c').cpu().numpy()

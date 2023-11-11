@@ -12,15 +12,15 @@ cwd = os.getcwd()
 parser = argparse.ArgumentParser(description='Direct Self-Distillation')
 
 
-parser.add_argument('--task', '-t', type=str, default= "DSDI", help='Task to perform', choices=['TSD', "DSDN", "DSDI", "DSDGL", "DSDGEXP", "SI", "SI_orig", "CD", "DFD", "FID", "NPZ", "NPZ_single", "retrain", "GET_FID"])
+parser.add_argument('--task', '-t', type=str, default= "DSDI", help='Task to perform', choices=['TSD', "DSDN", "DSDI", "DSDGL", "DSDGEXP", "SI", "SI_orig", "FID", "Inception", "NPZ", "NPZ_single", "retrain", "GET_FID"])
 parser.add_argument('--model', '-m', type=str, default= "cin", help='Model type', choices=['cin', 'celeb', 'lsun_bedroom'])
 parser.add_argument('--steps', '-s', type=int, default= 64, help='DDIM steps to distill from')
 parser.add_argument('--updates', '-u', type=int, default= 100000, help='Number of total weight updates')
 parser.add_argument('--learning_rate', '-lr', default= 0.000000002, type=float, help='Learning Rate')
 parser.add_argument('--cas', '-c', type=bool, default= False, help='Include Cosine Annealing Scheduler for learning rate')
 parser.add_argument('--name', '-n', type=str, help='Name to give the run, or type of run to save')
-parser.add_argument('--save', '-sv', type=bool, default= True, help='Save intermediate models')
-parser.add_argument('--compare', type=bool, default= True, help='Compare to original model')
+parser.add_argument('--save', '-sv', type=bool, default= False, help='Save intermediate models')
+parser.add_argument('--compare', action='store_true' , help='Compare to original model')
 parser.add_argument('--wandb', '-w', type=bool, default=True, help='Weights and Biases upload')
 parser.add_argument('--cuda', '-cu', type=str, default="True", help='Cuda on/off')
 parser.add_argument('--predict', '-pred', type=bool, default=False, help='either x0 or eps prediction, True = X0,  x0 uses the retrained model, eps uses the original model')
@@ -28,17 +28,14 @@ parser.add_argument('--pixels', '-p', type=int, default=256, help='256/64 pixel 
 
 
 if __name__ == '__main__':
-    
-    os.environ['WANDB_NOTEBOOK_NAME'] = "Cin_256_custom.ipynb"
     args = parser.parse_args()
 
     if "False" in args.cuda:
-        # os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
         device = 'cpu'
         print("Running on CPU")
     else:
         device = 'cuda'
-    # Instatiate selected model
+
     if args.pixels == 256:
         if args.model == "cin":
             if args.predict:
@@ -57,13 +54,10 @@ if __name__ == '__main__':
                 print("GETTING EPS MODEL")
                 model_path=f"{cwd}/models/lsun_bedrooms.ckpt"
                 config_path = f"{cwd}/models/configs/lsun_bedrooms-ldm-vq-4.yaml"
-            # npz = f"{cwd}/val_saved/real_fid_both.npz"
         elif args.model == "celeb":
             config_path=f"{cwd}/models/configs/celebahq-ldm-vq-4.yaml"
             model_path=f"{cwd}/models/CelebA.ckpt"
             npz = f"{cwd}/val_saved/celeb.npz"
-            # npz = f"C:\Diffusion_Thesis\cin_256\celeba_hq_256"
-            # npz = f"C:\Diffusion_Thesis\cin_256\celeb_64.npz"
     elif args.pixels == 64:
         print("64 model")
         if args.model == "cin":
@@ -74,24 +68,11 @@ if __name__ == '__main__':
             config_path=f"{cwd}/models/configs/celebahq-ldm-vq-4.yaml"
             model_path=f"{cwd}/models/CelebA.ckpt"
             npz = f"{cwd}/val_saved/celeb.npz"
-            # npz = f"C:\Diffusion_Thesis\cin_256\celeba_hq_256"
-            # npz = f"C:\Diffusion_Thesis\cin_256\celeb_64.npz"
-
-
-
-    # Start Task
-
-
+   
     if args.task == "retrain":
-        # print("RETRAINING USING PREVIOUSLY TRAINED MODEL")
+
         if args.name is None:
             args.name = f"{args.model}_retrain_{args.steps}_{args.learning_rate}_{args.updates}"
-        
-        
-        # teacher, sampler_teacher = util.create_models(config_path, model_path, student=False)
-        # if args.compare:
-        #     original, sampler_original = util.create_models(config_path, model_path, student=False)
-        
         if args.model == "cin":
             distillation.retrain(ddim_steps=args.steps, generations=args.updates, run_name=args.name, config=config_path, 
                     original_model_path=model_path, lr=args.learning_rate, start_trained=False, cas=args.cas, compare=args.compare, use_wandb=args.wandb)
@@ -99,17 +80,9 @@ if __name__ == '__main__':
             distillation.distill_celeb(ddim_steps=args.steps, generations=args.updates, run_name=args.name, config=config_path, 
                     original_model_path=model_path, lr=args.learning_rate, start_trained=False, cas=args.cas, compare=args.compare, use_wandb=args.wandb)
 
-
-
     if args.task == "TSD":
-        
         if args.name is None:
             args.name = f"{args.model}_TSD_{args.predict}_{args.steps}_{args.learning_rate}_{args.updates}"
-        
-
-        # teacher, sampler_teacher = util.create_models(config_path, model_path, student=False)
-        # if args.compare:
-        #     original, sampler_original = util.create_models(config_path, model_path, student=False)
         
         if args.model == "cin":
             distillation.distill(args, config=config_path, original_model_path=model_path, start_trained=False)
@@ -123,21 +96,21 @@ if __name__ == '__main__':
             args.name = f"{args.model}_DSDN_{args.steps}_{args.learning_rate}_{args.updates}"
 
         teacher, sampler_teacher = util.create_models(config_path, model_path, student=False)
+        original = None
+        sampler_original = None
         if args.compare:
             original, sampler_original = util.create_models(config_path, model_path, student=False)
 
         step_scheduler = "naive"
         decrease_steps = True
         warmup_epochs = args.updates * 0.05  # The number of initial iterations to linearly increase the learning rate
-        # iterations = 10000  # Total number of iterations
-        # lr = 1e-7
-
         optimizer, scheduler = util.get_optimizer(sampler_teacher, iterations=args.updates, warmup_epochs=warmup_epochs, lr=args.learning_rate)
-
-        # optimizer, scheduler = util.get_optimizer(sampler_teacher, iterations=args.updates, lr=args.learning_rate)
-        wandb_session = util.wandb_log(name=args.name, lr=args.learning_rate, model=teacher, tags=["DSDN"], 
-                notes=f"Direct Naive Self-Distillation from {args.steps} steps with {args.updates} weight updates",  project="Self-Distillation")
-        wandb.run.log_code(".")
+        if args.wandb:
+            wandb_session = util.wandb_log(name=args.name, lr=args.learning_rate, model=teacher, tags=["DSDN", "review_period", "testing"], 
+                    notes=f"Direct Naive Self-Distillation from {args.steps} steps with {args.updates} weight updates",  project="Self-Distillation")
+            wandb.run.log_code(".")
+        else:
+            wandb_session = None
         
         if args.model == "cin":
             self_distillation.self_distillation_CIN(teacher, sampler_teacher, original, sampler_original, optimizer, scheduler, session=wandb_session, 
@@ -152,23 +125,20 @@ if __name__ == '__main__':
 
         if args.name is None:
             args.name = f"{args.model}_DSDI_{args.steps}_{args.learning_rate}_{args.updates}"
-
         teacher, sampler_teacher = util.create_models(config_path, model_path, student=False)
         if args.compare:
             original, sampler_original = util.create_models(config_path, model_path, student=False)
-
         step_scheduler = "iterative"
         decrease_steps = True
-        # warmup_epochs = 400  # The number of initial iterations to linearly increase the learning rate
-        # iterations = 10000  # Total number of iterations
-        # lr = 1e-7
         warmup_epochs = args.updates * 0.05 
         optimizer, scheduler = util.get_optimizer(sampler_teacher, iterations=args.updates, warmup_epochs=warmup_epochs, lr=args.learning_rate)
-
         
-        wandb_session = util.wandb_log(name=args.name, lr=args.learning_rate, model=teacher, tags=["DSDI"], 
-                notes=f"Direct Iterative Self-Distillation from {args.steps} steps with {args.updates} weight updates",  project="Self-Distillation")
-        wandb.run.log_code(".")
+        if args.wandb:
+            wandb_session = util.wandb_log(name=args.name, lr=args.learning_rate, model=teacher, tags=["DSDI"], 
+                    notes=f"Direct Iterative Self-Distillation from {args.steps} steps with {args.updates} weight updates",  project="Self-Distillation")
+            wandb.run.log_code(".")
+        else:
+            wandb_session = None
         
         if args.model == "cin":
             self_distillation.self_distillation_CIN(teacher, sampler_teacher, original, sampler_original, optimizer, scheduler, session=wandb_session, 
@@ -188,9 +158,13 @@ if __name__ == '__main__':
         step_scheduler = "gradual_linear"
         decrease_steps = True
         optimizer, scheduler = util.get_optimizer(sampler_teacher, iterations=args.updates, warmup_epochs=warmup_epochs,lr=args.learning_rate)
-        wandb_session = util.wandb_log(name=args.name, lr=args.learning_rate, model=teacher, tags=["DSDGL"], 
-                notes=f"Direct Gradual Linear Self-Distillation from {args.steps} steps with {args.updates} weight updates",  project="Self-Distillation")
-        wandb.run.log_code(".")
+
+        if args.wandb:
+            wandb_session = util.wandb_log(name=args.name, lr=args.learning_rate, model=teacher, tags=["DSDGL"], 
+                    notes=f"Direct Gradual Linear Self-Distillation from {args.steps} steps with {args.updates} weight updates",  project="Self-Distillation")
+            wandb.run.log_code(".")
+        else:
+            wandb_session = None
         
         if args.model == "cin":
             self_distillation.self_distillation_CIN(teacher, sampler_teacher, original, sampler_original, optimizer, scheduler, session=wandb_session, 
@@ -211,10 +185,13 @@ if __name__ == '__main__':
         step_scheduler = "gradual_exp"
         decrease_steps = True
         optimizer, scheduler = util.get_optimizer(sampler_teacher, iterations=args.updates, warmup_epochs=warmup_epochs,lr=args.learning_rate)
-        wandb_session = util.wandb_log(name=args.name, lr=args.learning_rate, model=teacher, tags=["DSDGEXP"], 
-                notes=f"Direct Gradual Exp Self-Distillation from {args.steps} steps with {args.updates} weight updates",  project="Self-Distillation")
-        wandb.run.log_code(".")
-        
+        if args.wandb:
+            wandb_session = util.wandb_log(name=args.name, lr=args.learning_rate, model=teacher, tags=["DSDGEXP"], 
+                    notes=f"Direct Gradual Exp Self-Distillation from {args.steps} steps with {args.updates} weight updates",  project="Self-Distillation")
+            wandb.run.log_code(".")
+        else:
+            wandb_session = None
+            
         if args.model == "cin":
             self_distillation.self_distillation_CIN(teacher, sampler_teacher, original, sampler_original, optimizer, scheduler, session=wandb_session, 
                         steps=args.steps, generations=args.updates, run_name=args.name, step_scheduler=step_scheduler)
@@ -223,12 +200,12 @@ if __name__ == '__main__':
                         steps=args.steps, generations=args.updates, run_name=args.name, step_scheduler=step_scheduler)
 
     elif args.task == "SI":
-        
+        # Saves images from the trained (distilled) models saved in /data/trained_models/final_versions
+
         import torch
         from omegaconf import OmegaConf
         from ldm.models.diffusion.ddim import DDIMSampler
-        # config_path=f"{cwd}/models/configs/cin256-v2-custom.yaml"
-        # config = OmegaConf.load(config_path)  
+      
         if args.updates == 100000:
             print("Doing 100k, did you mean to do this? Change -u for a specific amount of generated images")
         start_path = f"{cwd}/data/trained_models/final_versions/{args.model}/"
@@ -265,15 +242,14 @@ if __name__ == '__main__':
             torch.cuda.empty_cache()
 
     elif args.task == "SI_orig":
+        # This is a separate, although somewhat redundant, function which generates images from the original undistilled models for baseline
+        # FID calculations later on.
+       
         import torch
         from omegaconf import OmegaConf
         from ldm.models.diffusion.ddim import DDIMSampler
-        # config_path=f"{cwd}/models/configs/cin256-v2-custom.yaml"
-        # config = OmegaConf.load(config_path)  
         if args.updates == 100000:
             print("Doing 100k, did you mean to do this? Change -u for a specific amount of generated images")
-
-        # model, sampler, optimizer, scheduler = util.load_trained(config_path, model_path)
         if args.model == "cin":
             original, sampler_original = util.create_models(config_path, model_path, student=False)
             original.eval()
@@ -297,12 +273,16 @@ if __name__ == '__main__':
         torch.cuda.empty_cache()
 
     elif args.task == "FID":
+        # Deprecated but possibly still useful. This requires a folder with locally stored reference images. Instead, you might want to opt to generate the .NPZ files
+        # yourself from the original datasets using an external repository which mainly sources from torchvision dataloaders. There are many options available.
+        # This also generates FID scores over the entire generated dataset, which may introduce unreasonably high estimations. For this reason, it is disabled.
+       
         import pandas as pd
         import os
         import torch_fidelity
         os.environ["KMP_DUPLICATE_LIB_OK"]="TRUE"
         filename = 'metrics.csv'
-  
+        
         if not os.path.isfile(filename):
             df = pd.DataFrame({
                 "model": [],
@@ -314,45 +294,41 @@ if __name__ == '__main__':
             })
             df.to_csv(filename, index=False)
         df = pd.read_csv(filename)
-        cin_target = r"C:\imagenet\val"
-        celeb_target = r"C:\Diffusion_Thesis\cin_256\celeba_hq_256"
-        # cin_target = r"C:\imagenet\DIFFERENCE\fill"
-        # celeb_target = r"C:\imagenet\DIFFERENCE\fill"
-        for model in ["cin", "celeb"]:  
-            target = cin_target if model == "cin" else celeb_target 
-            basic_path_source = f"{cwd}/saved_images/{model}/"
-            model_names = [name for name in os.listdir(basic_path_source)]
-         
-            for model_name in model_names:
-                model_path_source = basic_path_source + f"{model_name}/"
-                steps = [step for step in os.listdir(model_path_source)]
-                for step in steps:
-                    current_path_source = model_path_source + f"{step}/"
-                    if  df.loc[(df['model'] == model) & (df['step'] == step) & (df['type'] == model_name)].empty:
-                        try:
-                            metrics = torch_fidelity.calculate_metrics(gpu=0, fid=True, isc=True, kid=True, input1=current_path_source, input2=target)
-                            metrics_df = pd.DataFrame({
-                            "model" : [model],
-                            "type": [model_name],
-                            "step": [step],
-                            "fid": [metrics["frechet_inception_distance"]],
-                            "isc" :[metrics["inception_score_mean"]],
-                            "kid": [metrics["kernel_inception_distance_mean"]]})                            
-                            df = pd.concat([df, metrics_df])
-                            df.to_csv(filename, index=False)
-                        except Exception as e:
-                            print("Failed to create metrics for:", current_path_source)
-                            print(e)
-                    else:
-                        print("Already have metrics for:", current_path_source)
+        target = "" # Fill in your target directory containing dataset images
 
-
-
-# fid_stats_lsun_train
+        model = args.model
+        # basic_path_source = f"{cwd}/saved_images/{model}/"
+        basic_path_source = ""
+        model_names = [name for name in os.listdir(basic_path_source)]
+        
+        for model_name in model_names:
+            model_path_source = basic_path_source + f"{model_name}/"
+            steps = [step for step in os.listdir(model_path_source)]
+            for step in steps:
+                current_path_source = model_path_source + f"{step}/"
+                if  df.loc[(df['model'] == model) & (df['step'] == step) & (df['type'] == model_name)].empty:
+                    try:
+                        metrics = torch_fidelity.calculate_metrics(gpu=0, fid=True, isc=False, kid=False, input1=target, input2=current_path_source)
+                        metrics_df = pd.DataFrame({
+                        "model" : [model],
+                        "type": [model_name],
+                        "step": [step],
+                        "fid": [metrics["frechet_inception_distance"]],
+                        "isc" :[metrics["inception_score_mean"]],
+                        "kid": [metrics["kernel_inception_distance_mean"]]})                            
+                        df = pd.concat([df, metrics_df])
+                        df.to_csv(filename, index=False)
+                    except Exception as e:
+                        print("Failed to create metrics for:", current_path_source)
+                        print(e)
+                else:
+                    print("Already have metrics for:", current_path_source)
 
     elif args.task == "NPZ": 
+        # Creates an NPZ from all the generated images for easy FID calculation
+        
         os.environ["KMP_DUPLICATE_LIB_OK"]="TRUE"
-        for model in ["lsun_bedroom"]:   
+        for model in ["lsun_bedroom", "CIN", "celeb"]:   
             basic_path_source = f"{cwd}/saved_images/{model}/"
             basic_path_target = f"{cwd}/NPZ/{model}"
             model_names = [name for name in os.listdir(basic_path_source)]
@@ -373,29 +349,109 @@ if __name__ == '__main__':
                         print(e)
 
     elif args.task == "NPZ_single":
+        # Alternative single-run for creating an npz file
         
         os.environ["KMP_DUPLICATE_LIB_OK"]="TRUE"
-        current_path_source = "C:\Diffusion_Thesis\cin_256\saved_images\cin\cin_original\\64"
-        current_path_target = "C:\Diffusion_Thesis\cin_256\\NPZ\cin_cin_original_64"
+        current_path_source = f"{cwd}/saved_images/" # Fill in source path
+        current_path_target = f"{cwd}/NPZ/"
         util.generate_npz(current_path_source, current_path_target)
 
 
     elif args.task == "GET_FID":
-    
-        """
-        Calculates the FID score for a given model and sampler. Potentially useful for monitoring training, or comparing distillation
-        methods.
-        """
+        # Calculates the FID score for a given model and sampler. Potentially useful for monitoring training, or comparing distillation
+        # methods.
+       
         import torch
         from pytorch_fid import fid_score
         for name in ["gradual_exp", "gradual_linear", "iterative", "naive", "TSD"]:
             for instance in [2, 4, 8]:
-                # if not os.path.exists(f"{cwd}/saved_images/FID/{name}/{instance}"):
-                #     os.makedirs(f"{cwd}/saved_images/FID/{name}/{instance}")
+                if not os.path.exists(f"{cwd}/saved_images/FID/{name}/{instance}"):
+                    os.makedirs(f"{cwd}/saved_images/FID/{name}/{instance}")
                 print(f"{cwd}/saved_images/{args.model}/{name}/{instance}/")
                 with torch.no_grad():
-                        fid = fid_score.calculate_fid_given_paths([f"{cwd}/val_saved/fid_stats_lsun_train.npz", 
-                        f"{cwd}/saved_images/{args.model}/{name}/{instance}/"], batch_size = 16, device='cuda', dims=2048)
+                        image_path = f"{cwd}/saved_images/{args.model}/{name}/{instance}/"
+                        fid = fid_score.calculate_fid_given_paths([f"{cwd}/val_saved/imagenet.npz", 
+                        image_path], batch_size = 16, device='cuda', dims=2048)
                         print(fid, name, instance)
+
     
-# fidelity --gpu 0 --fid --input1 C:\Diffusion_Thesis\cin_256\saved_images\cin\cin_original\32 --input2 C:\imagenet\test2
+    elif args.task == "Inception":
+        # Calculates the Inception score for a given generated dataset (Imagenet)
+
+        import numpy as np
+        import tensorflow as tf
+        from tensorflow.keras.preprocessing.image import ImageDataGenerator
+        from pathlib import Path
+        import os
+        import tqdm  
+        import pandas as pd
+        import torch
+
+        filename = 'Inception_Score.csv'
+        
+        if not os.path.isfile(filename):
+            df = pd.DataFrame({
+                "type" : [],
+                "step": [],
+                "isc": [],
+            })
+            df.to_csv(filename, index=False)
+        df = pd.read_csv(filename)
+
+        batch_size = 500
+        num_generated_images = 30000
+
+        print(f"Calculating IS, expecting {num_generated_images} generating images")
+
+        def inception_score(preds, num_splits=10):
+            scores = []
+            for i in range(num_splits):
+                part = preds[(i * preds.shape[0] // num_splits):((i + 1) * preds.shape[0] // num_splits), :]
+                kl = part * (np.log(part) - np.log(np.expand_dims(np.mean(part, 0), 0)))
+                kl = np.mean(np.sum(kl, 1))
+                scores.append(np.exp(kl))
+                
+            return np.mean(scores), np.std(scores)
+
+
+        def load_images_in_batches(base_folder):
+            datagen = ImageDataGenerator(rescale=1./255)  # Rescale the pixel values to [0, 1]
+            
+            generator = datagen.flow_from_directory(
+                base_folder,
+                target_size=(299, 299),
+                batch_size=batch_size,
+                class_mode=None,  # We do not need labels, as we are only interested in predictions
+                shuffle=False  # Do not shuffle to keep the order of predictions coherent
+            )
+            
+            return generator
+
+        model = tf.keras.applications.InceptionV3(include_top=True, weights='imagenet', input_tensor=None, input_shape=None)
+        base_folder = "" # Fill in base folders
+
+        for name in ["gradual_exp", "gradual_linear", "iterative", "naive", "TSD", "cin_original"]:
+            for instance in [2, 4, 8]:
+                with torch.no_grad():
+                    image_path = f"{base_folder}/{name}/{instance}/"
+                    image_generator = load_images_in_batches(image_path)
+                    
+                    all_preds = []
+                    for images_batch in image_generator:
+                        preds_batch = model.predict(images_batch)
+                        all_preds.extend(preds_batch)
+                        print(image_generator.batch_index)
+                        if image_generator.batch_index == (num_generated_images // batch_size) - 1:  
+                            print("DONE!")
+                            break
+                print("calculating IS")            
+                mean, std = inception_score(np.array(all_preds))
+                print(f"{name}, {instance} steps: mean: {mean}, std: {std}")
+                metrics_df = pd.DataFrame({
+                    "type": [name],
+                    "step": [instance],
+                    "isc" :[mean]})                           
+                df = pd.concat([df, metrics_df])
+                df.to_csv(filename, index=False)
+                del image_generator, all_preds, preds_batch
+                torch.cuda.empty_cache()

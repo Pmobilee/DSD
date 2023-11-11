@@ -13,7 +13,7 @@ from ldm.models.diffusion.ddim import DDIMSampler
 from ldm.models.diffusion.plms import PLMSSampler
 from ldm.util import *
 import torch.nn as nn
-# import matplotlib.pyplot as plt
+
 import copy
 import wandb
 import math
@@ -27,24 +27,14 @@ import generate
 # Receiving base current working directory
 cwd = os.getcwd()
 
-from torch.cuda.amp import GradScaler, autocast
-
-scaler = GradScaler()
-
-"""
-This module is property of the Vrije Universiteit Amsterdam, department of Beta Science. It contains in part code
-snippets obtained from Rombach et al., https://github.com/CompVis/latent-diffusion. No rights may be attributed.
-
-The module presents both helper modules for loading, saving, generating from, and training of diffusion models, as
-well as components for the process of knowledge distillation of teacher DDIMs into students, requiring fewer denoising
-steps after every iteration, retaining original sampling quality at reduced computational expense.
-"""
-
+print("Not using autocast by default, if desired, uncomment this in distillation.py")
+# from torch.cuda.amp import GradScaler, autocast
+# scaler = GradScaler()
 
 @torch.enable_grad()
 def train_student_from_dataset(model, sampler, dataset, student_steps, optimizer, scheduler, early_stop=False, session=None, run_name="test"):
     """
-    Train a student model from a pre-generated dataset.
+    Deprecated: Train a student model from a pre-generated dataset. Not updated to current methods, possibly useful as a template
     """
     device = torch.device("cuda")
     model.requires_grad=True
@@ -131,6 +121,10 @@ def train_student_from_dataset(model, sampler, dataset, student_steps, optimizer
 
 @torch.enable_grad()
 def train_student_from_dataset_celeb(model, sampler, dataset, student_steps, optimizer, scheduler, early_stop=False, session=None, run_name="test"):
+    """
+    Deprecated: Train a student model from a pre-generated dataset. Not updated to current methods, possibly useful as a template
+    """
+
     device = torch.device("cuda")
     model.requires_grad=True
     sampler.requires_grad=True
@@ -217,9 +211,6 @@ def teacher_train_student(teacher, sampler_teacher, student, sampler_student, op
     """
     NUM_CLASSES = 1000
     generations = generations
-    intermediate_generation_save = generations // 2
-    intermediate_generation_compare = generations // 4
-
     ddim_steps_teacher = steps
     ddim_steps_teacher = int(ddim_steps_teacher / 2)
     TEACHER_STEPS = 2
@@ -229,26 +220,16 @@ def teacher_train_student(teacher, sampler_teacher, student, sampler_student, op
     updates = int(ddim_steps_teacher / TEACHER_STEPS)
     optimizer=optimizer
     averaged_losses = []
-    teacher_samples = list()
     criterion = nn.MSELoss()
     instance = 0
     generation = 0
-    
-    # if session != None:
-    #     session.log({"ddim_eta":ddim_eta})
-
-    a_t = np.linspace(0, 1, updates)
-
     all_losses = []
-    ets = []
 
     with torch.no_grad():
         with teacher.ema_scope():
                 sampler_teacher.make_schedule(ddim_num_steps=ddim_steps_teacher, ddim_eta=ddim_eta, verbose=False)
                 sampler_student.make_schedule(ddim_num_steps=ddim_steps_teacher, ddim_eta=ddim_eta, verbose=False)
-                
-                # for class_prompt in tqdm.tqdm(torch.randint(0, NUM_CLASSES, (generations,))):
-               
+
                 if x0:
                     sc=None
                     uc=None
@@ -259,22 +240,17 @@ def teacher_train_student(teacher, sampler_teacher, student, sampler_student, op
                     sc = student.get_learned_conditioning({student.cond_stage_key: torch.tensor(1*[1000]).to(student.device)})
                 with tqdm.tqdm(torch.randint(0, NUM_CLASSES, (generations,))) as tepoch:
                     for i, class_prompt in enumerate(tepoch):
-                        
-            
 
                         generation += 1
                         losses = []        
                         xc = torch.tensor([class_prompt])
                         c = teacher.get_learned_conditioning({teacher.cond_stage_key: xc.to(teacher.device)})
-                        c_student = student.get_learned_conditioning({student.cond_stage_key: xc.to(student.device)})
-                        
+                        c_student = student.get_learned_conditioning({student.cond_stage_key: xc.to(student.device)})      
                         samples_ddim_teacher = None
                         predictions_temp = []
-                        for steps in range(updates):      
 
-                                # with autocast():    
+                        for steps in range(updates):        
                                     instance += 1
-
                                     samples_ddim_teacher, teacher_intermediate, x_T, pred_x0_teacher, a_t_teacher, _ = sampler_teacher.sample(S=TEACHER_STEPS,
                                                                     conditioning=c,
                                                                     batch_size=1,
@@ -291,15 +267,9 @@ def teacher_train_student(teacher, sampler_teacher, student, sampler_student, op
                                                                     steps_per_sampling = TEACHER_STEPS,
                                                                     total_steps = ddim_steps_teacher)      
                                     
-
                                     with torch.enable_grad():
-
                                         with student.ema_scope():
-
                                             optimizer.zero_grad()
-                                            
-                                            
-                                            
                                             samples, pred_x0_student, st, at, _ = sampler_student.sample_student(S=STUDENT_STEPS,
                                                                             conditioning=c_student,
                                                                             batch_size=1,
@@ -316,8 +286,6 @@ def teacher_train_student(teacher, sampler_teacher, student, sampler_student, op
                                                                             steps_per_sampling = STUDENT_STEPS,
                                                                             total_steps = ddim_steps_teacher)
                                             
-
-
                                             # with autocast():    
                                             #     # AUTOCAST:
                                             #     signal = at
@@ -333,9 +301,6 @@ def teacher_train_student(teacher, sampler_teacher, student, sampler_student, op
                                             #     scheduler.step()
                                             #     losses.append(loss.item())
 
-
-
-
                                             # NO AUTOCAST:
                                             signal = at
                                             noise = 1 - at
@@ -347,8 +312,7 @@ def teacher_train_student(teacher, sampler_teacher, student, sampler_student, op
                                             optimizer.step()
                                             scheduler.step()    
                                             losses.append(loss.item())
-                                            
-                                            
+                                                
                                     if session != None and generation % 200 == 0 and generation > 0:
                                         x_T_teacher_decode = sampler_teacher.model.decode_first_stage(pred_x0_teacher)
                                         teacher_target = torch.clamp((x_T_teacher_decode+1.0)/2.0, min=0.0, max=1.0)
@@ -357,7 +321,6 @@ def teacher_train_student(teacher, sampler_teacher, student, sampler_student, op
                                         predictions_temp.append(teacher_target)
                                         predictions_temp.append(student_target)
                             
-
                         if session != None and generation > 0 and generation % 25 == 0:
                             with torch.no_grad():
                                 images, _ = util.compare_teacher_student(teacher, sampler_teacher, student, sampler_student, steps=[64, 32, 16, 8,  4, 2, 1], prompt=992, x0=x0)
@@ -374,10 +337,7 @@ def teacher_train_student(teacher, sampler_teacher, student, sampler_student, op
                                     wandb.log({"Inter_Comp": images})
                                     del img, grid, predictions_temp, x_T_student_decode, x_T_teacher_decode, student_target, teacher_target
                                     torch.cuda.empty_cache()
-                                
-                            
-                        
-                        
+
                         all_losses.extend(losses)
                         # print(scheduler.get_last_lr())
                         averaged_losses.append(sum(losses) / len(losses))
@@ -414,22 +374,15 @@ def teacher_train_student_celeb(teacher, sampler_teacher, student, sampler_stude
     sampler_teacher.make_schedule(ddim_num_steps=ddim_steps_teacher, ddim_eta=ddim_eta, verbose=False)
     sampler_student.make_schedule(ddim_num_steps=ddim_steps_teacher, ddim_eta=ddim_eta, verbose=False)
 
-    with torch.no_grad() and autocast():
+    with torch.no_grad(): # and autocast():
         with teacher.ema_scope():
-                
-                
-
                 with tqdm.tqdm(torch.randint(0, 1000, (generations,))) as tepoch:
-                
-                    for i, _ in enumerate(tepoch):
-                        
+                    for i, _ in enumerate(tepoch):    
                         generation += 1
                         losses = []        
                         samples_ddim_teacher = None
                         predictions_temp = []
                         for steps in range(updates):          
-
-                            
                             instance += 1
                             samples_ddim_teacher, _, x_T, pred_x0_teacher, _ , _ = sampler_teacher.sample(S=TEACHER_STEPS,
                                                             conditioning=None,
@@ -446,13 +399,8 @@ def teacher_train_student_celeb(teacher, sampler_teacher, student, sampler_stude
                                                             intermediate_step = steps*2,
                                                             steps_per_sampling = TEACHER_STEPS,
                                                             total_steps = ddim_steps_teacher)     
-                                    
-                                    
 
-                                  
-                                    
-
-                            with torch.enable_grad() and autocast():
+                            with torch.enable_grad(): # and autocast():
                                 with student.ema_scope():
                                     optimizer.zero_grad()
                                     samples_ddim, pred_x0_student, _, at, _ = sampler_student.sample_student(S=STUDENT_STEPS,
@@ -471,7 +419,6 @@ def teacher_train_student_celeb(teacher, sampler_teacher, student, sampler_stude
                                                                     steps_per_sampling = STUDENT_STEPS,
                                                                     total_steps = ddim_steps_teacher)
                                     
-                        
                                     signal = at
                                     noise = 1 - at
                                     log_snr = torch.log(signal / noise)
@@ -491,7 +438,6 @@ def teacher_train_student_celeb(teacher, sampler_teacher, student, sampler_stude
                                     student_target  = torch.clamp((x_T_student_decode +1.0)/2.0, min=0.0, max=1.0)
                                     predictions_temp.append(teacher_target)
                                     predictions_temp.append(student_target)
-                                # session.log({"intermediate_loss":loss.item()})
 
                             if session != None and instance % 100 == 0:
                                 with torch.no_grad():
@@ -499,8 +445,7 @@ def teacher_train_student_celeb(teacher, sampler_teacher, student, sampler_stude
                                     images = wandb.Image(_, caption="left: Teacher, right: Student")
                                     wandb.log({"pred_x0": images})
                                     sampler_student.make_schedule(ddim_num_steps=ddim_steps_teacher, ddim_eta=ddim_eta, verbose=False)
-                                    sampler_teacher.make_schedule(ddim_num_steps=ddim_steps_teacher, ddim_eta=ddim_eta, verbose=False)
-                            
+                                    sampler_teacher.make_schedule(ddim_num_steps=ddim_steps_teacher, ddim_eta=ddim_eta, verbose=False)  
                         
                         if session != None:
                             with torch.no_grad():
@@ -521,7 +466,7 @@ def teacher_train_student_celeb(teacher, sampler_teacher, student, sampler_stude
 
 def distill(args, config, original_model_path, start_trained=False):
     """
-    Distill a model into a smaller model. This is done by training a student model to match the teacher model with identical initialization.
+    Distill a model into a smaller model (TSD). This is done by training a student model to match the teacher model with identical initialization.
     This is not direct self-distillation as the teacher model does not distill into itself, but rather into a student model.
     """
 
@@ -532,10 +477,8 @@ def distill(args, config, original_model_path, start_trained=False):
     cas=args.cas 
     compare=args.compare
     use_wandb=args.wandb
-
     halvings = math.floor(math.log(ddim_steps)/math.log(2)) + 1
     updates_per_half = int(generations / halvings)
-
     ddim_step_list = []
     for i in range(halvings):
         ddim_step_list.append(2**i)
@@ -563,8 +506,6 @@ def distill(args, config, original_model_path, start_trained=False):
             notes=f"Teacher-Student Distillation from {steps} steps with {generations} weight updates",  project="Self-Distillation")
             wandb_session.log_code(".")
     
-
-        # optimizer, scheduler = saving_loading.get_optimizer(sampler_student, iterations=generations, lr=lr)
         teacher_train_student(teacher, sampler_teacher, student, sampler_student, optimizer, scheduler, steps=step, generations=model_generations, 
                               early_stop=False, session=wandb_session, run_name=run_name, cas=cas, x0=args.predict)
         
@@ -586,35 +527,24 @@ def retrain(ddim_steps, generations, run_name, config, original_model_path, lr, 
     """
 
     print(f"Performing retrain")
-
-   
-
     config_path=config
-    
     model_path=original_model_path
     teacher, sampler_teacher, = saving_loading.create_models(config_path, model_path, student=False)
-    print("Loading teacher and student")
+    print("Loading teacher and student.")
 
-    config_path=f"{cwd}/models/configs/cin256-v2-custom_x0.yaml"
-    
-    # model_path=original_model_path
-    # model_path=f"C:/Code/Thesis/DSD/data/trained_models/Retrain/cin_retrain_256_1e-08_100000_partly/15.pt"
+    try:
+        model_path=f"{cwd}/retrained.pt"
+    except:
+        print("Please specify the correct retrained model path. Current path:", model_path)
+        exit()
+
     student, sampler_student, = saving_loading.create_models(config_path, model_path, student=False)
-
-
-    
-    
     wandb_session = util.wandb_log(name=run_name, lr=lr, model=student, tags=["retrain"], 
     notes=f"Retrain",  project="Self-Distillation")
     wandb_session.log_code(".")
 
-    # if args.compare:
-        #     original, sampler_original = util.create_models(config_path, model_path, student=False)
     warmup_epochs = 1000  # The number of initial iterations to linearly increase the learning rate
     optimizer, scheduler = util.get_optimizer(sampler_teacher, iterations=generations, warmup_epochs=warmup_epochs, eta_min=lr, lr=lr)
-
-
-    # optimizer, scheduler = saving_loading.get_optimizer(sampler_student, iterations=generations, lr=lr)
     teacher_retrain_student(teacher, sampler_teacher, student, sampler_student, optimizer, scheduler, steps=ddim_steps, generations=generations, 
                             early_stop=False, session=wandb_session, run_name=run_name, cas=cas)
     
@@ -633,11 +563,11 @@ def retrain(ddim_steps, generations, run_name, config, original_model_path, lr, 
 def teacher_retrain_student(teacher, sampler_teacher, student, sampler_student, optimizer, scheduler, session=None, steps=20, generations=200, early_stop=True, run_name="test", cas=False):
     """
     Params: teacher, sampler_teacher, student, sampler_student, optimizer, scheduler, session=None, steps=20, generations=200, early_stop=True, run_name="test". 
-    Task: trains the student model using the identical teacher model as a guide. Not used in direct self-distillation where a teacher distills into itself.
+    Task: trains the student model using the identical teacher model as a guide. Can be used to retrain the student into an x0 or v-prediction model.
+    Not used in direct self-distillation where a teacher distills into itself.
     """
     NUM_CLASSES = 1000
     generations = 1000
-    
     ddim_steps_teacher = steps
     TEACHER_STEPS = 1
     STUDENT_STEPS = 1
@@ -646,40 +576,20 @@ def teacher_retrain_student(teacher, sampler_teacher, student, sampler_student, 
     updates = int(ddim_steps_teacher)
     optimizer=optimizer
     averaged_losses = []
-    teacher_samples = list()
     criterion = nn.MSELoss()
     instance = 0
     generation = 0
-    
-    # if session != None:
-    #     session.log({"ddim_eta":ddim_eta})
-
-
-
     all_losses = []
-
 
     with torch.no_grad():
         with teacher.ema_scope():
-                
-
-
-
-
-
-
-                # TODO:"Change this to make new ddimsampler every time instead, weird 128 samples issue"
                 sampler_teacher.make_schedule(ddim_num_steps=ddim_steps_teacher, ddim_eta=ddim_eta, verbose=False)
                 sampler_student.make_schedule(ddim_num_steps=ddim_steps_teacher, ddim_eta=ddim_eta, verbose=False)
-                
-                # for class_prompt in tqdm.tqdm(torch.randint(0, NUM_CLASSES, (generations,))):
                 uc = teacher.get_learned_conditioning(
                             {teacher.cond_stage_key: torch.tensor(1*[1000]).to(teacher.device)}
                             )
-                sc = student.get_learned_conditioning({student.cond_stage_key: torch.tensor(1*[1000]).to(student.device)})
                 with tqdm.tqdm(torch.randint(0, NUM_CLASSES, (generations,))) as tepoch:
                     for i, class_prompt in enumerate(tepoch):
-                        
                         if generation > 0 and generation % 20 == 0:
                             saving_loading.save_model(sampler_student, optimizer, scheduler, name=f"Retrain", steps=generation, run_name=run_name)
 
@@ -692,12 +602,8 @@ def teacher_retrain_student(teacher, sampler_teacher, student, sampler_student, 
                         samples_ddim_teacher = None
                         predictions_temp = []
                         for steps in range(updates):      
-                                # if steps > 0 and steps % 32 == 0:
-                                #     print(steps)
                             # with autocast():    
                                 instance += 1
-
-                                # TODO: "Is this screwing up the 128 samples?"
                                 samples_ddim_teacher, teacher_intermediate, x_T, pred_x0_teacher, a_t_teacher, v_teach = sampler_teacher.sample(S=TEACHER_STEPS,
                                                                 conditioning=c,
                                                                 batch_size=1,
@@ -713,16 +619,10 @@ def teacher_retrain_student(teacher, sampler_teacher, student, sampler_student, 
                                                                 intermediate_step = steps,
                                                                 steps_per_sampling = TEACHER_STEPS,
                                                                 total_steps = ddim_steps_teacher)      
-                                
 
                                 with torch.enable_grad():
-
                                     with student.ema_scope():
-
-                                        optimizer.zero_grad()
-                                        
-                                        
-                                        
+                                        optimizer.zero_grad() 
                                         samples, pred_x0_student, st, at, v = sampler_student.sample_student(S=STUDENT_STEPS,
                                                                         conditioning=c_student,
                                                                         batch_size=1,
@@ -738,8 +638,6 @@ def teacher_retrain_student(teacher, sampler_teacher, student, sampler_student, 
                                                                         intermediate_step = steps,
                                                                         steps_per_sampling = STUDENT_STEPS,
                                                                         total_steps = ddim_steps_teacher)
-                                        
-
 
                                         # with autocast():    
                                         #     # AUTOCAST:
@@ -752,20 +650,11 @@ def teacher_retrain_student(teacher, sampler_teacher, student, sampler_student, 
                                         #     scaler.step(optimizer)
                                         #     scaler.update()
                                         #     # torch.nn.utils.clip_grad_norm_(sampler_student.model.parameters(), 1)
-                                            
                                         #     scheduler.step()
                                         #     losses.append(loss.item())
 
-
-
-
                                         # NO AUTOCAST:
-                                        # signal = at
-                                        # noise = 1 - at
-                                        # log_snr = torch.log(signal / noise)
-                                        # weight = max(log_snr, 1)
                                         loss = criterion(v, v_teach) #* weight
-                                        # loss = criterion(samples, samples_ddim_teacher) # * weight
                                         loss.backward()
                                         torch.nn.utils.clip_grad_norm_(sampler_student.model.parameters(), 1)
                                         optimizer.step()
