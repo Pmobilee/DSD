@@ -16,3 +16,4 @@ wandb/
 *.npz
 *.psd
 src/taming-transformers
+.git.zip
