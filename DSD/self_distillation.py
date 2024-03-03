@@ -89,8 +89,8 @@ def self_distillation_CIN(student, sampler_student, original, sampler_original, 
     with torch.no_grad():
         # student.use_ema = False
         # student.train()
-        # student.use_ema = True
-        # with student.ema_scope(): 
+        student.use_ema = True
+        with student.ema_scope(): 
                 # if x0:
                 #     sc=None
                 # else:
@@ -227,23 +227,7 @@ def self_distillation_CIN(student, sampler_student, original, sampler_original, 
                                         if not sampler_original == None:
                                             sampler_original.make_schedule(ddim_num_steps=total_steps, ddim_eta=ddim_eta, verbose=False)
 
-                            # # Use if you want to base the schedule on FID
-                            # if generation > 0 and generation % 20 == 0 and ddim_steps_student != 1 and step_scheduler=="FID":
-                            #     fid = util.get_fid(student, sampler_student, num_imgs=100, name=run_name, 
-                            #                 instance = instance, steps=[ddim_steps_student])
-                            #     if fid[0] <= current_fid[0] * 0.9 and decrease_steps==True:
-                            #         print(fid[0], current_fid[0])
-                            #         if ddim_steps_student in [16, 8, 4, 2, 1]:
-                            #             name = "intermediate"
-                            #             saving_loading.save_model(sampler_student, optimizer, scheduler, name, steps * 2, run_name)
-                            #         if ddim_steps_student != 2:
-                            #             ddim_steps_student -= 2
-                            #             updates -= 1
-                            #         else:
-                            #             ddim_steps_student = 1
-                            #             updates = 1    
-                            #         current_fid = fid
-                            #         print("steps decreased:", ddim_steps_student)    
+                 
                             
                             all_losses.extend(losses)
                             averaged_losses.append(sum(losses) / len(losses))

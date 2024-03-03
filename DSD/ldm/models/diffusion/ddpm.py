@@ -173,6 +173,7 @@ class DDPM(pl.LightningModule):
         finally:
             if self.use_ema:
                 self.model_ema.restore(self.model.parameters())
+                print("trying to restore")
                 if context is not None:
                     print(f"{context}: Restored training weights")
 

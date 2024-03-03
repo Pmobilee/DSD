@@ -126,6 +126,8 @@ if __name__ == '__main__':
         if args.name is None:
             args.name = f"{args.model}_DSDI_{args.steps}_{args.learning_rate}_{args.updates}"
         teacher, sampler_teacher = util.create_models(config_path, model_path, student=False)
+        original = None
+        sampler_original = None
         if args.compare:
             original, sampler_original = util.create_models(config_path, model_path, student=False)
         step_scheduler = "iterative"
@@ -134,7 +136,7 @@ if __name__ == '__main__':
         optimizer, scheduler = util.get_optimizer(sampler_teacher, iterations=args.updates, warmup_epochs=warmup_epochs, lr=args.learning_rate)
         
         if args.wandb:
-            wandb_session = util.wandb_log(name=args.name, lr=args.learning_rate, model=teacher, tags=["DSDI"], 
+            wandb_session = util.wandb_log(name=args.name, lr=args.learning_rate, model=teacher, tags=["DSDN", "review_period", "testing"], 
                     notes=f"Direct Iterative Self-Distillation from {args.steps} steps with {args.updates} weight updates",  project="Self-Distillation")
             wandb.run.log_code(".")
         else:
@@ -149,6 +151,7 @@ if __name__ == '__main__':
     elif args.task == "DSDGL":
 
         if args.name is None:
+            
             args.name = f"{args.model}_DSDGL_{args.steps}_{args.learning_rate}_{args.updates}"
 
         teacher, sampler_teacher = util.create_models(config_path, model_path, student=False)
@@ -328,7 +331,8 @@ if __name__ == '__main__':
         # Creates an NPZ from all the generated images for easy FID calculation
         
         os.environ["KMP_DUPLICATE_LIB_OK"]="TRUE"
-        for model in ["lsun_bedroom", "CIN", "celeb"]:   
+        # for model in ["lsun_bedroom", "CIN", "celeb"]:   
+        for model in ["CIN"]:   
             basic_path_source = f"{cwd}/saved_images/{model}/"
             basic_path_target = f"{cwd}/NPZ/{model}"
             model_names = [name for name in os.listdir(basic_path_source)]
@@ -363,13 +367,14 @@ if __name__ == '__main__':
        
         import torch
         from pytorch_fid import fid_score
-        for name in ["gradual_exp", "gradual_linear", "iterative", "naive", "TSD"]:
+        # for name in ["gradual_exp", "gradual_linear", "iterative", "naive", "TSD", "original"]:
+        for name in ["gradual_linear", "iterative", "naive", "TSD", "original"]:
             for instance in [2, 4, 8]:
-                if not os.path.exists(f"{cwd}/saved_images/FID/{name}/{instance}"):
-                    os.makedirs(f"{cwd}/saved_images/FID/{name}/{instance}")
+                # if not os.path.exists(f"{cwd}/saved_images/FID/{name}/{instance}"):
+                #     os.makedirs(f"{cwd}/saved_images/FID/{name}/{instance}")
                 print(f"{cwd}/saved_images/{args.model}/{name}/{instance}/")
                 with torch.no_grad():
-                        image_path = f"{cwd}/saved_images/{args.model}/{name}/{instance}/"
+                        image_path = f"{cwd}/saved_images/LOOSE/{args.model}/{name}/{instance}/"
                         fid = fid_score.calculate_fid_given_paths([f"{cwd}/val_saved/imagenet.npz", 
                         image_path], batch_size = 16, device='cuda', dims=2048)
                         print(fid, name, instance)
@@ -399,8 +404,8 @@ if __name__ == '__main__':
         df = pd.read_csv(filename)
 
         batch_size = 500
-        num_generated_images = 30000
-
+        num_generated_images = 5000
+        
         print(f"Calculating IS, expecting {num_generated_images} generating images")
 
         def inception_score(preds, num_splits=10):
@@ -421,37 +426,45 @@ if __name__ == '__main__':
                 base_folder,
                 target_size=(299, 299),
                 batch_size=batch_size,
-                class_mode=None,  # We do not need labels, as we are only interested in predictions
-                shuffle=False  # Do not shuffle to keep the order of predictions coherent
+                class_mode=None,  
+                shuffle=True  
             )
             
             return generator
 
         model = tf.keras.applications.InceptionV3(include_top=True, weights='imagenet', input_tensor=None, input_shape=None)
-        base_folder = "" # Fill in base folders
+        
+        base_folder = "./saved_images/ImageNet-256" # Fill in base folders
 
-        for name in ["gradual_exp", "gradual_linear", "iterative", "naive", "TSD", "cin_original"]:
-            for instance in [2, 4, 8]:
-                with torch.no_grad():
-                    image_path = f"{base_folder}/{name}/{instance}/"
-                    image_generator = load_images_in_batches(image_path)
-                    
-                    all_preds = []
-                    for images_batch in image_generator:
-                        preds_batch = model.predict(images_batch)
-                        all_preds.extend(preds_batch)
-                        print(image_generator.batch_index)
-                        if image_generator.batch_index == (num_generated_images // batch_size) - 1:  
-                            print("DONE!")
-                            break
-                print("calculating IS")            
-                mean, std = inception_score(np.array(all_preds))
-                print(f"{name}, {instance} steps: mean: {mean}, std: {std}")
-                metrics_df = pd.DataFrame({
-                    "type": [name],
-                    "step": [instance],
-                    "isc" :[mean]})                           
-                df = pd.concat([df, metrics_df])
-                df.to_csv(filename, index=False)
-                del image_generator, all_preds, preds_batch
-                torch.cuda.empty_cache()
+        # for name in ["gradual_exp", "gradual_linear", "iterative", "naive", "TSD", "original"]:
+        for name in ["TSD", "original"]:
+          
+            try:
+                for instance in [2, 4, 8, 16, 32, 64]:
+                    with torch.no_grad():
+                        image_path = f"{base_folder}/{name}/{instance}/"
+                        image_generator = load_images_in_batches(image_path)
+                        
+                        all_preds = []
+                        for images_batch in image_generator:
+                            preds_batch = model.predict(images_batch)
+                            all_preds.extend(preds_batch)
+                            print(image_generator.batch_index)
+                            if image_generator.batch_index == (num_generated_images // batch_size) - 1:  
+                                print("DONE!")
+                                break
+                    print("calculating IS")            
+                    mean, std = inception_score(np.array(all_preds))
+                    print(f"{name}, {instance} steps: mean: {mean}, std: {std}")
+                    metrics_df = pd.DataFrame({
+                        "type": [name],
+                        "step": [instance],
+                        "isc" :[mean]})                           
+                    df = pd.concat([df, metrics_df])
+                    df.to_csv(filename, index=False)
+                    del image_generator, all_preds, preds_batch
+                    torch.cuda.empty_cache()
+            except Exception as e:
+                print(e)
+                print("Failed to generate IS for ", name, instance)
+                

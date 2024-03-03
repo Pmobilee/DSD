@@ -6,7 +6,7 @@ import os
 
 cwd = os.getcwd()
 
-path = f"{cwd}/to_test"
+path = f"{cwd}/saved_images/ImageNet-256/TSD/2/"
 
 def load_images_from_folder(folder):
     images = []
