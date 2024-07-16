@@ -1,5 +1,7 @@
 # DSD - Direct Self-Distillation
 
+[The paper can be found in this repository](https://github.com/Pmobilee/DSD/blob/main/Paper.pdf)
+
 ## About
 
 > IMPORTANT:
